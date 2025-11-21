@@ -11,6 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\DirectoryAttributes;
 use Psr\Log\LoggerInterface;
 use Survos\StateBundle\Message\TransitionMessage;
+use Survos\StateBundle\Service\AsyncQueueLocator;
 use Survos\StorageBundle\Message\DirectoryListingMessage;
 use Survos\StorageBundle\Service\StorageService;
 use Symfony\Component\Console\Attribute\Argument;
@@ -37,6 +38,7 @@ final class SyncStorageCommand extends Command
         private StorageRepository $storageRepository,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger,
+        private AsyncQueueLocator $asyncQueueLocator,
         #[Target(IFileWorkflow::WORKFLOW_NAME)] private WorkflowInterface $fileWorkflow,
     )
     {
@@ -92,24 +94,34 @@ final class SyncStorageCommand extends Command
         $io->writeln("File and Storage entities written");
 
         if ($dispatch) {
-            $stamps = [];
-            if ($transport) {
-                $stamps[] = new TransportNamesStamp([$transport]);
+            foreach ($this->fileRepository->findBy([
+                'marking' => IFileWorkflow::PLACE_NEW_DIR,
+                'storage' => $storage]) as $file) {
+//                if ($this->fileWorkflow->can($dirEntity, IFileWorkflow::TRANSITION_LIST))
+                if (true)
+                {
+                    $this->logger->warning("Dispatching directory listing for " . $file->getPath());
+                    $message = new TransitionMessage(
+                        $dirEntity->getId(),
+                        File::class,
+                        IFileWorkflow::TRANSITION_LIST,
+                        IFileWorkflow::WORKFLOW_NAME);
+                    if ($transport) {
+                        $stamps[] = new TransportNamesStamp([$transport]);
+                    } else {
+                        $stamps = $this->asyncQueueLocator->stamps($message);
+                    }
+                    $this->messageBus->dispatch(
+                        $message,
+                        $stamps
+                    );
+                } else {
+                    $x = $this->fileWorkflow->buildTransitionBlockerList($file, IFileWorkflow::TRANSITION_LIST);
+                    dd($x);
+                    $this->logger->warning(sprintf("cannot list %s from %s ",
+                        $file->getPath(), $file->getMarking()));
+                }
             }
-            $this->entityManager->flush();
-            if ($this->fileWorkflow->can($dirEntity, IFileWorkflow::TRANSITION_LIST)) {
-//                $this->logger->warning("Dispatching directory listing for " . $file->getPath());
-                $this->messageBus->dispatch(new TransitionMessage(
-                    $dirEntity->getId(),
-                    File::class,
-                    IFileWorkflow::TRANSITION_LIST,
-                    IFileWorkflow::WORKFLOW_NAME),
-                    $stamps);
-            } else {
-                $this->logger->warning(sprintf("cannot list %s from %s ",
-                    $dirEntity->getPath(), $dirEntity->getMarking()));
-            }
-
             $io->success("$zoneId $path dispatched");
         }
         return self::SUCCESS;

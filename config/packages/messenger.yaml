@@ -1,94 +1,24 @@
-parameters:
-    rabbitmq_dsn: &rabbitmq_dsn
-        dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
-
-    rabbitmq_options: &rabbitmq_options
-        exchange:
-#            name: sais.direct      # ensure this is a fresh direct exchange
-            name: ''
-            type: direct
-            durable: true
-    rabbitmq_retry: &rabbitmq_retry
-        max_retries: 3
-        multiplier: 2
-        delay: 5000
-        max_delay: 60000
-
 framework:
     messenger:
 # config/packages/messenger.yaml
         default_bus: messenger.bus.default
-        buses:
-            messenger.bus.default:
-                # we control the full stack to guarantee ordering
-                middleware:
-                    - dispatch_after_current_bus
-#                    - Survos\StateBundle\Messenger\Middleware\DynamicRoutingMiddleware  # <— BEFORE send_message
-                    - failed_message_processing_middleware
-                    - send_message
+#        buses:
+#            messenger.bus.default:
+#                # we control the full stack to guarantee ordering
+#                middleware:
+#                    - dispatch_after_current_bus
+##                    - Survos\StateBundle\Messenger\Middleware\DynamicRoutingMiddleware  # <— BEFORE send_message
+#                    - failed_message_processing_middleware
+#                    - send_message
 
         failure_transport: failed
         transports:
-#            sais_async:
-#                <<: *rabbitmq_dsn
-#                options:
-#                    <<: *rabbitmq_options
-#                    queues:
-#                        sais_async: { binding_keys: [ sais_async ] }
-#                retry_strategy: *rabbitmq_retry
-#
-#            resize:
-#                <<: *rabbitmq_dsn
-#                options:
-#                    <<: *rabbitmq_options
-#                    queues:
-#                        resize: { binding_keys: [ resize ] }
-#                retry_strategy: *rabbitmq_retry
-#
-#            archive:
-#                <<: *rabbitmq_dsn
-#                options:
-#                    <<: *rabbitmq_options
-#                    queues:
-#                        archive: { binding_keys: [ archive ] }
-#                retry_strategy: *rabbitmq_retry
-
             meili:
-                <<: *rabbitmq_dsn
-                options:
-                    <<: *rabbitmq_options
-                    queues:
-                        meili: { binding_keys: [ meili ] }
-                retry_strategy: *rabbitmq_retry
-
-            listing:
-                <<: *rabbitmq_dsn
-                options:
-                    <<: *rabbitmq_options
-                    queues:
-                        listing: { binding_keys: [ listing ] }
-                retry_strategy: *rabbitmq_retry
-#
-#            webhook:
-#                <<: *rabbitmq_dsn
-#                options:
-#                    <<: *rabbitmq_options
-#                    queues:
-#                        webhook: { binding_keys: [ webhook ] }
-#                retry_strategy: *rabbitmq_retry
-#
-#            download:
-#                <<: *rabbitmq_dsn
-#                options:
-#                    <<: *rabbitmq_options
-#                    queues:
-#                        download: { binding_keys: [ download ] }
-#                retry_strategy: *rabbitmq_retry
-
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
             failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
 
         routing:
 #            App\Message\SendWebhookMessage: webhook
-            Survos\StorageBundle\Message\DirectoryListingMessage: listing
+#            Survos\StorageBundle\Message\DirectoryListingMessage: listing
             Survos\MeiliBundle\Message\BatchIndexEntitiesMessage: meili

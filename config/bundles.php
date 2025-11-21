@@ -32,7 +32,6 @@ return [
     Survos\CommandBundle\SurvosCommandBundle::class => ['all' => true],
     Survos\StateBundle\SurvosStateBundle::class => ['all' => true],
     Survos\ThumbHashBundle\SurvosThumbHashBundle::class => ['all' => true],
-    Jwage\PhpAmqpLibMessengerBundle\PhpAmqpLibMessengerBundle::class => ['all' => true],
     SymfonyCasts\Bundle\VerifyEmail\SymfonyCastsVerifyEmailBundle::class => ['all' => true],
     Doctrine\Bundle\FixturesBundle\DoctrineFixturesBundle::class => ['dev' => true, 'test' => true],
     Survos\Tree\SurvosTreeBundle::class => ['all' => true],
@@ -48,4 +47,5 @@ return [
     Survos\CodeBundle\SurvosCodeBundle::class => ['dev' => true, 'test' => true],
     Survos\EzBundle\SurvosEzBundle::class => ['all' => true],
     Survos\DocBundle\SurvosDocBundle::class => ['all' => true],
+    Survos\JsonlBundle\SurvosJsonlBundle::class => ['all' => true],
 ];
