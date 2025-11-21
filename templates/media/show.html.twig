@@ -1,0 +1,100 @@
+{% extends "media/base.html.twig" %}
+
+{% block body %}
+    <h1>Media</h1>
+
+    {% if workflowEnabled|default(false)  %}
+        Workflow: {{ media.workflowName }}
+
+        {{ include('@SurvosState/_entity_transitions.html.twig', {
+            transition_path: 'app_homepage',
+            flowName: media.workflowName,
+            entity: media
+        }) }}
+
+    {% endif %}
+
+    <table class="table">
+        <tbody>
+            <tr>
+                <th>MimeType</th>
+                <td>{{ media.mimeType }}</td>
+            </tr>
+            <tr>
+                <th>Size</th>
+                <td>{{ media.size }} bytes
+                    {{ media.originalHeight }} x {{ media.originalWidth }}
+                </td>
+            </tr>
+            <tr>
+                <th>thumbData</th>
+                <td>
+                    <table>
+                        <tbody>
+                        {% for size,data in media.thumbData|default([]) %}
+                            <tr>
+                                <td>
+                                    {{ size }}
+                                </td>
+                                <td>
+                                    {% set url = data.url|default(false) %}
+                                    {% if url %}
+                                    <a href="{{ url }}" target="_blank">
+                                        {{ url }}
+                                    </a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ data.size|default('') }}</td>
+                            </tr>
+                        {% endfor %}
+
+                        </tbody>
+                    </table>
+            </tr>
+            <tr>
+                <th>CreatedAt</th>
+                <td>{{ media.createdAt ? media.createdAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+            <tr>
+                <th>UpdatedAt</th>
+                <td>{{ media.updatedAt ? media.updatedAt|date('Y-m-d H:i:s') : '' }}</td>
+            </tr>
+            <tr>
+                <th>Blur</th>
+                <td>
+                    <img src="{{ media.blur|blurUrl }}" />
+
+                </td>
+            </tr>
+            <tr>
+                <th>Root</th>
+                <td>{{ media.root }}</td>
+            </tr>
+            <tr>
+                <th>Code</th>
+                <td>{{ media.code }}</td>
+            </tr>
+            <tr>
+                <th>Path</th>
+                <td>{{ media.path }}</td>
+            </tr>
+            <tr>
+                <th>OriginalUrl</th>
+                <td>
+                    <a href="{{ media.originalUrl }}" target="_blank">
+                        {{ media.originalUrl }}
+                    </a>
+                </td>
+            </tr>
+            <tr>
+                <th>Marking</th>
+                <td>{{ media.marking }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+{% if is_granted('ROLE_ADMIN') %}
+    <a class="btn btn-primary" href="{{ path('media_edit', media.rp) }}">edit</a>
+    {{ include('media/_delete_form.html.twig') }}
+{% endif %}
+{% endblock %}

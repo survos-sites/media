@@ -1,0 +1,88 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main , naro ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: docker
+          POSTGRES_DB: sais
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    environment: test
+    env:
+      INSPECTOR_INGESTION_KEY: ${{secrets.INSPECTOR_INGESTION_KEY}}
+      PUBLIC_VALUE: ${{secrets.PUBLIC_VALUE}}
+      APP_ENV: test
+      DATABASE_URL: postgresql://postgres:docker@127.0.0.1:5432/sais?serverVersion=17&charset=utf8
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Show that secret without committing it
+      run: |
+        # Even though this echo prints it, GitHub will mask the value in the logs
+        echo "Got key: $INSPECTOR_INGESTION_KEY"
+
+    - name: Show that secret with a warning
+      run: |
+        # This will not print the secret, but it will show that the variable is set
+        if [ -z "$INSPECTOR_INGESTION_KEY" ]; then
+          echo "Warning: INSPECTOR_INGESTION_KEY is not set"
+        else
+          echo "INSPECTOR_INGESTION_KEY is set"
+        fi
+
+    #the same for PUBLIC_VALUE
+    - name: Show that secret with a warning
+      run: |
+        # This will not print the secret, but it will show that the variable is set
+        if [ -z "$PUBLIC_VALUE" ]; then
+          echo "Warning: PUBLIC_VALUE is not set"
+        else
+          echo "PUBLIC_VALUE is set"
+        fi
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_pgsql
+        coverage: xdebug
+    
+    - name: Cache Composer packages
+      id: composer-cache
+      uses: actions/cache@v3
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-8.4-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-8.4-
+    
+    - name: Show environment variables
+      run: env | sort
+    
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+    
+    - name: Create database
+      run: bin/console doctrine:database:create --if-not-exists
+    
+    - name: Run migrations
+      run: bin/console doctrine:migrations:migrate --no-interaction
+    
+    - name: Load fixtures
+      run: bin/console doctrine:fixtures:load --no-interaction
+    
+    - name: Run PHPUnit tests
+      run: vendor/bin/phpunit tests

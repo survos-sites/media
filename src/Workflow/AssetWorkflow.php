@@ -1,0 +1,409 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Workflow;
+
+use App\Entity\Asset;
+use App\Entity\AssetPath;
+use App\Entity\Media;
+use App\Entity\Thumb;
+use App\Entity\Variant;
+use App\Repository\AssetPathRepository;
+use App\Repository\AssetRepository;
+use App\Repository\ThumbRepository;
+use App\Repository\UserRepository;
+use App\Service\ApiService;
+use App\Service\AssetPreviewService;
+use App\Service\VariantPlan;
+use Doctrine\ORM\EntityManagerInterface;
+use League\Flysystem\FilesystemException;
+use League\Flysystem\FilesystemOperator;
+use League\Flysystem\Local\LocalFilesystemAdapter;
+use League\Flysystem\UnableToWriteFile;
+use League\Flysystem\Visibility;
+use Liip\ImagineBundle\Service\FilterService;
+use Psr\Log\LoggerInterface;
+use Survos\SaisBundle\Service\SaisClientService;
+use Survos\SaisBundle\Util\ShardedKey;
+use App\Util\ImageProbe;
+use Survos\StateBundle\Attribute\Workflow;
+use Survos\StateBundle\Message\TransitionMessage;
+use Survos\StateBundle\Service\AsyncQueueLocator;
+use Survos\StorageBundle\Service\StorageService;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\DependencyInjection\Attribute\Target;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Workflow\Attribute\AsCompletedListener;
+use Symfony\Component\Workflow\Attribute\AsTransitionListener;
+use Symfony\Component\Workflow\Event\CompletedEvent;
+use Symfony\Component\Workflow\Event\TransitionEvent;
+use Symfony\Component\Workflow\WorkflowInterface;
+use Symfony\Contracts\EventDispatcher\Event;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
+use App\Workflow\AssetFlow as WF;
+use App\Workflow\ThumbFlowDefinition as TWF;
+use App\Workflow\VariantFlowDefinition as VWF;
+
+#[Workflow(name: WF::WORKFLOW_NAME, supports: [Asset::class])]
+class AssetWorkflow
+{
+    public function __construct(
+        private MessageBusInterface          $messageBus,
+        private EntityManagerInterface                          $em,
+        private AssetRepository                                 $assetRepo,
+        private AssetPathRepository                             $assetPathRepo,
+        private ThumbRepository                                 $thumbRepo,
+        private readonly FilesystemOperator                     $localStorage,
+        private readonly LoggerInterface                        $logger,
+        private readonly HttpClientInterface                    $httpClient,
+        private UserRepository                                  $userRepository,
+        private readonly ApiService                             $apiService,
+//        #[Target(TWF::WORKFLOW_NAME)] private WorkflowInterface $thumbWorkflow,
+        #[Target(VWF::WORKFLOW_NAME)] private WorkflowInterface $variantWorkflow,
+        #[Target(WF::WORKFLOW_NAME)] private WorkflowInterface  $assetWorkflow,
+        #[Autowire('@liip_imagine.service.filter')]
+        private readonly FilterService                          $filterService,
+        private SerializerInterface                             $serializer,
+        private NormalizerInterface                             $normalizer,
+        #[Autowire('%env(SAIS_API_ENDPOINT)%')]
+        private string                                          $apiEndpoint,
+        #[Autowire('%kernel.project_dir%/public/temp')]
+        private string                                          $tempDir, private readonly EntityManagerInterface $entityManager, private readonly AsyncQueueLocator $asyncQueueLocator,
+        private readonly ?FilesystemOperator                    $defaultStorage = null,
+        private ?GoogleDriveService                             $driveService   = null,
+        private readonly AssetPreviewService                    $assetPreviewService,
+        private readonly VariantPlan                            $plan,
+        private readonly StorageService                         $storageService,
+
+    ) {
+    }
+
+    /** @return Asset */
+    private function getAsset(Event $event): Asset
+    {
+        /** @var Asset $asset */ $asset = $event->getSubject();
+        return $asset;
+    }
+
+    /**
+     * @throws FilesystemException
+     * @throws TransportExceptionInterface
+     */
+    #[AsTransitionListener(WF::WORKFLOW_NAME, MediaFlowDefinition::TRANSITION_DOWNLOAD)]
+    public function onDownload(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        $url = $asset->originalUrl;
+
+//        $url = 'https://ciim-public-media-s3.s3.eu-west-2.amazonaws.com/ramm/41_2005_3_2.jpg';
+//        $url = 'https://coleccion.museolarco.org/public/uploads/ML038975/ML038975a_1733785969.webp';
+//        $asset->setOriginalUrl($url);
+        // we use the original extension
+
+        $uri = parse_url($url, PHP_URL_PATH);
+        $ext = pathinfo($uri, PATHINFO_EXTENSION);
+
+        if (empty($ext)) {
+            $ext = 'tmp'; // Will be corrected after download based on actual mime type
+        }
+        $asset->ext = $ext;
+
+        // Check if asset is already fully processed (has resized data, proper status and a file size in bytes)
+        if ($asset->resizedCount && $asset->size) {
+            $this->logger->info("Asset {$asset->id} already processed, skipping download and processing");
+            return;
+        }
+
+        $path = ShardedKey::originalKey($asset->id) . "." . $ext;
+
+        if (!is_dir($this->tempDir)) {
+            mkdir($this->tempDir, 0777, true);
+        }
+        assert($path, "Missing $path");
+        $tempFile = $this->tempDir . '/' . str_replace('/', '-', $path);
+        $asset->statusCode = 200;
+        // path will change if there is an extension mismatch!
+        [$path, $absolutePath] = $this->downloadFileToLocalStorage($url, $path);
+
+            $fileData = $this->processLocalFile($absolutePath, $asset);
+            try {
+            } catch (\Exception $e) {
+                $asset->statusCode = $e->getCode();
+                return;
+            }
+            $asset->tempFilename = $absolutePath;
+    }
+
+    public function getLocalAbsolutePath(string $filePath): string
+    {
+        $adapter = $this->storageService->getAdapterModel('local.storage');
+        $absolutePath = $adapter->getAbsolutePath($filePath);
+        //
+
+        return $absolutePath;
+    }
+
+    public function downloadFileToLocalStorage(
+        string $url, string $destinationPath): array
+    {
+        if ($this->localStorage->has($destinationPath)) {
+            $absolutePath = $this->getLocalAbsolutePath($destinationPath);
+            return [$destinationPath, $absolutePath];
+        }
+        try {
+            $this->logger->warning("Downloading $url to $destinationPath");
+            // Create a streaming request
+            $response = $this->httpClient->request('GET', $url, [
+                'buffer' => false, // This enables streaming
+            ]);
+
+            // Check if the request was successful
+            if ($response->getStatusCode() !== 200) {
+                throw new \Exception('Failed to download file: ' . $response->getStatusCode());
+            }
+
+            // Get the response body as a stream
+            $stream = $response->toStream();
+
+            // Write the stream directly to Flysystem
+            $this->localStorage->writeStream($destinationPath, $stream);
+
+            $this->logger->info('File downloaded successfully', [
+                'url' => $url,
+                'destination' => $destinationPath
+            ]);
+
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to download file', [
+                'url' => $url,
+                'destination' => $destinationPath,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+        // with localStorage, we can rename the file and fix the asset if the mime type is wrong.
+        $absolutePath = $this->getLocalAbsolutePath($destinationPath);
+        $mimeType = mime_content_type($absolutePath);
+        $correctExt = ImageProbe::extFromMime($mimeType);
+        $extFromFilename = pathinfo($absolutePath, PATHINFO_EXTENSION);
+
+        if ($correctExt <> $extFromFilename) {
+            $destinationInfo = pathinfo($destinationPath);
+            $destinationPath = $destinationInfo['dirname'] . '/' . $destinationInfo['filename'] . '.' . $correctExt;
+            $pathInfo = pathinfo($absolutePath);
+            $directory = $pathInfo['dirname'] === '.' ? '' : $pathInfo['dirname'] . '/';
+            $newFilePath = $directory . $pathInfo['filename'] . '.' . $correctExt;
+            if (file_exists($newFilePath)) {
+                unlink($newFilePath);
+            }
+            rename($absolutePath, $newFilePath);
+            $absolutePath = $newFilePath;
+        }
+        return [$destinationPath, $absolutePath];
+    }
+
+    /**
+     * After an Asset has been downloaded, create Variant rows for all required presets.
+     * The Variant workflow will auto-advance (Place(next: resize)) and run resizing async.
+     *
+     * Because onCompleted happens BEFORE the specific transition onCompleted,
+     * we need to match this event exactly.  Otherwise, the next events are dispatched too soon.
+     */
+    #[AsCompletedListener(priority: 1000)]
+    public function onDownloadCompleted(CompletedEvent $event): void
+    {
+        if (
+            ($event->getWorkflowName() !== WF::WORKFLOW_NAME) ||
+            ($event->getTransition()?->getName() !== WF::TRANSITION_DOWNLOAD)
+        ) {
+            return;
+        }
+        $asset = $this->getAsset($event);
+
+        // If you're enforcing "analyze from thumbnails", this is the right time
+        // to produce variants so analysis can run immediately after they're done.
+        $presets = $this->plan->requiredPresetsForAsset($asset->mime);
+
+        if ($presets === []) {
+            $this->logger->info('Download completed: no variants required for non-image asset', [
+                'hash' => $asset->id, 'mime' => $asset->mime
+            ]);
+            return;
+        }
+
+        // Create Variant rows if they don't exist yet (unique on asset+preset+format).
+        // We'll start with your default encode format; VariantResizeListener can override based on Liip/mime.
+        $defaultFormat = 'webp';
+
+        $existing = [];
+        foreach ($asset->variants as $v) {
+            $existing[$v->preset . '|' . $v->format] = true;
+        }
+
+        $created = 0;
+        foreach ($presets as $preset) {
+            $key = $preset . '|' . $defaultFormat;
+            if (isset($existing[$key])) {
+                continue;
+            }
+            $variant = new Variant($asset, $preset, $defaultFormat);
+            $this->em->persist($variant);
+            $asset->addVariant($variant);
+            $created++;
+        }
+
+        if ($created > 0) {
+            $this->em->flush();
+            $this->logger->info('Created variant rows', [
+                'hash' => $asset->id,
+                'count' => $created,
+                'presets' => $presets
+            ]);
+        }
+
+        // after flush, dispatch thumbs request
+        foreach ($asset->variants as $variant) {
+            if ($this->variantWorkflow->can($variant, $tn = VWF::TRANSITION_RESIZE)) {
+                $stamps = $this->asyncQueueLocator->stampsFor($wf = VWF::WORKFLOW_NAME, $tn);
+                $transitionMessage = new TransitionMessage($variant->id, $variant::class, $tn, $wf, $event->getContext());
+                $this->messageBus->dispatch($transitionMessage, $stamps);
+            }
+        }
+    }
+
+    #[AsTransitionListener(WF::WORKFLOW_NAME, WF::TRANSITION_ANALYZE)]
+    public function onAnalyze(TransitionEvent $event): void
+    {
+        $asset   = $this->getAsset($event);
+        $context = $event->getContext();
+        return;
+
+        // Guard: only analyze images for now; audio/video can get their own probes
+        if (!$asset->mime || !str_starts_with($asset->mime, 'image/')) {
+            $this->logger->info("Skipping analysis for non-image asset {$asset->contentHashHex()} ({$asset->mime})");
+            return;
+        }
+
+        // Source path (Liip expects a web URL path, not fs); adapt to your storage scheme
+        $sourceUrlPath = $asset->storageKey ?? $asset->originalUrl;
+        if (!$sourceUrlPath) {
+            $this->logger->warning("Asset {$asset->contentHashHex()} has no sourceUrlPath for analysis.");
+            return;
+        }
+
+        // Run previews/analysis on small + medium variants
+        $presets = $context['presets'] ?? ['small','medium'];
+            $results = $this->assetPreviewService->processPresets($asset, $sourceUrlPath, $presets);
+            $this->logger->info("Analysis complete for {$asset->id}", $results);
+        try {
+        } catch (\Throwable $e) {
+            $this->logger->error("Analysis failed for {$asset->id}: {$e->getMessage()}");
+        }
+
+        $this->em->persist($asset);
+        $this->em->flush();
+    }
+
+    /**
+     * writes the URL locally, esp during debugging but also to check the mime type
+     *
+     * @param string $url
+     * @param string $tempFile
+     * @return void
+     * @throws TransportExceptionInterface
+     */
+    private function downloadUrl(string $url, string $tempFile): string
+    {
+        // if it already exists
+        if (file_exists($tempFile) && filesize($tempFile) > 0) {
+            return $tempFile;
+        }
+
+        if (str_contains($url, 'drive.google.com')) {
+            $this->driveService->downloadFileFromUrl(
+                $url,
+                $tempFile
+            );
+        } else {
+            $client = $this->httpClient;
+            $response = $client->request('GET', $url);
+
+// Responses are lazy: this code is executed as soon as headers are received
+            $code = $response->getStatusCode();
+            if (200 !== $code) {
+                throw new \Exception("Problem with $url " . $response->getStatusCode(), code: $code);
+            }
+
+            $fileHandler = fopen($tempFile, 'w');
+            foreach ($client->stream($response) as $chunk) {
+                fwrite($fileHandler, $chunk->getContent());
+            }
+            fclose($fileHandler);
+
+        }
+
+        $this->logger->info("Downloaded url: $url as $tempFile " . filesize($tempFile));
+        return $tempFile;
+
+    }
+
+    private function processLocalFile(string $localAbsoluteFilename, Asset $asset): array
+    {
+        $asset->ext = pathinfo($localAbsoluteFilename, PATHINFO_EXTENSION);
+        $mimeType = mime_content_type($localAbsoluteFilename); //
+        // Only process image files for dimensions and exif
+        if (str_starts_with($mimeType, 'image/')) {
+            [$width, $height, $type, $attr] = getimagesize($localAbsoluteFilename, $info);
+            if (!$width) {
+                // handled in onComplete
+                $this->logger->warning("Invalid temp file $localAbsoluteFilename: $mimeType");
+            }
+
+            $asset->width = $width;
+            $asset->height = $height;
+            $asset->mime = $mimeType;
+            $asset->size = filesize($localAbsoluteFilename);
+
+            // problems encoding exif
+            // Only read exif for supported image types
+            // exif_read_data supports jpeg, tiff, and some webp
+            if (in_array($asset->ext, ['jpg', 'jpeg', 'tiff', 'webp'])) {
+                try {
+                    $exif = @exif_read_data($localAbsoluteFilename, 'IFD0,EXIF,COMPUTED', true);
+
+                    if ($exif !== false) {
+                        //clean exif data : remove EXIF key
+                        $exif = array_filter($exif, fn($key) => !str_starts_with($key, 'EXIF'), ARRAY_FILTER_USE_KEY);
+                        // flatten nested arrays but preserve keys
+                        $exif = iterator_to_array(
+                            new \RecursiveIteratorIterator(
+                                new \RecursiveArrayIterator($exif)
+                            ),
+                            true // preserve keys
+                        );
+//                    $media->setExif($exif);
+                    }
+                } catch (\Throwable $e) {
+                    $this->logger->warning("EXIF read failed for $localAbsoluteFilename: " . $e->getMessage());
+                }
+            }
+        } else {
+            // For non-images, just set mime type and size
+            $asset->mime = $mimeType;
+            $asset->size = filesize($localAbsoluteFilename);
+        }
+
+        return [
+            'tempFile' => $localAbsoluteFilename,
+            'mimeType' => $mimeType,
+            'ext' => $asset->ext
+        ];
+
+    }
+
+}

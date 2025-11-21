@@ -1,0 +1,21 @@
+# .symfony.local.yaml
+workers:
+  # built-in command that builds and watches front-end assets
+
+#   built-in command that starts messenger consumer
+  messenger_media_download:
+       cmd: ['symfony', 'console', 'messenger:consume', 'media.download']
+       watch: ['config', 'src', 'templates', 'vendor']
+  messenger_thumb_resize:
+      cmd: ['symfony', 'console', 'messenger:consume', 'thumb.resize']
+      watch: ['config', 'src', 'templates', 'vendor']
+#  messenger_consume_resize:
+#    cmd: ['symfony', 'console', 'messenger:consume', 'resize']
+#    watch: ['config', 'src', 'templates', 'vendor']
+
+#  messenger_consume_async: ~
+
+  # you can also add your own custom commands
+#  build_spa:
+#    cmd: ['yarn', '--cwd', './spa/', 'dev']
+

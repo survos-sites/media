@@ -1,0 +1,46 @@
+{
+    "controllers": {
+        "@survos/bootstrap-bundle": {
+            "search": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            }
+        },
+        "@survos/meili-bundle": {
+            "insta": {
+                "enabled": true,
+                "fetch": "eager",
+                "autoimport": {
+                    "instantsearch.css/themes/algolia.min.css": true,
+                    "pretty-print-json/dist/css/pretty-print-json.min.css": true
+                }
+            },
+            "json": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            }
+        },
+        "@survos/simple-datatables-bundle": {
+            "table": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": {
+                    "@survos/simple-datatables/style.css": true
+                }
+            }
+        },
+        "@survos/tree-bundle": {
+            "tree": {
+                "enabled": true,
+                "fetch": "lazy"
+            },
+            "api_tree": {
+                "enabled": true,
+                "fetch": "lazy"
+            }
+        }
+    },
+    "entrypoints": []
+}

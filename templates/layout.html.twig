@@ -1,0 +1,18 @@
+{% extends "@SurvosBootstrap/tabler/base.html.twig" %}
+
+{% block body %}
+{% endblock %}
+
+{% block xxjavascripts %}
+<!-- Matomo Tag Manager -->
+<script>
+    var _mtm = window._mtm = window._mtm || [];
+    _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
+    (function() {
+        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+        g.async=true; g.src='https://cdn.matomo.cloud/survos.matomo.cloud/container_iFOoG0R8.js'; s.parentNode.insertBefore(g,s);
+    })();
+</script>
+<!-- End Matomo Tag Manager -->
+{{ parent() }}
+{% endblock %}

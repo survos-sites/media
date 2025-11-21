@@ -1,0 +1,24 @@
+api_platform:
+    title: Asyc Image Server API
+    version: 1.0.0
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+        csv: ['text/csv']
+    defaults:
+        stateless: true
+        pagination_client_items_per_page: true
+        pagination_enabled: true
+        pagination_client_enabled: false
+        # To allow partial pagination for all resource collections.
+        # This improves performances by skipping the `COUNT` query.
+        pagination_partial: false
+        pagination_items_per_page: 100
+        cache_headers:
+            max_age: 0
+            shared_max_age: 3600
+            vary: ['Content-Type', 'Authorization', 'Origin']
+
+    # https://github.com/api-platform/core/issues/1910
+#    eager_loading:
+#        force_eager: false

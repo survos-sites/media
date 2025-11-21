@@ -1,0 +1,4 @@
+#easy_media:
+#  storage_name: medias.storage
+#  media_entity: App\Entity\TestMedia
+#  folder_entity: App\Entity\TestFolder

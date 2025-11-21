@@ -1,0 +1,14 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>ThumbWorkflow</B>>
+  node [fontsize="8" fontname="Arial" color="#333333" fillcolor="lightgreen" fixedsize="false" width="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_new [label=<<B>new</B>>, shape=oval fillcolor="lightgreen" style="filled"];
+  place_done [label=<<B>done</B>>, shape=oval fillcolor="lightgreen" style="filled"];
+  transition_0 [label=<<B>resize</B>>, shape="box" regular=""];
+  transition_1 [label=<<B>resize</B>>, shape="box" regular=""];
+  place_new -> transition_0 [style="solid", comment="new"];
+  transition_0 -> place_done [style="solid"];
+  place_done -> transition_1 [style="solid", comment="done"];
+  transition_1 -> place_done [style="solid"];
+}

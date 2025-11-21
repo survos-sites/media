@@ -1,0 +1,7 @@
+when@dev: &dev
+  survos_storage:
+    resource: '@SurvosStorageBundle/config/routes.yaml'
+    # consider adding /admin to this route and securing it in security.yaml
+    prefix: '/storage'
+
+when@prod: *dev

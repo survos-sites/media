@@ -1,0 +1,20 @@
+{#{% extends 'base.html.twig' %}#}
+{% extends '@EasyAdmin/layout.html.twig' %}
+
+{% block title %}Survos Async Image Server{% endblock %}
+
+{% block main %}
+<div class="example-wrapper">
+
+    This friendly message is coming from:
+    <ul>
+        {% for asset in recent %}
+            <li>
+                <a href="{{ path('admin_custom_asset', {id: asset.id}) }}">
+                    {{ asset.id }}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

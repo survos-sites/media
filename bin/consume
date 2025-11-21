@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+set SYMFONY_DEPRECATIONS_HELPER=disabled
+# more verbose on the first run
+bin/console mess:stats media.download thumb.resize media.archive
+#SYMFONY_DEPRECATIONS_HELPER=disabled bin/console messenger:consume low  -vvv --limit 1 --time-limit 60
+#bin/console messenger:consume high normal low -vv --limit 1 --time-limit 30;
+
+## use sleep  so that you can break out with ^C
+while true; do  bin/console messenger:consume thumb.resize media.download media.archive -v --limit 400  --time-limit 240; echo "pausing..."; bin/console mess:stats && sleep 4;   done;
+#while true; do bin/console pixie:iterate translation source --marking=new --transition translate --limit 0; bin/console messenger:consume normal low  -vv --limit 200  --time-limit 240; echo "pausing..."; bin/console mess:stats && sleep 4;   done;
+#while true; do sleep 30; yarn encore dev; bin/console messenger:consume high normal low -vv --limit 30 --time-limit 90;  done;
+
+# https://medium.com/@skowron.dev/mastering-message-brokering-in-symfony-a-practical-guide-to-three-essential-patterns-c09bd56ce4e8
+#for i in {1..10}
+#do
+#   php bin/console messenger:consume normal &
+#done
+#
+#for i in {1..3}
+#do
+#   php bin/console messenger:consume trans &
+#done
+

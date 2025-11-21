@@ -1,0 +1,10 @@
+# Default configuration for extension with alias: "survos_state"
+survos_state:
+#    queue_prefix:         '%env(STATEQUEUE_PREFIX)%' // only used for rabbitmq
+    base_layout:          base.html.twig
+    enable_dynamic_routing: true
+    workflow_paths:
+        - '%kernel.project_dir%/src/Workflow'
+
+    async_transport_dsn:  'doctrine://default'
+

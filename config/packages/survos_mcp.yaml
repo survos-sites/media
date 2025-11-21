@@ -1,0 +1,36 @@
+## Default configuration for extension with alias: "survos_mcp"
+#survos_mcp:
+#
+#    # Name of the default MCP client (one of the keys under "clients").
+#    default_client:       null
+#
+#    # Define named MCP clients.
+#    #
+#    # Example:
+#    #
+#    #   survos_mcp:
+#    #     default_client: sais_local
+#    #     clients:
+#    #       sais_local:
+#    #         host: 'https://sais.sip'
+#    #         endpoint: '/mcp'       # default; could be '/rpc' or other
+#    #         api_key: null          # or '%env(MCP_SAIS_LOCAL_KEY)%'
+#    #       sais:
+#    #         host: 'https://sais.survos.com'
+#    #         # endpoint defaults to '/mcp'
+#    #         # api_key: '%env(MCP_SAIS_KEY)%'
+#    clients:
+#
+#        # Prototype
+#        test_app:
+#            host: https://127.0.0.1:8013/
+#            endpoint:             /mcp
+#        sais_local:
+#            host:                 https://sais.wip
+#            endpoint:             /tools
+#        sais_live:
+#            host:                 https://sais.survos.com
+#            endpoint:             /tools
+#        sais:
+#            host:                 '%env(SAIS_API_ENDPOINT)%'
+#            endpoint:             /tools

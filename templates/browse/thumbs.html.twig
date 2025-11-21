@@ -1,0 +1,38 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello BrowseController!{% endblock %}
+
+{% block body %}
+
+    {% set columns = [
+        'code',
+        'id',
+        'marking',
+        'size',
+        'url',
+        'liipCode',
+        'dump'
+    ] %}
+    <twig:simple_datatables
+            :data="rows"
+            :caller="_self"
+            :columns="columns"
+    >
+        <twig:block name="id">
+            {{ row.media.root }}
+            <a href="{{ path('media_show', row.media.rp) }}">
+                / {{ row.media.code }}
+            </a>
+        </twig:block>
+        <twig:block name="url">
+            {% set url = row.url %}
+            <a href="{{ url }}">
+                <img title="{{ url }}" src="{{ url }}" alt="{{ url }}" style="max-width: 75px; max-height: 75px"/>
+            </a>
+        </twig:block>
+        <twig:block name="dump">
+{#            {{ dump(row) }}#}
+        </twig:block>
+
+    </twig:simple_datatables>
+{% endblock %}

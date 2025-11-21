@@ -1,0 +1,44 @@
+survos_bootstrap:
+  app:
+    code: sais
+    abbr: <b>async</b>Imager
+#    logo: /images/museado-sidebar-logo.png
+#    logo: /images/museado-sidebar-small-logo.png
+#    logo_small: /images/museado-sidebar-small-logo.png
+  routes:
+    homepage: app_homepage
+    login: app_login
+    logout: app_logout
+    register: app_register
+    search: app_search
+  options:
+    show_locale_dropdown: true
+
+    # consider https://startbootstrap.com/previews/simple-sidebar as another theme
+#    theme: bootswatch
+    theme: tabler
+    layout_direction: horizontal
+    allow_login: true
+    offcanvas: end
+  menu_options:
+    entityClass: null
+    subdomain: null # if set, this is a dedicated site, e.g. nabolom.museado.org
+    owner: null
+    project: null
+    core: null
+    #    core: null
+    category: null
+    categoryField: null
+    catalog: null
+    spreadsheet: null
+    fieldMap: null
+    sheet: null
+    instance: null
+    frontPage: false
+    showAppMenu: false
+    pixieCode: false
+    tableName: false # should probably be pixieTableName
+    propertyCode: false
+    itemKey: false
+
+

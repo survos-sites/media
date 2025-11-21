@@ -1,0 +1,112 @@
+{% extends 'base.html.twig' %}
+
+{% block apps '' %}
+
+{% block title  'owners'|trans|title %}
+
+{# {% block PAGE_MENU %} #}
+{#    {% set options = { #}
+{#        entityClass: class #}
+{#    } %} #}
+
+{#    <twig:menu :type="PAGE_MENU" :caller="_self" :options="options"> #}
+{#    </twig:menu> #}
+
+{# {% endblock %} #}
+
+{% block body %}
+    {{ _self }}
+{#<h3>{{ 'num_of_owners'|trans(count=count)|title }}</h3>#}
+
+{#@todo: hovelinks: https://boringrails.com/articles/hovercards-stimulus/#}
+
+
+{% set _sc = 'locale_display' %}
+    {#    {name: 'marking', title: 'marking', browsable: true, order: 0}, #}
+    {#   #}
+{#    {name: 'objCount', title: '#', browsable: false, browseOrder: 0, sortable: true, order: 3}, #}
+{#    {name: 'projectCount', title: 'coll', browsable: false, browseOrder: 0, sortable: true, order: 3}, #}
+{#    {name: 'image', browsable: false, order: 2, className: 'imgContainer'}, #}
+
+{# see https://javascript.plainenglish.io/building-modals-has-never-been-easier-fe59d56b8478 for modals #}
+    {% set columns = [
+col(name: 'thumb'),
+col(name: 'originalUrl', browsable: false),
+col(name: 'root', browsable: true),
+col(name: 'marking', browsable: true),
+col(name: 'size', sortable: true),
+col(name: 'mimeType'),
+col(name: 'ext'),
+
+] %}
+
+{% set tombstone = ['source'] %}
+
+    {%  set x = [
+    {name: 'marking', title: 'status', browsable: true, sortable: true, order: 3},
+] %}
+
+    {% set globals = {
+        debug: app.request.get('debug'),
+    locale: app.request.locale,
+    isAdmin: is_granted('ROLE_ADMIN'),
+    showIcon: ux_icon('icon-park:doc-detail'),
+    originalIcon: ux_icon('gridicons:external'),
+    tombstoneColumns: tombstone
+} %}
+    {% set _sc = 'locale_display' %}
+{#    originalIcon: 'original'|action_icon,#}
+
+{#    {% set row = {locale: 'en'} %}#}
+    {# hack so twig doesn't fail.  We could add the rowName to the twigGlobals in apiGrid as a hack #}
+    {% set owner = {} %}
+
+{#    {% set columns = ['meiliObjectCount','image','id'] %}#}
+
+<div {{ stimulus_controller(_sc, {userLocale: app.request.locale}) }}>
+    <twig:api_grid
+            :class="class"
+            :caller="_self"
+            :columns="columns"
+            :apiRoute="apiRoute"
+            :globals="globals"
+    >
+        <twig:block name="originalUrl">
+            <a href="{{ row.originalUrl }}" target="_blank">
+                {{ row.originalUrl }}
+            </a>
+            <br />
+{#            {{ row.resized|json_encode }}#}
+{#            {% if globals.debug %}#}
+{#            {% endif %}#}
+            {% for liipCode, url in row.resized %}
+                <a href="{{ url }}" title="{{ url }}" target="_blank">
+                    {{ liipCode }}
+                </a>
+            {% endfor %}
+
+        </twig:block>
+        <twig:block name="thumb">
+            {% set small = row.thumbData.small??false %}
+            {% if small %}
+                <img src="{{ small }}"/>
+            {% endif %}
+        </twig:block>
+
+    </twig:api_grid>
+
+</div>
+
+{#    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">Toggle right offcanvas</button> #}
+    {#    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel"> #}
+    {#        <div class="offcanvas-header"> #}
+    {#            <h5 id="offcanvasRightLabel">Offcanvas right</h5> #}
+    {#            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button> #}
+    {#        </div> #}
+    {#        <div class="offcanvas-fdy"> #}
+    {#            DATA HERE #}
+    {#        </div> #}
+    {#    </div> #}
+
+
+{% endblock %}

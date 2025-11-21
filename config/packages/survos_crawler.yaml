@@ -1,0 +1,39 @@
+survos_crawler:
+# if you've run symfony proxy:domain:attach my-project, then the error messages will be displayed with this prefix.  That way, you can simply click on a link to open the page.
+    base_url: 'https://sais.wip/'
+    user_class: App\Entity\User
+    users:
+#        - user@user.com
+        #- dummysais@example.com
+    max_depth : 3
+    max_per_route : 3
+    routes_to_ignore :
+        - 'app_logout'
+        #added for test crawler
+        - 'app_account_setup'
+        - 'app_dispatch_process'
+        - 'meili-media'
+        #media is not set correctly yet
+        - 'media_symfony_crud_index'
+        #registration require the buolt User to have the cdoe and approx set ...
+        - 'app_register'
+        #ignore cache routes
+        - 'liip_imagine_filter_runtime'
+        - 'liip_imagine_filter'
+        #temp ignore media show route
+        - 'media_show'
+    paths_to_ignore :
+        - '/admin/media/new'
+        - '/admin/media/edit'
+        - '/admin/media/delete'
+        - '/admin/media/preview'
+        - '/admin*'
+        #/tools is for mcp
+        - '/tools*'
+        - '/inspection*'
+        #/media/cache/
+        - '/media/cache/*'
+        - 'media/cache/*'
+        - 'media/browse/*'
+        - '/media/browse/*'
+        - 'media/index*'

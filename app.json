@@ -1,0 +1,53 @@
+{
+    "name": "sais",
+    "description": "Symfony Async Image Server",
+    "keywords": [
+        "php",
+        "symfony"
+    ],
+    "cron": [
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume thumb.resize  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume media.archive  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume media.download  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume meili  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        }
+    ],
+    "repository": "https://github.com/survos-sites/sais",
+    "scripts": {
+        "dokku": {
+            "predeploy": "bin/console importmap:install && bin/console asset-map:compile && bin/console  secrets:decrypt-to-local --force && bin/console d:m:m -n --allow-no-migration",
+            "postdeploy": ""
+        }
+    },
+    "env": {
+        "SECRET_TOKEN": {
+            "description": "A secret key for verifying the integrity of signed cookies.",
+            "value": "secret"
+        },
+        "WEB_CONCURRENCY": {
+            "description": "The number of processes to run.",
+            "generator": "echo 5"
+        }
+    },
+    "image": "gliderlabs/herokuish",
+    "addons": [
+        "dokku-postgres",
+        "dokku-redis"
+    ],
+    "buildpacks": [
+        {
+            "url": "https://github.com/heroku/heroku-buildpack-php.git"
+        }
+    ]
+}

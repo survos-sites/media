@@ -1,0 +1,16 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>FileWorkflow</B>>
+  node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_file [label=<<B>file</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place file: "];
+  place_listing [label=<<B>listing</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place listing: "];
+  place_downloaded [label=<<B>downloaded</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place downloaded: "];
+  place_dir [label=<<B>dir</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place dir: "];
+  transition_list [label=<<B>list</B>>, shape="box" regular="" xlabel="Transition list: "];
+  transition_download [label=<<B>download</B>>, shape="box" regular="" xlabel="Transition download: "];
+  place_dir -> transition_list [style="solid", comment="dir"];
+  transition_list -> place_listing [style="solid"];
+  place_file -> transition_download [style="solid", comment="file"];
+  transition_download -> place_downloaded [style="solid"];
+}

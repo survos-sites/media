@@ -1,0 +1,64 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hello BrowseController!{% endblock %}
+
+{% block body %}
+
+    {% set columns = [
+        'root',
+        'code',
+        'statusCode',
+#        'originalUrl',
+        'small',
+        'marking',
+        'size',
+        'context',
+        'dump'
+    ] %}
+    <twig:simple_datatables
+            :data="medias"
+            :caller="_self"
+            :columns="columns"
+    >
+
+        <twig:block name="originalUrl">
+            <a href="{{ row.originalUrl }}" target="_blank" title="{{ row.originalUrl }}">
+                {{ row.originalUrl }}
+            </a>
+            <br />
+            {{ row.resize|json_encode }}
+        </twig:block>
+        <twig:block name="code">
+            {% set blurUrl =  row.blur|blurUrl %}
+
+            <a href="{{ path('media_show', row.rp) }}" target="_blank" title="{{ row.originalUrl }}">
+                <img title="{{ row.blur }}" src="{{ blurUrl }}" alt="{{ blurUrl }}" class="blur"/>
+                {{ row.code }}
+            </a>
+            <br/>{{ row.path }}
+        </twig:block>
+        <twig:block name="small">
+            {% set thumb = row.resized['small']|default(false) %}
+            {% if thumb %}
+            <a href="{{ thumb }}" target="_blank" title="{{ thumb }}">
+                <img class="img-thumbnail" src="{{ thumb }}" alt="{{ thumb }}"/>
+            </a>
+            {% endif %}
+        </twig:block>
+        <twig:block name="context">
+             {{ row.context|json_encode }}
+        </twig:block>
+        <twig:block name="thumbs">
+{#            {{ dump(row.filters) }}#}
+            {% for thumb in row.thumbs %}
+                <li>
+                    {{ thumb.liipCode }} / {{ thumb.marking }}
+                </li>
+            {% endfor %}
+        </twig:block>
+        <twig:block name="dump">
+            {#            {{ dump(row) }} #}
+        </twig:block>
+
+    </twig:simple_datatables>
+{% endblock %}

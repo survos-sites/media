@@ -1,0 +1,54 @@
+# Read the documentation at https://github.com/thephpleague/flysystem-bundle/blob/master/docs/1-getting-started.md
+services:
+    Aws\S3\S3Client:
+        arguments:
+            - version: '2006-03-01'
+              region: 'fsn1' # for now, ignored by hetzner
+#              region: 'nyc3' # digital Ocean
+              endpoint: '%env(S3_ENDPOINT)%'
+              use_path_style_endpoint: true
+              credentials:
+                  key: '%env(AWS_S3_ACCESS_ID)%'
+                  secret: '%env(AWS_S3_ACCESS_SECRET)%'
+
+
+flysystem:
+    storages:
+        archive.storage:
+            adapter: 'aws'
+            # visibility: public # Make the uploaded file publicly accessible in S3
+            options:
+                client: 'Aws\S3\S3Client' # The service ID of the Aws\S3\S3Client instance
+                bucket: '%env(AWS_S3_BUCKET_NAME)%'
+                streamReads: true
+                prefix: '%env(S3_STORAGE_PREFIX)%'
+        # also on production, for thumbnail creation
+        local.storage:
+            adapter: 'local'
+            options:
+                directory: '%kernel.project_dir%/public/images'
+
+
+when@test:
+    flysystem:
+        storages:
+            archive.storage:
+                adapter: 'memory'
+            # also on production, for thumbnail creation
+            local.storage:
+                adapter: 'memory'
+
+when@dev:
+    flysystem:
+        storages:
+#            default.storage:
+#                adapter: 'local'
+#                # not on production!
+#                options:
+#                    directory: '%kernel.project_dir%/public/default-storage'
+            sites.storage:
+                adapter: 'local'
+                options:
+                    directory: './Pictures'
+
+

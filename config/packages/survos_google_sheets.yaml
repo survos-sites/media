@@ -1,0 +1,12 @@
+survos_google_sheets:
+    application_name: chijal
+    credentials: false
+    client_secret: '%env(JSON_AUTH)%'
+#    aliases:
+#        # =GoogleTranslate(E8, "es", "en")
+#        pieces:
+#            code: piezas
+#            url: https://docs.google.com/spreadsheets/d/1osvCYhAahpZ3p1p_xT923MFzDXT2-NdF2qhlz91Btjs/edit?gid=595401683#gid=595401683
+#        artists:
+#            code: artists
+#            url: https://docs.google.com/spreadsheets/d/1osvCYhAahpZ3p1p_xT923MFzDXT2-NdF2qhlz91Btjs/edit?gid=595401683#gid=595401683

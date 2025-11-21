@@ -1,0 +1,25 @@
+inspector:
+    ingestion_key: '%env(INSPECTOR_INGESTION_KEY)%'
+    enabled: true
+    ignore_routes:
+        - '/_wdt*'
+        - '/_profiler*'
+    ignore_commands:
+        - 'd:m:m'
+        - 'messenger:stats'
+        - 'assets:compile'
+        - 'cache:*'
+        - 'debug:*'
+        - 'make.*'
+        - 'asset-map:compile'
+        - 'importmap:install'
+        - 'fos:js-routing:dump'
+        - 'messenger*'
+        - 'assets*'
+        - 'importmap*'
+        - 'cache*'
+        - 'doctrine*'
+        - 'd:*'
+        - 'schedule:run'
+        - 'debug*'
+        - 'make*'

@@ -1,0 +1,95 @@
+{% extends "base.html.twig" %}
+
+{% block body %}
+    <h1>Survos Image Resizing Server</h1>
+
+    <div>
+        This server manages the resizing for all images, including museado.org
+    </div>
+
+
+    {% for class, count in counts %}
+        <h3>
+            {{ class }}: {{ count }}
+            {% for status, count in markingCounts[class] %}
+                <li>{{ status }}: {{ count }}</li>
+            {% endfor %}
+        </h3>
+
+    {% endfor %}
+
+    Some stats here.
+
+    {% for u in users|default([]) %}
+    <li>
+        {{ u.id }}
+        <a href="{{ path('admin_media_index', {
+            filters: {
+                user: {
+                    comparison: "=",
+                    value: u.id
+                }
+            }
+        }
+
+
+        ) }}">Media</a>
+
+        <a href="{{ path('app_thumbs', {code: u.id}) }}">Thumbs
+        <i>{{ u.approxImageCount }}</i>
+        </a>:
+        {% for size in ['small','medium'] %}
+            <a href="{{ path('app_thumbs', {code: u.id, size: size}) }}">{{ size }}</a>
+        {% endfor %}
+    </li>
+    {% endfor %}
+
+    {% for row in rows|default([]) %}
+        <li>
+            <h4>
+                <code>{{ row.marking }}</code>
+                <a href="{{ row.originalUrl }}" target="_blank" title="{{ row.originalUrl }}">
+                    Orig {{ row.size }} {{ row.originalWidth }}x{{ row.originalHeight }}
+                </a>
+                {% if row.size %}
+                (Original size: {{ (row.size/1024)|number_format(1) }}k)
+                {% endif %}
+            </h4>
+
+            {% set map = {small: 100, medium: 200, large: 400} %}
+            <div class="row">
+                {% for filter in ['small','medium'] %}
+                    {% set thumb = row.resized[filter]|default(false) %}
+                    {% set width = map[filter] / 2 %}
+                    <div class="col-md-3">
+                        {% if row.path %}
+                            {% if thumb|default(false) %}
+                                <img style="max-width: {{ width }}px; max-height: {{ width }}px" src="{{ thumb }}" alt="{{ thumb }}"/>
+                                <div class="d-flex align-items-center">
+                                    <div>
+                    <span>{{ filter }}
+                    </span>
+{#                                        {% set percentage = (100 * thumb.size / row.size)|number_format(3) %}#}
+{#                                        <span class="text-secondary">{{ (thumb.size/1024)|number_format(1) }}K#}
+{#                        {{ percentage }}%, actual width: {{ map[filter] }}, img width: {{ width }}#}
+{#                    </span>#}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+            </div>
+        </li>
+    {% endfor %}
+
+    {% set belvedereUrl = 'https://sammlung.belvedere.at/internal/media/downloaddispatcher/130189?download=' %}
+    {% set waltersUrl = 'https://art.thewalters.org/images/art/PS1_54.975_Fnt_DD_T08.jpg' %}
+    {% set webhook = url('app_webhook') %}
+    <a href="{{ webhook }}" target="_blank">
+        Webhook as GET {{ webhook }}
+    </a>
+
+
+{% endblock %}

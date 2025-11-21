@@ -1,0 +1,42 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>asset</B>>
+  node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_new [label=<<B>new</B><BR/><I>Registered/added</I><BR/><BR/>Then: <U>download</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new: "];
+  place_downloaded [label=<<B>downloaded</B><BR/><I>Fetched to temp; MIME sniffed/probed</I>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place downloaded: "];
+  place_analyzed [label=<<B>analyzed</B><BR/><I>Features computed (blurhash/palette/pHash/probe)</I><BR/><BR/>Then: <U>archive</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place analyzed: "];
+  place_archived [label=<<B>archived</B><BR/><I>Original stored durably with metadata</I><BR/><BR/>Then: <U>queue_variants</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place archived: "];
+  place_variants_queued [label=<<B>variants_queued</B><BR/><I>Variant jobs enqueued</I><BR/><BR/>Then: <U>await_variants</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place variants_queued: "];
+  place_variants_built [label=<<B>variants_built</B><BR/><I>All variants finished</I><BR/><BR/>Then: <U>finalize</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place variants_built: "];
+  place_complete [label=<<B>complete</B><BR/><I>All done</I>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place complete: "];
+  place_failed [label=<<B>failed</B><BR/><I>Terminal error / exhausted retries</I>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place failed: "];
+  transition_download [label=<<B>download</B><BR/><I>Download</I><BR/>async: <BR/><BR/>Then: <U>download_failed</U> >, shape="box" regular="" xlabel="Transition download: HTTP GET/stream to temp; detect MIME; set statusCode"];
+  transition_download_failed [label=<<B>download_failed</B><BR/><I>Download failed</I>>, shape="box" regular="" xlabel="Transition download_failed: Non-200 or I/O error; may be retried with backoff"];
+  transition_invalid_file [label=<<B>invalid_file</B><BR/><I>Invalid file</I>>, shape="box" regular="" xlabel="Transition invalid_file: Unsupported media type or invalid attributes"];
+  transition_analyze [label=<<B>analyze</B><BR/><I>Analyze</I><BR/>async: <BR/><BR/>Then: <U>archive</U> >, shape="box" regular="" xlabel="Transition analyze: Compute blurhash/thumbhash, color palette, pHash, media probe"];
+  transition_archive [label=<<B>archive</B><BR/><I>Archive original</I><BR/>async: <BR/><BR/>Then: <U>queue_variants</U> >, shape="box" regular="" xlabel="Transition archive: Write original to long-term storage with analysis metadata"];
+  transition_queue_variants [label=<<B>queue_variants</B><BR/><I>Queue variants</I><BR/><BR/>Then: <U>await_variants</U> >, shape="box" regular="" xlabel="Transition queue_variants: Select presets per media type; enqueue Variant jobs"];
+  transition_await_variants [label=<<B>await_variants</B><BR/><I>Await variants</I><BR/>async: <BR/><BR/>Then: <U>finalize</U> >, shape="box" regular="" xlabel="Transition await_variants: Fan-in when all Variant jobs report done"];
+  transition_finalize [label=<<B>finalize</B><BR/><I>Finalize</I>>, shape="box" regular="" xlabel="Transition finalize: Webhooks, indexing, bookkeeping"];
+  place_new -> transition_download [style="solid", comment="new"];
+  transition_download -> place_downloaded [style="solid"];
+  place_downloaded -> transition_download [style="solid", comment="downloaded"];
+  transition_download -> place_downloaded [style="solid"];
+  place_failed -> transition_download [style="solid", comment="failed"];
+  transition_download -> place_downloaded [style="solid"];
+  place_downloaded -> transition_download_failed [style="solid", comment="downloaded"];
+  transition_download_failed -> place_failed [style="solid"];
+  place_downloaded -> transition_invalid_file [style="solid", comment="downloaded"];
+  transition_invalid_file -> place_failed [style="solid"];
+  place_downloaded -> transition_analyze [style="solid", comment="downloaded"];
+  transition_analyze -> place_analyzed [style="solid"];
+  place_analyzed -> transition_archive [style="solid", comment="analyzed"];
+  transition_archive -> place_archived [style="solid"];
+  place_archived -> transition_queue_variants [style="solid", comment="archived"];
+  transition_queue_variants -> place_variants_queued [style="solid"];
+  place_variants_queued -> transition_await_variants [style="solid", comment="variants_queued"];
+  transition_await_variants -> place_variants_built [style="solid"];
+  place_variants_built -> transition_finalize [style="solid", comment="variants_built"];
+  transition_finalize -> place_complete [style="solid"];
+}

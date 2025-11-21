@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+
+{% block body %}
+
+    <h1>
+        Test posting to {{ path('app_dispatch_process') }}
+    </h1>
+    {{ form_start(form) }}
+    {{ form_rest(form) }}
+
+    <input type="submit" value="POST to {{ saisServer }}">
+    {{ form_end(form) }}
+    {% for result in results %}
+        <li><pre>{{ result|json_pretty }}</pre>
+        </li>
+    {% endfor %}
+
+{% endblock %}
+
+{% block stylesheets %}
+
+{% endblock %}
+

@@ -1,0 +1,3 @@
+survos_state:
+  resource: '@SurvosStateBundle/config/routes.yaml'
+  prefix: '/state'

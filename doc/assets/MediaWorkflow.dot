@@ -1,0 +1,37 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>MediaWorkflow</B>>
+  node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_new [label=<<B>new</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new: "];
+  place_downloaded [label=<<B>downloaded</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place downloaded: "];
+  place_resized [label=<<B>resized</B><BR/><BR/>Then: <U>archive</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place resized: "];
+  place_archived [label=<<B>archived</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place archived: "];
+  place_failed [label=<<B>failed</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place failed: "];
+  transition_download [label=<<B>download</B><BR/><I>Download originalUrl to /tmp</I><BR/>async: >, shape="box" regular="" xlabel="Transition download: "];
+  transition_download_failed [label=<<B>download_failed</B>>, shape="box" regular="" xlabel="Transition download_failed: "];
+  transition_invalid_file [label=<<B>invalid_file</B>>, shape="box" regular="" xlabel="Transition invalid_file: "];
+  transition_resize [label=<<B>resize</B>>, shape="box" regular="" xlabel="Transition resize: "];
+  transition_archive [label=<<B>archive</B><BR/>async: >, shape="box" regular="" xlabel="Transition archive: "];
+  transition_refresh [label=<<B>refresh</B><BR/>async: >, shape="box" regular="" xlabel="Transition refresh: "];
+  place_new -> transition_download [style="solid", comment="new"];
+  transition_download -> place_downloaded [style="solid"];
+  place_downloaded -> transition_download [style="solid", comment="downloaded"];
+  transition_download -> place_downloaded [style="solid"];
+  place_failed -> transition_download [style="solid", comment="failed"];
+  transition_download -> place_downloaded [style="solid"];
+  place_downloaded -> transition_download_failed [style="solid", comment="downloaded"];
+  transition_download_failed -> place_failed [style="solid"];
+  place_downloaded -> transition_invalid_file [style="solid", comment="downloaded"];
+  transition_invalid_file -> place_failed [style="solid"];
+  place_downloaded -> transition_resize [style="solid", comment="downloaded"];
+  transition_resize -> place_resized [style="solid"];
+  place_resized -> transition_resize [style="solid", comment="resized"];
+  transition_resize -> place_resized [style="solid"];
+  place_downloaded -> transition_archive [style="solid", comment="downloaded"];
+  transition_archive -> place_archived [style="solid"];
+  place_resized -> transition_archive [style="solid", comment="resized"];
+  transition_archive -> place_archived [style="solid"];
+  place_resized -> transition_refresh [style="solid", comment="resized"];
+  transition_refresh -> place_resized [style="solid"];
+}

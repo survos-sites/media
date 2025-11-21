@@ -1,0 +1,16 @@
+twig:
+    default_path: '%kernel.project_dir%/templates'
+    strict_variables: true
+    globals:
+      supportedLocales: '%kernel.enabled_locales%'
+      saisServer: '%env(SAIS_API_ENDPOINT)%'
+      VARIANT_PRESETS: ['small', 'medium'] # @todo: get from VariantPlan constants
+
+    form_themes:
+      - 'bootstrap_5_horizontal_layout.html.twig'
+#      - 'import_job/field_config_theme.html.twig'
+#      - '@TetranzSelect2Entity/Form/fields.html.twig'
+
+when@test:
+    twig:
+        strict_variables: true

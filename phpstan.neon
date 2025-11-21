@@ -1,0 +1,30 @@
+parameters:
+    level: 0
+    paths:
+        - src
+        - tests
+    
+    # Bootstrap file for PHPStan
+    bootstrapFiles:
+        - vendor/autoload.php
+    
+    # Exclude patterns
+    excludePaths:
+        - var/*
+        - vendor/*
+        - public/bundles/*
+        - migrations/*
+        - node_modules/*
+    
+    # Ignore specific error patterns common in Symfony apps
+    ignoreErrors:
+        # Ignore mixed return types from Symfony forms
+        - '#Call to an undefined method Symfony\\Component\\Form\\FormInterface::\w+\(\)#'
+        # Ignore Doctrine repository method calls
+        - '#Call to an undefined method Doctrine\\Persistence\\ObjectRepository::\w+\(\)#'
+        # Ignore Twig template variables
+        - '#Variable \$\w+ might not be defined#'
+    
+    # Additional checks
+    reportUnmatchedIgnoredErrors: false
+

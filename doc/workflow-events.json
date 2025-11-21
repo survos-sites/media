@@ -1,0 +1,82 @@
+{
+    "workflow.FileWorkflow.guard.list": [
+        {
+            "type": "function",
+            "name": "onGuardList",
+            "class": "App\\Workflow\\FileWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.FileWorkflow.transition.list": [
+        {
+            "type": "function",
+            "name": "onList",
+            "class": "App\\Workflow\\FileWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.MediaWorkflow.completed.download": [
+        {
+            "type": "function",
+            "name": "onDownloadCompleted",
+            "class": "App\\Workflow\\MediaWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.MediaWorkflow.transition.download": [
+        {
+            "type": "function",
+            "name": "onDownload",
+            "class": "App\\Workflow\\MediaWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.MediaWorkflow.transition.refresh": [
+        {
+            "type": "function",
+            "name": "onRefresh",
+            "class": "App\\Workflow\\MediaWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.MediaWorkflow.transition.resize": [
+        {
+            "type": "function",
+            "name": "onResize",
+            "class": "App\\Workflow\\MediaWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.ThumbWorkflow.completed.resize": [
+        {
+            "type": "function",
+            "name": "onCompletedResize",
+            "class": "App\\Workflow\\ThumbWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.ThumbWorkflow.guard.resize": [
+        {
+            "type": "function",
+            "name": "onGuardResize",
+            "class": "App\\Workflow\\ThumbWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.ThumbWorkflow.transition.resize": [
+        {
+            "type": "function",
+            "name": "onResize",
+            "class": "App\\Workflow\\ThumbWorkflow",
+            "priority": 0
+        }
+    ],
+    "workflow.completed": [
+        {
+            "type": "function",
+            "name": "onCompleted",
+            "class": "Survos\\WorkflowBundle\\Service\\WorkflowListener",
+            "priority": 0
+        }
+    ]
+}

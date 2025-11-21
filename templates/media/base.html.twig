@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}BASE Media{% endblock %}
+
+{% block page_title %}{{ medium }}{% endblock %}
+{% block page_subtitle %}{{ app.request.get('_route') }}{% endblock %}
+
+{% block body %}
+
+If we have a Media entity, we should display it here.
+
+{% endblock %}

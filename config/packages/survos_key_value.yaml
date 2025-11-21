@@ -1,0 +1,23 @@
+# Default configuration for "SurvosKeyValueBundle"
+survos_key_value:
+    default_type:         Survos\KeyValueBundle\Type\DefaultType
+
+    # @todo: integrate with BotPathServer
+    api_key:              null
+    default_list:         null
+    strict:               true
+    lists:
+        -
+            name:                 probe
+            case:                 true
+            type:                 string # @todo: add regex type
+
+        -
+            name:                 paths # tracking only
+            case:                 true
+            type:                 string
+
+        -
+            name:                 ips
+            case:                 true
+            type:                 string # @todo: add ip type

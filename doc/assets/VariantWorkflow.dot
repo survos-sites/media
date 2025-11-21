@@ -1,0 +1,15 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>VariantWorkflow</B>>
+  node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_new [label=<<B>new</B><BR/><BR/>Then: <U>resize</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new: "];
+  place_done [label=<<B>done</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place done: "];
+  place_error [label=<<B>error</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place error: "];
+  transition_resize [label=<<B>resize</B><BR/>async: >, shape="box" regular="" xlabel="Transition resize: "];
+  transition_retry [label=<<B>retry</B><BR/>async: >, shape="box" regular="" xlabel="Transition retry: "];
+  place_new -> transition_resize [style="solid", comment="new"];
+  transition_resize -> place_done [style="solid"];
+  place_error -> transition_retry [style="solid", comment="error"];
+  transition_retry -> place_done [style="solid"];
+}

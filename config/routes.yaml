@@ -1,0 +1,8 @@
+controllers:
+    resource:
+        path: ../src/Controller/
+        namespace: App\Controller
+    type: attribute
+sais_webhook::
+    path: /webhook/sais-webhook
+    controller: Symfony\Bundle\WebhookBundle\Controller\WebhookController
