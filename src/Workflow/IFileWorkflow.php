@@ -13,19 +13,19 @@ class IFileWorkflow
 	public const WORKFLOW_NAME = 'FileWorkflow';
 
     #[Place(next: [self::TRANSITION_LIST])]
-	public const PLACE_NEW_DIR = 'dir';
+	public const PLACE_NEW_DIR = 'new_dir';
 
     #[Place(initial: true)]
-    public const PLACE_NEW_FILE = 'file';
+    public const PLACE_NEW_FILE = 'new_file';
 
 	#[Place]
-	public const PLACE_LISTING = 'listing';
+	public const PLACE_LISTING = 'dir_has_listing';
 
 	#[Place]
 	public const PLACE_DOWNLOADED = 'downloaded';
 
     #[Place]
-    public const PLACE_META = 'has_meta';
+    public const PLACE_META = 'file_has_meta';
 
     // @todo: move guard here.
 	#[Transition(from: [self::PLACE_NEW_DIR], to: self::PLACE_LISTING, async: true)]

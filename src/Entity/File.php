@@ -30,15 +30,16 @@ use ApiPlatform\Serializer\Filter\PropertyFilter;
     denormalizationContext: ['groups' => ["Default", "minimum", "browse"]],
 )]
 #[ApiFilter(OrderFilter::class, properties: ['marking', 'org', 'shortName', 'fullName'], arguments: ['orderParameterName' => 'order'])]
-#[ApiFilter(SearchFilter::class, properties: ['id' => 'exact', 'name' => 'partial', 'isDir' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: ['code' => 'exact', 'name' => 'partial', 'isDir' => 'exact'])]
 #[Gedmo\Tree(type: "nested")]
 #[ORM\Entity(repositoryClass: FileRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_STORAGE_PATH', fields: ['storage', 'path'])]
 #[MeiliIndex(
     persisted: new Fields(
-        groups: ['file.read']
+        fields: ['id'],
+        groups: ['file.read','minimum','search']
     ),
-    sortable: ['listingCount'],
+    sortable: ['listingCount','dirCount','fileCount'],
     filterable: ['fileSize','listingCount','type']
 )]
 class File implements \Stringable, TreeInterface, MarkingInterface,RouteParametersInterface
@@ -48,24 +49,30 @@ class File implements \Stringable, TreeInterface, MarkingInterface,RouteParamete
     use RouteParametersTrait;
 
     #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column()]
     #[Groups(['minimum', 'search', 'jstree'])]
-    private int $id;
+    private(set) string $id;
+
     #[ORM\Column(type: 'string', length: 255)]
     #[Groups(['minimum', 'search', 'jstree'])]
-    private(set) string $name;
+    public string $name;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $lastModified = null;
+    public ?\DateTimeInterface $lastModified = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups(['file.read'])]
-    private(set) ?int $fileSize = null;
+    public ?int $fileSize = null;
+
+    #[Groups(['file.read'])]
+    public int $listingCount { get => $this->dirCount + $this->fileCount; }
 
     #[ORM\Column(nullable: true)]
     #[Groups(['file.read'])]
-    public ?int $listingCount = null;
+    public ?int $dirCount = null;
+    #[ORM\Column(nullable: true)]
+    #[Groups(['file.read'])]
+    public ?int $fileCount = null;
 
     #[Groups(['file.read'])]
     public string $type { get => $this->isDir ? 'dir' : 'file'; }
@@ -75,7 +82,7 @@ class File implements \Stringable, TreeInterface, MarkingInterface,RouteParamete
     public function __construct(
         #[ORM\ManyToOne(inversedBy: 'files')]
         #[ORM\JoinColumn(nullable: false)]
-        private(set) ?Storage $storage = null,
+        public ?Storage $storage = null,
         #[ORM\Column(type: 'string', length: 255, nullable: true)]
         #[Groups(['file.read'])]
         private(set) ?string  $path = null,
@@ -84,7 +91,7 @@ class File implements \Stringable, TreeInterface, MarkingInterface,RouteParamete
         private(set) bool $isDir = false,
         #[ORM\Column(type: 'boolean')]
         #[Groups(['file.read'])]
-        private(set) bool $isPublic = true,
+        public bool $isPublic = true,
     )
     {
         $this->children = new ArrayCollection();
@@ -92,116 +99,42 @@ class File implements \Stringable, TreeInterface, MarkingInterface,RouteParamete
             $this->storage->addFile($this);
         }
         $this->marking = $this->isDir ? IFileWorkflow::PLACE_NEW_DIR : IFileWorkflow::PLACE_NEW_FILE;
+        // unfortunately, these codes are different than the filenames!
+        $this->id = self::calcCode($this->storageId, $this->path);
+        if ($this->isDir) {
+            $this->dirCount = 0;
+            $this->fileCount = 0;
+        }
     }
 
-    public function isPublic(): bool
+    static public function calcCode(string|Storage $storageId, string $path)
     {
-        return $this->isPublic;
+        return hash('xxh3', (is_string($storageId) ? $storageId : $storageId->id) . $path);
     }
 
-    public function setIsPublic(bool $isPublic): self
-    {
-        $this->isPublic = $isPublic;
-        return $this;
-    }
+    public string $storageId { get => $this->storage->id; }
+
 
 //    public function getId(): ?int
 //    {
 //        return $this->id;
 //    }
 
-    #[Groups(['minimum', 'search', 'jstree'])]
     public function getId(): ?string
     {
         return $this->id;
     }
 
 
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    public function setName(string $name): self
-    {
-        $this->name = $name;
-
-        return $this;
-    }
-
-    public function getPath(): ?string
-    {
-        return $this->path;
-    }
-
-    public function setPath(?string $path): self
-    {
-        $this->path = $path;
-
-        return $this;
-    }
-
-    public function getIsDir(): ?bool
-    {
-        return $this->isDir;
-    }
-
-    public function setIsDir(bool $isDir): self
-    {
-        $this->isDir = $isDir;
-
-        return $this;
-    }
 
     public function __toString(): string
     {
-        return (string)$this->getName();
+        return (string)$this->name;
     }
 
     public function getExtension(): ?string
     {
-        return pathinfo($this->getName(), PATHINFO_EXTENSION);
+        return pathinfo($this->name, PATHINFO_EXTENSION);
     }
 
-    public function getStorage(): ?Storage
-    {
-        return $this->storage;
-    }
-
-    public function setStorage(?Storage $storage): static
-    {
-        $this->storage = $storage;
-
-        return $this;
-    }
-
-    public function getLastModified(): ?\DateTimeInterface
-    {
-        return $this->lastModified;
-    }
-
-    public function setLastModified(\DateTimeInterface $lastModified): static
-    {
-        $this->lastModified = $lastModified;
-
-        return $this;
-    }
-
-
-    public function getListingCount(): ?int
-    {
-        return $this->listingCount;
-    }
-
-    public function setListingCount(?int $listingCount): static
-    {
-        $this->listingCount = $listingCount;
-
-        return $this;
-    }
-
-    public function getZoneId(): string
-    {
-        return $this->getStorage()->getCode();
-    }
 }

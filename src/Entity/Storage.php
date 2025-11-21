@@ -8,22 +8,25 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
-
+use function Symfony\Component\String\u;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
 #[ORM\Entity(repositoryClass: StorageRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    operations:
+    [
+        new Get(
+            uriTemplate: '/storages/{id}',
+            requirements: ['id' => '.+'] // Allow any character including dots
+        ),
+        new GetCollection(),
+    ]
+)]
 #[MeiliIndex()]
 class Storage implements \Stringable
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
-
-    #[ORM\Column(length: 255)]
-    private ?string $code = null;
-
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $adapter = null;
+    private(set) ?string $adapter = null;
 
     /**
      * @var Collection<int, File>
@@ -34,53 +37,24 @@ class Storage implements \Stringable
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $root = null;
 
-    public function __construct()
+    public function __construct(
+        #[ORM\Id]
+        #[ORM\Column(length: 255)]
+        private(set) ?string $id = null
+    )
     {
         $this->files = new ArrayCollection();
     }
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getCode(): ?string
-    {
-        return $this->code;
-    }
-
-    public function setCode(string $code): static
-    {
-        $this->code = $code;
-
-        return $this;
-    }
-
-    public function getAdapter(): ?string
-    {
-        return $this->adapter;
-    }
-
-    public function setAdapter(string $adapter): static
-    {
-        $this->adapter = $adapter;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, File>
-     */
-    public function getFiles(): Collection
-    {
-        return $this->files;
+    static public function calcCode(string $zoneId): string {
+        return $zoneId; // str_replace('.', '-', $zoneId);
     }
 
     public function addFile(File $file): static
     {
         if (!$this->files->contains($file)) {
             $this->files->add($file);
-            $file->setStorage($this);
+            $file->storage = $this;
         }
 
         return $this;
@@ -90,8 +64,8 @@ class Storage implements \Stringable
     {
         if ($this->files->removeElement($file)) {
             // set the owning side to null (unless already changed)
-            if ($file->getStorage() === $this) {
-                $file->setStorage(null);
+            if ($file->storage === $this) {
+                $file->storage = $this;
             }
         }
 
@@ -100,18 +74,6 @@ class Storage implements \Stringable
 
     public function __toString()
     {
-        return $this->getCode();
-    }
-
-    public function getRoot(): ?string
-    {
-        return $this->root;
-    }
-
-    public function setRoot(?string $root): static
-    {
-        $this->root = $root;
-
-        return $this;
+        return (string)$this->id;
     }
 }

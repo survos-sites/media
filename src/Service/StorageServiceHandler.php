@@ -37,63 +37,66 @@ class StorageServiceHandler
     {
     }
 
+    private array $seen = []; // avoid so many lookups, use redis bloom filter in production
+
     public function syncDirectoryListing(string $zoneId, string $path): array
     {
         $results = [];
         $path = ltrim($path, '/');
 //        $adapter = $this->storageService->getAdapter($zoneId);
         $zone = $this->storageService->getZone($zoneId);
-        if (!$storage = $this->storageRepository->findOneBy(['code' => $zoneId])) {
-//            assert(false, "missing a storage entity??");
-            $storage = new Storage();
-            $storage->setCode($zoneId);
-            $this->entityManager->persist($storage);
+        assert($zone);
+        if (!$storage = $this->storageRepository->find(Storage::calcCode($zoneId))) {
+            assert(false, "missing a storage entity??");
+//            $storage = new Storage();
+//            $storage->setCode($zoneId);
+//            $this->entityManager->persist($storage);
+        }
+        foreach ($this->fileRepository->findBy(['storage' => $storage]) as $file) {
+            $seen[$file->id] = $file;
         }
 
         $listingCount = 0;
-        $storage
-//            ->setRoot($adapter->getRoot())
-//            ->setAdapter($adapter::class)
-        ;
-        $dirEntity = $this->fileRepository->findOneBy([
-            'storage' => $storage,
-            'path' => $path
-        ]);
+        $code = File::calcCode($storage, $path);
+        $root = $this->fileRepository->find($code);
+        assert($root, "we should have a root unless we haven't persisted yet");
 
         $iterator = $zone->listContents($path, false);
         /** @var FileAttributes|DirectoryAttributes $file */
-        foreach ($iterator as $file) {
+        $root->dirCount = 0;
+        $root->fileCount = 0;
+        foreach ($iterator as $storageAttributes) {
             $listingCount++;
-            $this->logger->info($listingCount . " {$file['type']}: {$file['path']} ");
-            $path = $file->path();
-            if (!$fileEntity = $this->fileRepository->findOneBy(
-                [
-                    'storage' => $storage,
-                    'path' => $path,
-                ])) {
-                $fileEntity = new File($storage, $path,
-                    isDir: $file->isDir()
+            $code = File::calcCode($storage, $filePath = $storageAttributes->path());
+            if (!array_key_exists($code, $seen)) {
+                $fileEntity = new File($storage, $filePath,
+                    isDir: $storageAttributes->isDir()
                 );
                 $this->entityManager->persist($fileEntity);
-                $dirEntity?->addChild($fileEntity);
+                $root?->addChild($fileEntity);
+                $seen[$code] = $fileEntity;
+            }
+            if ($fileEntity->isDir) {
+                $root->dirCount++;
+            } else {
+                $root->fileCount++;
             }
 
-//            if ($unixTime = $file->lastModified()) {
+//            if ($unixTime = $storageAttributes->lastModified()) {
 //                dump($unixTime);
 //                $this->logger->error((string)$unixTime);
 //                $lastModified = (new \DateTime())->setTimestamp($unixTime);
 //                $fileEntity
 //                    ->setLastModified($lastModified);
 //            }
-            $fileEntity
-                ->setIsPublic($file->visibility() === 'public');
-            $fileEntity->setName(pathinfo($path, PATHINFO_BASENAME));
-            if ($file->isFile()) {
-                $fileEntity->setFileSize($file->fileSize());
+            $fileEntity->isPublic = $storageAttributes->visibility() === 'public';
+            $fileEntity->name = pathinfo($path, PATHINFO_BASENAME);
+            if ($storageAttributes->isFile()) {
+                $fileEntity->fileSize = $storageAttributes->fileSize();
             }
             $results[] = $fileEntity;
         }
-        $dirEntity?->setListingCount($listingCount);
+//        $root?->setListingCount($listingCount);
         assert($listingCount == count($results), "count is wrong");
         assert($listingCount, "no listing");
         $this->entityManager->flush();

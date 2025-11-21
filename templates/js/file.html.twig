@@ -36,10 +36,12 @@
             </h5>
         {% endif %}
         {% if hit.isDir %}
-        <code>{{ hit.listingCount }}
-            @todo: break into dirs and files
+        <code>
+{#            {{ hit.listingCount }}#}
+            {{ hit.dirCount }} dirs, {{ hit.fileCount }} files
         </code>
         {% endif %}
+        {{ hit|json_encode }}
 
         <div class="card-body p-3">
             {{ hit.description }}

@@ -74,20 +74,20 @@ final class SyncStorageCommand extends Command
 
         $path = ltrim($path, '/');
 //        $adapter = $this->storageService->getAdapter($zoneId);
-        $zone = $this->storageService->getZone($zoneId);
-        if (!$storage = $this->storageRepository->findOneBy(['code' => $zoneId])) {
+//        $zone = $this->storageService->getZone($zoneId);
+        $storageCode = Storage::calcCode($zoneId);
+        if (!$storage = $this->storageRepository->find($storageCode)) {
 //            assert(false, "missing a storage entity??");
-            $storage = new Storage();
-            $storage->setCode($zoneId);
+            $storage = new Storage($storageCode);
             $this->entityManager->persist($storage);
         }
 
-        if (!$dirEntity = $this->fileRepository->findOneBy([
-            'storage' => $storage,
-            'path' => $path
-        ])) {
+        $code = File::calcCode($storage, $path);
+        // @todo: fetch codes for faster skipping
+        if (!$dirEntity = $this->fileRepository->find($code)) {
             $dirEntity = new File($storage, $path, isDir: true, isPublic: true);
-            $dirEntity->setName($zoneId);
+            $dirEntity->name = $zoneId . ' Root';
+            assert($code == $dirEntity->id);
             $this->entityManager->persist($dirEntity);
         }
         $this->entityManager->flush();
@@ -100,9 +100,9 @@ final class SyncStorageCommand extends Command
 //                if ($this->fileWorkflow->can($dirEntity, IFileWorkflow::TRANSITION_LIST))
                 if (true)
                 {
-                    $this->logger->warning("Dispatching directory listing for " . $file->getPath());
+                    $this->logger->warning("Dispatching directory listing for " . $file->path);
                     $message = new TransitionMessage(
-                        $dirEntity->getId(),
+                        $dirEntity->id,
                         File::class,
                         IFileWorkflow::TRANSITION_LIST,
                         IFileWorkflow::WORKFLOW_NAME);
