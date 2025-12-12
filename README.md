@@ -1,4 +1,8 @@
-# Survos Async Image Server (SAIS)
+# Survos Media Server -- formerly Survos Async Image Server (SAIS)
+
+Now uses Asset and Variant instead of Media and Thumbs
+
+However, this wasn't finished, and we haven't integrated jolicode's media bundle or ImgProxy, both worth considering.
 
 This application is based on the LiipImagineBundle, but instead of dynamically creating images on the fly, it creates them asynchronously and sends a callback to the client when finished.   It uses [flysystem](https://github.com/thephpleague/flysystem-bundle) so the storage is flexible.  The main purpose is to NOT freeze the system if a thumbnail has not been generated, but also have a central repository for image analysis tools.
 
