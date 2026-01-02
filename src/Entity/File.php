@@ -36,7 +36,7 @@ use ApiPlatform\Serializer\Filter\PropertyFilter;
 #[ORM\UniqueConstraint(name: 'UNIQ_STORAGE_PATH', fields: ['storage', 'path'])]
 #[MeiliIndex(
     persisted: new Fields(
-        fields: ['id'],
+        fields: ['id','fileSize', 'listingCount', 'dirCount', 'fileCount', 'type'],
         groups: ['file.read','minimum','search']
     ),
     sortable: ['listingCount','dirCount','fileCount'],

@@ -1,4 +1,4 @@
-{% extends app.request.headers.get('_page_content_only', app.request.get('_page_content_only'))
+{% extends app.request.headers.get('_page_content_only', app.request.query.get('_page_content_only'))
     ? "@SurvosBootstrap/_content_only.html.twig":
     "layout.html.twig"
 %}
