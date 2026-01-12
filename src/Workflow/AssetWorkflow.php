@@ -75,7 +75,9 @@ class AssetWorkflow
         #[Autowire('%env(SAIS_API_ENDPOINT)%')]
         private string                                          $apiEndpoint,
         #[Autowire('%kernel.project_dir%/public/temp')]
-        private string                                          $tempDir, private readonly EntityManagerInterface $entityManager, private readonly AsyncQueueLocator $asyncQueueLocator,
+        private string                                          $tempDir,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly AsyncQueueLocator $asyncQueueLocator,
         private readonly ?FilesystemOperator                    $defaultStorage = null,
         private ?GoogleDriveService                             $driveService   = null,
         private readonly VariantPlan                            $plan,

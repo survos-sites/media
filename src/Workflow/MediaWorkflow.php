@@ -49,14 +49,12 @@ class MediaWorkflow
     public function __construct(
         private MessageBusInterface                                             $messageBus,
         private EntityManagerInterface                                          $entityManager,
-        private ThumbRepository                                                 $thumbRepository,
         private readonly FilesystemOperator                                     $localStorage,
         private readonly LoggerInterface                                        $logger,
         private readonly HttpClientInterface                                    $httpClient,
         private UserRepository                                                  $userRepository,
         private readonly ApiService                                             $apiService,
         private readonly MediaRepository                                        $mediaRepository,
-        #[Target(ThumbFlowDefinition::WORKFLOW_NAME)] private WorkflowInterface $thumbWorkflow,
         #[Target(MediaFlowDefinition::WORKFLOW_NAME)] private WorkflowInterface $mediaWorkflow,
 
         #[Autowire('@liip_imagine.service.filter')]

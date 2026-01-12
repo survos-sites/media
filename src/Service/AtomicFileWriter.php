@@ -16,20 +16,18 @@ use function tempnam;
 use function unlink;
 
 use League\Flysystem\FilesystemOperator;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 final class AtomicFileWriter
 {
     public function __construct(
+        #[Autowire(service: 'archive.storage')]
         private readonly FilesystemOperator $filesystem,
     ) {
     }
 
     public function write(string $targetPath, string $contents): void
     {
-        if ($targetPath === '') {
-            throw new InvalidArgumentException('Target path must not be empty.');
-        }
-
         if ($targetPath === '') {
             throw new InvalidArgumentException('Target path must not be empty.');
         }

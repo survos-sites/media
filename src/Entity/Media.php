@@ -334,35 +334,6 @@ class Media implements /* MarkingInterface, */ \Stringable, RouteParametersInter
         return $this;
     }
 
-    /**
-     * @return Collection<int, Thumb>
-     */
-    public function getThumbs(): Collection
-    {
-        return $this->thumbs;
-    }
-
-    public function addThumb(Thumb $resizedImage): static
-    {
-        if (!$this->thumbs->contains($resizedImage)) {
-            $this->thumbs->add($resizedImage);
-            $resizedImage->setMedia($this);
-        }
-
-        return $this;
-    }
-
-    public function removeThumb(Thumb $resizedImage): static
-    {
-        if ($this->thumbs->removeElement($resizedImage)) {
-            // set the owning side to null (unless already changed)
-            if ($resizedImage->getMedia() === $this) {
-                $resizedImage->setMedia(null);
-            }
-        }
-
-        return $this;
-    }
 
     public function __toString(): string
     {

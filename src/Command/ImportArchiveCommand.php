@@ -26,7 +26,6 @@ final class ImportArchiveCommand extends Command
     public function __construct(
         private EntityManagerInterface $em,
         private UserRepository $userRepo,
-        private MediaRepository $mediaRepo,
         private ObjectMapperInterface $mapper
     ) {
         parent::__construct();
