@@ -16,26 +16,3 @@ services:
     App\:
         resource: '../src/'
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
-    App\Controller\ImageController:
-        public: true
-        arguments:
-            - '@liip_imagine.service.filter'
-            - '@liip_imagine.data.manager'
-            - '@liip_imagine.cache.signer'
-
-    App\Service\SaisDbSelectionProvider: ~
-
-    # Tell sais-bundle which selection provider to use
-    Survos\SaisBundle\Contract\SelectionProviderInterface: '@App\Service\SaisDbSelectionProvider'
-
-#    App\Service\ApiService:
-#        public: true
-#        autowire: true
-#        autoconfigure: true
-##        arguments:
-##            -
-##            - '@liip_imagine.service.filter'
-##            - '@liip_imagine.data.manager'
-##            - '@liip_imagine.cache.signer'
