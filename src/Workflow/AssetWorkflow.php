@@ -52,6 +52,7 @@ use App\Workflow\VariantFlowDefinition as VWF;
 #[Workflow(name: WF::WORKFLOW_NAME, supports: [Asset::class])]
 class AssetWorkflow
 {
+    const THUMBHASH_PRESET = 'small';
     public function __construct(
         private MediaUrlGenerator $mediaUrlGenerator,
         private AssetPreviewService $assetPreviewService,
@@ -213,22 +214,15 @@ class AssetWorkflow
      * Because onCompleted happens BEFORE the specific transition onCompleted,
      * we need to match this event exactly.  Otherwise, the next events are dispatched too soon.
      */
-    #[AsCompletedListener(priority: 1000)]
-    public function onDownloadCompleted(CompletedEvent $event): void
+    #[AsCompletedListener(WF::TRANSITION_ARCHIVE ,priority: 1000)]
+    public function onArchiveCompleted(CompletedEvent $event): void
     {
-        $asset = $this->getAsset($event);
-        if (
-            ($event->getWorkflowName() !== WF::WORKFLOW_NAME) ||
-            ($event->getTransition()?->getName() !== WF::TRANSITION_DOWNLOAD)
-        ) {
-            return;
-        }
         $asset = $this->getAsset($event);
 
         // If you're enforcing "analyze from thumbnails", this is the right time
         // to produce variants so analysis can run immediately after they're done.
-        $presets = $this->plan->requiredPresetsForAsset($asset->mime);
-        $presets = ['small']; // for thumbHash, could be 192
+//        $presets = $this->plan->requiredPresetsForAsset($asset->mime);
+        $presets = ['small']; // for thumbHash and preload
         foreach ($presets as $preset) {
             $url = $this->mediaUrlGenerator->resize($asset->originalUrl, $preset);
             // fetch it to seed the cache and get the thumbHasn
@@ -244,6 +238,17 @@ class AssetWorkflow
     {
         $asset   = $this->getAsset($event);
         $context = $event->getContext();
+
+        // need a constant for the small!
+        $url = $this->mediaUrlGenerator->resize($asset->originalUrl, self::THUMBHASH_PRESET);
+        // fetch it to seed the cache and get the thumbHasn
+        $tempFilename = $this->downloadUrl($url, 'small.jpg'); // $asset->tempFilename);
+        $content = file_get_contents($tempFilename);
+        $this->assetPreviewService->maybeComputeThumbhash($asset, self::THUMBHASH_PRESET, $content);
+        // arguably colors could be done on a bigger image
+        $this->assetPreviewService->maybeComputePaletteAndPhash($asset, self::THUMBHASH_PRESET, $tempFilename);
+        dd($asset->context);
+
         return;
 
         // Guard: only analyze images for now; audio/video can get their own probes
