@@ -48,4 +48,5 @@ return [
     Survos\EzBundle\SurvosEzBundle::class => ['all' => true],
     Survos\DocBundle\SurvosDocBundle::class => ['all' => true],
     Survos\JsonlBundle\SurvosJsonlBundle::class => ['all' => true],
+    Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
 ];

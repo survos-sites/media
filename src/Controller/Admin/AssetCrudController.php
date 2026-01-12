@@ -129,14 +129,14 @@ class AssetCrudController extends BaseCrudController
         // Visual priority order - most important first
         yield AvatarField::new('thumbnailUrl')->setHeight(36);  // Visual thumbnail first
 
-        yield TextField::new('id')
-            ->formatValue(function ($value, $entity) {
-                return sprintf(
-                    '<a href="%s">%s</a>',
-                    $this->generateUrl('admin_custom_asset', ['id' => $value]),
-                    $value
-                );
-            });
+//        yield TextField::new('id')
+//            ->formatValue(function ($value, $entity) {
+//                return sprintf(
+//                    '<a href="%s">%s</a>',
+//                    $this->generateUrl('admin_custom_asset', ['id' => $value]),
+//                    $value
+//                );
+//            });
 
         yield TextField::new('marking');                     // Status/workflow state
         yield IntegerField::new('statusCode');               // HTTP status

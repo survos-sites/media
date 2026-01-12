@@ -7,6 +7,7 @@ use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\SaisBundle\Service\SaisClientService;
 use Survos\StateBundle\Traits\MarkingInterface;
@@ -20,7 +21,12 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
-#[MeiliIndex()]
+#[MeiliIndex(
+    persisted: new Fields(
+        groups: ['asset.read'],
+        fields: ['id','mime','storageBackend','width','height','createdAt'],
+    )
+)]
 class Asset implements MarkingInterface, \Stringable
 {
     use MarkingTrait; // provides $marking + getters/setters compatible with the workflow engine
@@ -111,7 +117,7 @@ class Asset implements MarkingInterface, \Stringable
     /** Variants generated for this asset (e.g., liip presets, formats). */
     #[ORM\OneToMany(mappedBy: 'asset', targetEntity: Variant::class, cascade: ['persist'], orphanRemoval: true)]
     #[ORM\OrderBy(['preset' => 'ASC', 'format' => 'ASC'])]
-    #[Groups(['asset.read'])]
+//    #[Groups(['asset.read'])]
     public Collection $variants;
 
     /** Ingest timestamp. */

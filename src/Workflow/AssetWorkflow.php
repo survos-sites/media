@@ -269,8 +269,9 @@ class AssetWorkflow
         // after flush, dispatch thumbs request
         foreach ($asset->variants as $variant) {
             if ($this->variantWorkflow->can($variant, $tn = VWF::TRANSITION_RESIZE)) {
-                $stamps = $this->asyncQueueLocator->stampsFor($wf = VWF::WORKFLOW_NAME, $tn);
-                $transitionMessage = new TransitionMessage($variant->id, $variant::class, $tn, $wf, $event->getContext());
+                $transitionMessage = new TransitionMessage($variant->id, $variant::class, $tn, VariantFlowDefinition::WORKFLOW_NAME, $event->getContext());
+                $stamps = $this->asyncQueueLocator->stamps($transitionMessage);
+                dump($transitionMessage, $stamps);
                 $this->messageBus->dispatch($transitionMessage, $stamps);
             }
         }

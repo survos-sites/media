@@ -17,7 +17,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_variant_preset', columns: ['preset'])]
 #[ORM\Index(name: 'idx_variant_format', columns: ['format'])]
 #[ORM\Index(name: 'idx_variant_created_at', columns: ['created_at'])]
-#[MeiliIndex()]
+//#[MeiliIndex()]
 class Variant implements MarkingInterface, \Stringable
 {
     use MarkingTrait; // provides $marking + accessors for workflow

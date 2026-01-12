@@ -238,11 +238,10 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
             $this->asyncQueueLocator->sync = true; // overwrite what's in the config
         }
         $nextTransition = AssetFlow::TRANSITION_DOWNLOAD;
-        $stamps = $this->asyncQueueLocator->stampsFor(AssetFlow::WORKFLOW_NAME, $nextTransition);
 
         foreach ($listing as $asset) {
             $this->logger->warning("Dispatching download for {$asset->id} \n");
-            $envelope = $this->messageBus->dispatch($msg = new TransitionMessage(
+            $msg = new TransitionMessage(
                 $asset->id,
                 Asset::class,
                 AssetFlow::TRANSITION_DOWNLOAD,
@@ -253,7 +252,9 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
 //                    'mediaCallbackUrl' => $payload->mediaCallbackUrl,
 //                    'thumbCallbackUrl' => $payload->thumbCallbackUrl,
                 ]
-            ), $stamps);
+            );
+            $stamps = $this->asyncQueueLocator->stamps($msg);
+            $envelope = $this->messageBus->dispatch($msg, $stamps);
         }
 
         $response = $this->normalizer->normalize($listing, 'object', ['groups' => ['asset.read', 'marking']]);

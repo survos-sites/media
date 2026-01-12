@@ -57,9 +57,9 @@ final class AppMenu implements KnpMenuHelperInterface
         $this->add($menu, 'meili_admin', label: 'ez');
             $this->add($menu, 'zenstruck_messenger_monitor_dashboard', label: '*msg');
         //$this->add($menu, 'app_media');
-        $this->add($menu,MeiliDashboardController::MEILI_DASHBOARD_ROUTE . "_asset_index",label: "Asset");
+        $this->add($menu,MeiliDashboardController::MEILI_ROUTE . "_asset_index",label: "Asset");
         //$this->add($menu, 'app_thumbs');
-        $this->add($menu, MeiliDashboardController::MEILI_DASHBOARD_ROUTE . '_variant_index', label: 'Variant');
+        $this->add($menu, MeiliDashboardController::MEILI_ROUTE . '_variant_index', label: 'Variant');
 //        $this->add($menu, 'admin_user_index', label: 'Accounts');
 
 //        $this->add($menu, uri: '/db.svg', external: true, label: 'db.svg');
