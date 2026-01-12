@@ -27,20 +27,18 @@ final class CachedImageController
     public const PRESETS = [
         'small' => 'resize:fit:150:75',
         'thumb' => 'resize:fill:200:200',
+        'large' => 'resize:fill:800:800',
         'hero'  => 'resize:fit:1200:600',
     ];
 
 
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        #[\Symfony\Component\DependencyInjection\Attribute\Autowire('%kernel.project_dir%')]
-        private readonly string $projectDir,
-        private readonly ?Stopwatch $stopwatch=null,
+        private readonly \App\Service\AssetRegistry $assetRegistry,
     ) {
     }
 
-    #[Route('/sais/image/{preset}/{encoded}', name: 'sais_cached_image', options: ['expose' => true])]
+    #[Route('/media/{preset}/{encoded}', name: 'sais_cached_image', options: ['expose' => true])]
     public function __invoke(string $preset, string $encoded): Response
     {
         if (!isset(self::PRESETS[$preset])) {
@@ -52,22 +50,11 @@ final class CachedImageController
             throw new BadRequestHttpException('Invalid base64 source.');
         }
 
+        // Ensure asset is registered
+        $asset = $this->assetRegistry->ensureAsset($source);
+
+        // Redirect to imgproxy for now (no byte streaming or caching yet)
         $options = self::PRESETS[$preset];
-        $cacheKey = sha1($source . '|' . $options);
-
-        $cacheDir = $this->projectDir . '/public/cache';
-        $cachePath = $cacheDir . '/' . $cacheKey;
-
-        if (file_exists($cachePath)) {
-            $response = new BinaryFileResponse($cachePath);
-            $response->headers->set('X-Sais-Cache', 'hit');
-            return $response;
-        }
-
-        if (!is_dir($cacheDir) && !mkdir($cacheDir, 0775, true) && !is_dir($cacheDir)) {
-            throw new RuntimeException('Failed to create cache directory.');
-        }
-
         $imgproxyUrl = sprintf(
             '%s/%s/%s',
             'https://images.survos.com',
@@ -75,24 +62,6 @@ final class CachedImageController
             $encoded
         );
 
-        $this->stopwatch->start('imgproxy_fetch');
-        $imgResponse = $this->httpClient->request('GET', $imgproxyUrl);
-        $content = $imgResponse->getContent();
-        $event = $this->stopwatch->stop('imgproxy_fetch');
-
-        $tmpPath = $cachePath . '.tmp';
-        if (file_put_contents($tmpPath, $content) === false) {
-            throw new RuntimeException('Failed writing cached image.');
-        }
-
-        if (!rename($tmpPath, $cachePath)) {
-            throw new RuntimeException('Failed finalizing cached image.');
-        }
-
-        $response = new BinaryFileResponse($cachePath);
-        $response->headers->set('X-Sais-Cache', 'miss');
-        $response->headers->set('X-Sais-Fetch-Time', (string) $event->getDuration());
-        $response->headers->set('X-Sais-Source', $imgproxyUrl);
-        return $response;
+        return new \Symfony\Component\HttpFoundation\RedirectResponse($imgproxyUrl, 302);
     }
 }

@@ -9,7 +9,7 @@ namespace App\Service;
  */
 final class VariantPlan
 {
-    const DEFAULT_PRESETS = ['small','medium'];
+    const DEFAULT_PRESETS = ['small']; // this is to seed the cache and get what we need for thumbHash
     /**
      * @return list<string> e.g. ['thumb','small','medium']
      */

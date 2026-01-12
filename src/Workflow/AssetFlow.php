@@ -44,26 +44,13 @@ class AssetFlow
     )]
     public const PLACE_ANALYZED = 'analyzed';
 
-    #[Place(
-        info: 'Original stored durably with metadata',
-        next: [self::TRANSITION_QUEUE_VARIANTS]
-    )]
-    public const PLACE_ARCHIVED = 'archived';
+     #[Place(
+         info: 'Original stored durably with metadata'
+     )]
+     public const PLACE_ARCHIVED = 'archived';
 
-    #[Place(
-        info: 'Variant jobs enqueued',
-        next: [self::TRANSITION_AWAIT_VARIANTS]
-    )]
-    public const PLACE_VARIANTS_QUEUED = 'variants_queued';
-
-    #[Place(
-        info: 'All variants finished',
-        next: [self::TRANSITION_FINALIZE]
-    )]
-    public const PLACE_VARIANTS_BUILT = 'variants_built';
-
-    #[Place(info: 'All done')]
-    public const PLACE_COMPLETE = 'complete';
+     #[Place(info: 'All done')]
+     public const PLACE_COMPLETE = 'complete';
 
     #[Place(info: 'Terminal error / exhausted retries')]
     public const PLACE_FAILED = 'failed';
@@ -122,42 +109,20 @@ class AssetFlow
     )]
     public const TRANSITION_ANALYZE = 'analyze';
 
-    #[Transition(
-        from: self::PLACE_ANALYZED,
-        to: self::PLACE_ARCHIVED,
-        info: 'Archive original',
-        description: 'Write original to long-term storage with analysis metadata',
-        async: true,
-        next: [self::TRANSITION_QUEUE_VARIANTS]
-    )]
-    public const TRANSITION_ARCHIVE = 'archive';
+     #[Transition(
+         from: self::PLACE_ANALYZED,
+         to: self::PLACE_ARCHIVED,
+         info: 'Archive original',
+         description: 'Stub: archive original to durable storage (S3) and seed imgproxy cache',
+         async: true
+     )]
+     public const TRANSITION_ARCHIVE = 'archive';
 
-    #[Transition(
-        from: self::PLACE_ARCHIVED,
-        to: self::PLACE_VARIANTS_QUEUED,
-        info: 'Queue variants',
-        description: 'Select presets per media type; enqueue Variant jobs',
-        async: false,
-        next: [self::TRANSITION_AWAIT_VARIANTS]
-    )]
-    public const TRANSITION_QUEUE_VARIANTS = 'queue_variants';
-
-    #[Transition(
-        from: self::PLACE_VARIANTS_QUEUED,
-        to: self::PLACE_VARIANTS_BUILT,
-        info: 'Await variants',
-        description: 'Fan-in when all Variant jobs report done',
-        async: true,
-        next: [self::TRANSITION_FINALIZE]
-    )]
-    public const TRANSITION_AWAIT_VARIANTS = 'await_variants';
-
-    #[Transition(
-        from: self::PLACE_VARIANTS_BUILT,
-        to: self::PLACE_COMPLETE,
-        info: 'Finalize',
-        description: 'Webhooks, indexing, bookkeeping',
-        async: false
-    )]
-    public const TRANSITION_FINALIZE = 'finalize';
+     #[Transition(
+         from: self::PLACE_ARCHIVED,
+         to: self::PLACE_COMPLETE,
+         info: 'Finalize',
+         description: 'Finalize asset (indexing handled by listeners)'
+     )]
+     public const TRANSITION_FINALIZE = 'finalize';
 }

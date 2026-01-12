@@ -21,8 +21,8 @@ use League\Flysystem\FilesystemOperator;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\UnableToWriteFile;
 use League\Flysystem\Visibility;
-use Liip\ImagineBundle\Service\FilterService;
 use Psr\Log\LoggerInterface;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\SaisBundle\Service\SaisClientService;
 use Survos\SaisBundle\Util\ShardedKey;
 use App\Util\ImageProbe;
@@ -53,6 +53,8 @@ use App\Workflow\VariantFlowDefinition as VWF;
 class AssetWorkflow
 {
     public function __construct(
+        private MediaUrlGenerator $mediaUrlGenerator,
+        private AssetPreviewService $assetPreviewService,
         private MessageBusInterface          $messageBus,
         private EntityManagerInterface                          $em,
         private AssetRepository                                 $assetRepo,
@@ -66,8 +68,6 @@ class AssetWorkflow
 //        #[Target(TWF::WORKFLOW_NAME)] private WorkflowInterface $thumbWorkflow,
         #[Target(VWF::WORKFLOW_NAME)] private WorkflowInterface $variantWorkflow,
         #[Target(WF::WORKFLOW_NAME)] private WorkflowInterface  $assetWorkflow,
-        #[Autowire('@liip_imagine.service.filter')]
-        private readonly FilterService                          $filterService,
         private SerializerInterface                             $serializer,
         private NormalizerInterface                             $normalizer,
         #[Autowire('%env(SAIS_API_ENDPOINT)%')]
@@ -76,7 +76,6 @@ class AssetWorkflow
         private string                                          $tempDir, private readonly EntityManagerInterface $entityManager, private readonly AsyncQueueLocator $asyncQueueLocator,
         private readonly ?FilesystemOperator                    $defaultStorage = null,
         private ?GoogleDriveService                             $driveService   = null,
-        private readonly AssetPreviewService                    $assetPreviewService,
         private readonly VariantPlan                            $plan,
         private readonly StorageService                         $storageService,
 
@@ -94,7 +93,7 @@ class AssetWorkflow
      * @throws FilesystemException
      * @throws TransportExceptionInterface
      */
-    #[AsTransitionListener(WF::WORKFLOW_NAME, MediaFlowDefinition::TRANSITION_DOWNLOAD)]
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_DOWNLOAD)]
     public function onDownload(TransitionEvent $event): void
     {
         $asset = $this->getAsset($event);
@@ -217,6 +216,7 @@ class AssetWorkflow
     #[AsCompletedListener(priority: 1000)]
     public function onDownloadCompleted(CompletedEvent $event): void
     {
+        $asset = $this->getAsset($event);
         if (
             ($event->getWorkflowName() !== WF::WORKFLOW_NAME) ||
             ($event->getTransition()?->getName() !== WF::TRANSITION_DOWNLOAD)
@@ -228,52 +228,14 @@ class AssetWorkflow
         // If you're enforcing "analyze from thumbnails", this is the right time
         // to produce variants so analysis can run immediately after they're done.
         $presets = $this->plan->requiredPresetsForAsset($asset->mime);
-
-        if ($presets === []) {
-            $this->logger->info('Download completed: no variants required for non-image asset', [
-                'hash' => $asset->id, 'mime' => $asset->mime
-            ]);
-            return;
-        }
-
-        // Create Variant rows if they don't exist yet (unique on asset+preset+format).
-        // We'll start with your default encode format; VariantResizeListener can override based on Liip/mime.
-        $defaultFormat = 'webp';
-
-        $existing = [];
-        foreach ($asset->variants as $v) {
-            $existing[$v->preset . '|' . $v->format] = true;
-        }
-
-        $created = 0;
+        $presets = ['small']; // for thumbHash, could be 192
         foreach ($presets as $preset) {
-            $key = $preset . '|' . $defaultFormat;
-            if (isset($existing[$key])) {
-                continue;
-            }
-            $variant = new Variant($asset, $preset, $defaultFormat);
-            $this->em->persist($variant);
-            $asset->addVariant($variant);
-            $created++;
-        }
-
-        if ($created > 0) {
-            $this->em->flush();
-            $this->logger->info('Created variant rows', [
-                'hash' => $asset->id,
-                'count' => $created,
-                'presets' => $presets
-            ]);
-        }
-
-        // after flush, dispatch thumbs request
-        foreach ($asset->variants as $variant) {
-            if ($this->variantWorkflow->can($variant, $tn = VWF::TRANSITION_RESIZE)) {
-                $transitionMessage = new TransitionMessage($variant->id, $variant::class, $tn, VariantFlowDefinition::WORKFLOW_NAME, $event->getContext());
-                $stamps = $this->asyncQueueLocator->stamps($transitionMessage);
-                dump($transitionMessage, $stamps);
-                $this->messageBus->dispatch($transitionMessage, $stamps);
-            }
+            $url = $this->mediaUrlGenerator->resize($asset->originalUrl, $preset);
+            // fetch it to seed the cache and get the thumbHasn
+            $tempFilename = $this->downloadUrl($url, 'small.jpg'); // $asset->tempFilename);
+            $content = file_get_contents($tempFilename);
+            $this->assetPreviewService->maybeComputeThumbhash($asset, $preset, $content);
+            $this->assetPreviewService->maybeComputePaletteAndPhash($asset, $preset, $tempFilename);
         }
     }
 
@@ -298,7 +260,7 @@ class AssetWorkflow
         }
 
         // Run previews/analysis on small + medium variants
-        $presets = $context['presets'] ?? ['small','medium'];
+        $presets = $context['presets'] ?? ['small'];
             $results = $this->assetPreviewService->processPresets($asset, $sourceUrlPath, $presets);
             $this->logger->info("Analysis complete for {$asset->id}", $results);
         try {

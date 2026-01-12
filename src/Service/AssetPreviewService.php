@@ -71,6 +71,7 @@ final class AssetPreviewService
      */
     public function processSingle(Asset $asset, string $sourceUrlPath, string $preset): array
     {
+
         // Resolve & build the cached variant; this triggers generation if missing
         $this->logger->debug(sprintf('LiipImagine: %s => %s', $sourceUrlPath, $preset));
 
@@ -133,7 +134,7 @@ final class AssetPreviewService
         ];
     }
 
-    private function maybeComputeThumbhash(Asset $asset, string $preset, string $content, int $w, int $h): void
+    public function maybeComputeThumbhash(Asset $asset, string $preset, string $content): void
     {
         // Convention: compute ThumbHash on the "small" preset
         if ($preset !== 'small') {
@@ -142,10 +143,10 @@ final class AssetPreviewService
 
         // Extract pixels in RGBA and build ThumbHash
         [$tw, $th, $pixels] = $this->thumbHashService->extract_size_and_pixels_with_imagick($content);
-        if (!$tw || !$th) {
-            // Fallback to provided (w,h) if extractor fails unexpectedly
-            $tw = $w; $th = $h;
-        }
+//        if (!$tw || !$th) {
+//            // Fallback to provided (w,h) if extractor fails unexpectedly
+//            $tw = $w; $th = $h;
+//        }
         $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
         $key  = Thumbhash::convertHashToString($hash);
 
@@ -154,10 +155,10 @@ final class AssetPreviewService
         $asset->context['thumbhash'] = $key;
     }
 
-    private function maybeComputePaletteAndPhash(Asset $asset, string $preset, string $cachedPath): void
+    public function maybeComputePaletteAndPhash(Asset $asset, string $preset, string $cachedPath): void
     {
         // Convention: compute palette & pHash on the "medium" preset
-        if ($preset !== 'medium') {
+        if ($preset !== 'small') {
             return;
         }
 

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f51e94dd284e366bc33d20f8c727a727",
+    "content-hash": "60c62c386bafa504c9c86c5d29001bf3",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -7742,6 +7742,67 @@
                 }
             ],
             "time": "2025-12-15T11:32:57+00:00"
+        },
+        {
+            "name": "survos/media-bundle",
+            "version": "2.0.83",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/survos/media-bundle.git",
+                "reference": "74fa3fa44dbb32e7209bc0f43bf33dfc2f73b190"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/survos/media-bundle/zipball/74fa3fa44dbb32e7209bc0f43bf33dfc2f73b190",
+                "reference": "74fa3fa44dbb32e7209bc0f43bf33dfc2f73b190",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/dbal": "^4.3.2",
+                "doctrine/doctrine-bundle": "^2.7|^3.0",
+                "php": "^8.4",
+                "symfony/config": "^7.3||^8.0",
+                "symfony/dependency-injection": "^7.3||^8.0",
+                "symfony/http-kernel": "^7.3||^8.0",
+                "twig/twig": "^3.4"
+            },
+            "require-dev": {
+                "nyholm/psr7": "^1.8",
+                "openai-php/client": "^0.16.1",
+                "phpstan/phpstan": "^2.0",
+                "symfony/browser-kit": "^7.3||^8.0",
+                "symfony/framework-bundle": "^7.3||^8.0",
+                "symfony/http-client": "^7.3||^8.0",
+                "symfony/phpunit-bridge": "^7.3||^8.0",
+                "symfony/twig-bundle": "^7.3||^8.0",
+                "symfony/var-dumper": "^7.3||^8.0"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "Survos\\MediaBundle\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Manage media without direct relationships",
+            "keywords": [
+                "symfony",
+                "symfony-ux"
+            ],
+            "support": {
+                "issues": "https://github.com/survos/media-bundle/issues",
+                "source": "https://github.com/survos/media-bundle/tree/symfonycon-2025"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/kbond",
+                    "type": "github"
+                }
+            ],
+            "time": "2025-10-27T12:45:39+00:00"
         },
         {
             "name": "survos/meili-bundle",
