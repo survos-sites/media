@@ -10,13 +10,14 @@ use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Google\Service\AdExchangeBuyer\Account;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\SaisBundle\Model\AccountSetup;
 use Survos\SaisBundle\Service\SaisClientService;
 
 class CiDataLoad extends Fixture
 {
     function __construct(
-        private readonly SaisClientService $sais,
+        private MediaUrlGenerator $mediaUrlGenerator,
     )
     {
         //$this->sais = new SaisClientService();

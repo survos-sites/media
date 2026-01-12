@@ -1,4 +1,0 @@
-survos_sais:
-    root:         '%env(SAIS_ROOT)%'
-    api_endpoint:         '%env(SAIS_API_ENDPOINT)%'
-    api_key:              ''

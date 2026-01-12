@@ -22,7 +22,6 @@ return [
     Survos\BootstrapBundle\SurvosBootstrapBundle::class => ['all' => true],
     Survos\SimpleDatatables\SurvosSimpleDatatablesBundle::class => ['all' => true],
     Knp\Bundle\TimeBundle\KnpTimeBundle::class => ['all' => true],
-    Survos\SaisBundle\SurvosSaisBundle::class => ['all' => true],
     Bizkit\VersioningBundle\BizkitVersioningBundle::class => ['all' => true],
     Survos\DeploymentBundle\SurvosDeploymentBundle::class => ['dev' => true],
     Inspector\Symfony\Bundle\InspectorBundle::class => ['all' => true],

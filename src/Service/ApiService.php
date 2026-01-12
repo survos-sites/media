@@ -52,7 +52,6 @@ class ApiService
         #[Autowire('%env(HTTP_PROXY)%')] private ?string $proxyUrl,
         #[Autowire('%env(SAIS_API_ENDPOINT)%')] private string    $apiEndpoint,
 
-        private readonly SaisClientService $saisClientService,
         private readonly UserRepository $userRepository,
     ) {
         // if no proxyUrl is set and environment is dev, default to "http://127.0.1:7080"

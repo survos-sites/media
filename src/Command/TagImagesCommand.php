@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Repository\AssetRepository;
 use App\Repository\MediaRepository;
 use App\Repository\ThumbRepository;
 use App\Service\ImageTaggingService;
@@ -22,8 +23,7 @@ final class TagImagesCommand
     public function __construct(
         private readonly ?ImageTaggingService $tagger=null,
         private EntityManagerInterface $entityManager,
-        private MediaRepository $mediaRepository,
-        private ThumbRepository $thumbRepository,
+        private AssetRepository $mediaRepository,
     ) {
 
     }
@@ -60,7 +60,7 @@ final class TagImagesCommand
     ): int {
         $io->title('OpenAI Image Tagger (single URL)');
 
-        $qb = $this->thumbRepository->createQueryBuilder('t')
+        $qb = $this->assetRepository->createQueryBuilder('t')
             ->join('t.media', 'm')
             ->where('t.liipCode = :size')
             ->setParameter('size', 'medium')

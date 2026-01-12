@@ -25,7 +25,6 @@ use Survos\CoreBundle\Entity\RouteParametersInterface;
 use Survos\CoreBundle\Entity\RouteParametersTrait;
 use Survos\MeiliBundle\Api\Filter\FacetsFieldSearchFilter;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
-use Survos\SaisBundle\Service\SaisClientService;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Survos\StateBundle\Traits\MarkingInterface;
 use Survos\StateBundle\Traits\MarkingTrait;
@@ -79,6 +78,7 @@ use Survos\BabelBundle\Attribute\Translatable;
 #[Alias('media')]
 #[MeiliIndex()] // maybe bring back sometime, esp with descriptions
 
+/** @deprecated */
 class Media implements /* MarkingInterface, */ \Stringable, RouteParametersInterface
 {
     use BabelHooksTrait;

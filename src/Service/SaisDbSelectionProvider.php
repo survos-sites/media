@@ -5,9 +5,10 @@ namespace App\Service;
 
 use App\Entity\Media;
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\SaisBundle\Contract\SelectionProviderInterface;
 
-final class SaisDbSelectionProvider implements SelectionProviderInterface
+// any value to keeping this???
+
+final class SaisDbSelectionProvider # implements SelectionProviderInterface
 {
     public function __construct(public readonly EntityManagerInterface $em) {}
 

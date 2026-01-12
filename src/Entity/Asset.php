@@ -54,7 +54,7 @@ class Asset implements MarkingInterface, \Stringable
 
 
     /** Original MIME type (image/*, audio/*, video/*). */
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[ORM\Column(type: Types::STRING, nullable: true)]
     #[Groups(['asset.read'])]
     public ?string $mime = null;
 
@@ -104,6 +104,12 @@ class Asset implements MarkingInterface, \Stringable
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     public ?string $storageKey = null;
+
+    /** URL of archived original (object storage) */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])] // for now, maybe removed after debugging
+    public ?string $archiveUrl = null;
+
 
     /** Temp filename during fetch; not a durable path. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]

@@ -62,6 +62,9 @@ final class CachedImageController
             $encoded
         );
 
-        return new \Symfony\Component\HttpFoundation\RedirectResponse($imgproxyUrl, 302);
+        $response = new \Symfony\Component\HttpFoundation\RedirectResponse($imgproxyUrl, 302);
+        // Cache aggressively: imgproxy URLs are content-addressed
+        $response->headers->set('Cache-Control', 'public, max-age=31536000, immutable');
+        return $response;
     }
 }

@@ -6,13 +6,13 @@ namespace App\Workflow;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
 use App\Entity\Media;
-use App\Entity\Thumb;
 use App\Entity\Variant;
 use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
-use App\Repository\ThumbRepository;
 use App\Repository\UserRepository;
 use App\Service\ApiService;
+use App\Service\ArchiveService;
+use App\Service\AtomicFileWriter;
 use App\Service\AssetPreviewService;
 use App\Service\VariantPlan;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,7 +24,7 @@ use League\Flysystem\Visibility;
 use Psr\Log\LoggerInterface;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\SaisBundle\Service\SaisClientService;
-use Survos\SaisBundle\Util\ShardedKey;
+
 use App\Util\ImageProbe;
 use Survos\StateBundle\Attribute\Workflow;
 use Survos\StateBundle\Message\TransitionMessage;
@@ -55,12 +55,13 @@ class AssetWorkflow
     const THUMBHASH_PRESET = 'small';
     public function __construct(
         private MediaUrlGenerator $mediaUrlGenerator,
+        private readonly ArchiveService $archiveService,
+        private readonly AtomicFileWriter $atomicFileWriter,
         private AssetPreviewService $assetPreviewService,
         private MessageBusInterface          $messageBus,
         private EntityManagerInterface                          $em,
         private AssetRepository                                 $assetRepo,
         private AssetPathRepository                             $assetPathRepo,
-        private ThumbRepository                                 $thumbRepo,
         private readonly FilesystemOperator                     $localStorage,
         private readonly LoggerInterface                        $logger,
         private readonly HttpClientInterface                    $httpClient,
@@ -119,7 +120,8 @@ class AssetWorkflow
             return;
         }
 
-        $path = ShardedKey::originalKey($asset->id) . "." . $ext;
+        $key = $this->archiveService->keyForUrl($asset->originalUrl);
+        $path = basename($this->archiveService->payloadPath($key, $ext));
 
         if (!is_dir($this->tempDir)) {
             mkdir($this->tempDir, 0777, true);
@@ -214,23 +216,34 @@ class AssetWorkflow
      * Because onCompleted happens BEFORE the specific transition onCompleted,
      * we need to match this event exactly.  Otherwise, the next events are dispatched too soon.
      */
-    #[AsCompletedListener(WF::TRANSITION_ARCHIVE ,priority: 1000)]
+    #[AsCompletedListener(WF::TRANSITION_ARCHIVE, priority: 1000)]
     public function onArchiveCompleted(CompletedEvent $event): void
     {
         $asset = $this->getAsset($event);
 
-        // If you're enforcing "analyze from thumbnails", this is the right time
-        // to produce variants so analysis can run immediately after they're done.
-//        $presets = $this->plan->requiredPresetsForAsset($asset->mime);
-        $presets = ['small']; // for thumbHash and preload
-        foreach ($presets as $preset) {
-            $url = $this->mediaUrlGenerator->resize($asset->originalUrl, $preset);
-            // fetch it to seed the cache and get the thumbHasn
-            $tempFilename = $this->downloadUrl($url, 'small.jpg'); // $asset->tempFilename);
-            $content = file_get_contents($tempFilename);
-            $this->assetPreviewService->maybeComputeThumbhash($asset, $preset, $content);
-            $this->assetPreviewService->maybeComputePaletteAndPhash($asset, $preset, $tempFilename);
+        if (!$asset->originalUrl || !$asset->tempFilename) {
+            $this->logger->warning('Archive transition missing source data.', [
+                'assetId' => $asset->id,
+            ]);
+            return;
         }
+
+        $key = $this->archiveService->keyForUrl($asset->originalUrl);
+        $payloadPath = $this->archiveService->payloadPath($key, $asset->ext);
+
+        $contents = file_get_contents($asset->tempFilename);
+        if ($contents === false) {
+            throw new RuntimeException(sprintf(
+                'Failed reading temp file "%s".',
+                $asset->tempFilename
+            ));
+        }
+
+        $this->atomicFileWriter->write(
+            $payloadPath,
+            $contents,
+            ensureDir: true
+        );
     }
 
     #[AsTransitionListener(WF::WORKFLOW_NAME, WF::TRANSITION_ANALYZE)]

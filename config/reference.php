@@ -1648,12 +1648,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     searchable?: bool|Param, // Default: true
  *     fixed_height?: scalar|null|Param, // Default: true
  * }
- * @psalm-type SurvosSaisConfig = array{
- *     root?: scalar|null|Param, // If not set, must be passed to each call // Default: null
- *     api_endpoint?: scalar|null|Param, // Default: "https://sais.survos.com"
- *     imgproxy?: scalar|null|Param, // Default: "https://images.survos.com"
- *     api_key?: scalar|null|Param, // Default: ""
- * }
  * @psalm-type BizkitVersioningConfig = array{
  *     parameter_prefix?: scalar|null|Param, // The prefix added to the version parameters. // Default: "application"
  *     strategy?: scalar|null|Param, // The versioning strategy used. // Default: "incrementing"
@@ -2291,7 +2285,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     knp_menu?: KnpMenuConfig,
  *     survos_bootstrap?: SurvosBootstrapConfig,
  *     survos_simple_datatables?: SurvosSimpleDatatablesConfig,
- *     survos_sais?: SurvosSaisConfig,
  *     bizkit_versioning?: BizkitVersioningConfig,
  *     inspector?: InspectorConfig,
  *     survos_key_value?: SurvosKeyValueConfig,
@@ -2338,7 +2331,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         knp_menu?: KnpMenuConfig,
  *         survos_bootstrap?: SurvosBootstrapConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
- *         survos_sais?: SurvosSaisConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         survos_deployment?: SurvosDeploymentConfig,
  *         inspector?: InspectorConfig,
@@ -2386,7 +2378,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         knp_menu?: KnpMenuConfig,
  *         survos_bootstrap?: SurvosBootstrapConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
- *         survos_sais?: SurvosSaisConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         inspector?: InspectorConfig,
  *         survos_key_value?: SurvosKeyValueConfig,
@@ -2432,7 +2423,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         knp_menu?: KnpMenuConfig,
  *         survos_bootstrap?: SurvosBootstrapConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
- *         survos_sais?: SurvosSaisConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         inspector?: InspectorConfig,
  *         survos_key_value?: SurvosKeyValueConfig,
