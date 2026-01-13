@@ -143,10 +143,12 @@ class AssetWorkflow
 
             // Stream upload (constant memory)
             $this->archiveStorage->writeStream($path, $stream);
-            dd($path);
         } finally {
             fclose($stream);
         }
+        // if archived we don't need the temp file.
+        unlink($asset->tempFilename);
+        $asset->tempFilename = null;
 
         $asset->storageBackend = 'archive';
         $asset->storageKey = $path;

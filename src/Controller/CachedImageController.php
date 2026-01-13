@@ -69,23 +69,9 @@ final class CachedImageController
 
         // Ensure asset is registered
         $asset = $this->assetRegistry->ensureAsset($source, $client, flush: true);
-        // trigger download
-        if ($asset->getMarking() === AssetFlow::PLACE_NEW) {
-            // dispatch a download request
-            $message = new TransitionMessage($asset->id,
-                $asset::class,
-                AssetFlow::TRANSITION_DOWNLOAD,
-                AssetFlow::WORKFLOW_NAME);
-            if ($sync) {
-                $stamps[] = new TransportNamesStamp(['sync']);
-            } else {
-                $stamps = $this->asyncQueueLocator->stamps($message);
-            }
-            $this->messageBus->dispatch(
-                $message,
-                $stamps
-            );
-        }
+        // queue up download
+        $this->assetRegistry->dispatch($asset);
+
         // if the asset has been stored on OUR s3, then use it, much faster.
         if ($asset->storageKey) {
             $source = $this->assetRegistry->s3Url($asset);
