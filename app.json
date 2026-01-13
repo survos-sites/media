@@ -1,5 +1,57 @@
 {
     "name": "mediary",
-    "description": "Mediary Server, async images using imgProxy and Flysystem",
-    "repository": "https://github.com/survos-sites/mediary"
+    "description": "Survos Media Management",
+    "keywords": [
+        "php",
+        "storage",
+        "images",
+        "resizing",
+        "imgproxy",
+        "symfony"
+    ],
+    "cron": [
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume asset.download  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume asset.analyze --time-limit 270",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume asset.archive  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        },
+        {
+            "command": "php -d memory_limit=2G bin/console messenger:consume meili  --time-limit 270",
+            "schedule": "*/5 * * * *"
+        }
+    ],
+    "repository": "https://github.com/survos-sites/media",
+    "scripts": {
+        "dokku": {
+            "predeploy": "bin/console importmap:install && bin/console asset-map:compile && bin/console  secrets:decrypt-to-local --force && bin/console d:m:m -n --allow-no-migration",
+            "postdeploy": ""
+        }
+    },
+    "env": {
+        "SECRET_TOKEN": {
+            "description": "A secret key for verifying the integrity of signed cookies.",
+            "value": "secret"
+        },
+        "WEB_CONCURRENCY": {
+            "description": "The number of processes to run.",
+            "generator": "echo 5"
+        }
+    },
+    "image": "gliderlabs/herokuish",
+    "addons": [
+        "dokku-postgres",
+        "dokku-redis"
+    ],
+    "buildpacks": [
+        {
+            "url": "https://github.com/heroku/heroku-buildpack-php.git"
+        }
+    ]
 }
