@@ -11,8 +11,6 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\SentStamp;
 use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
-use Jwage\PhpAmqpLibMessengerBundle\Transport\AmqpStamp as JwageAmqpStamp;
-use Symfony\Component\Messenger\Bridge\Amqp\Transport\AmqpStamp as SymfonyAmqpStamp;
 
 #[AsCommand('app:debug:dispatch-download', 'Dispatch a TransitionMessage to the download queue (or sync if missing).')]
 final class DebugDispatchDownloadCommand

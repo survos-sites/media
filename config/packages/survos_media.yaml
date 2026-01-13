@@ -11,20 +11,3 @@ survos_media:
         host:                 'https://media.wip'
         apiKey:               null
         resize_path:          '/media/{preset}/{id}'
-    presets:
-
-        # Prototype
-        name:
-            resize:               fit
-            width:                ~ # Required
-            height:               ~ # Required
-    providers:
-
-        # Prototype
-        name:
-            enabled:              true
-            api_key:              ~
-            api_secret:           ~
-            access_token:         ~
-            options:              []
-

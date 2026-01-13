@@ -13,8 +13,7 @@ framework:
 
         failure_transport: failed
         transports:
-            meili:
-                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+            meili: 'doctrine://default?queue_name=meili'
             failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
 
