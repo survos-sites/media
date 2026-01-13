@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b51f6aeeb703df2f83a089978f32bf99",
+    "content-hash": "28e4ec7c6c67d16cd99db4cf16467a63",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -4781,55 +4781,6 @@
             "time": "2026-01-05T12:45:53+00:00"
         },
         {
-            "name": "mezcalito/imgproxy-bundle",
-            "version": "0.5.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/Mezcalito/imgproxy-bundle.git",
-                "reference": "3faa20dac00f082fcfbd20fcf24ccc478f261bd0"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/Mezcalito/imgproxy-bundle/zipball/3faa20dac00f082fcfbd20fcf24ccc478f261bd0",
-                "reference": "3faa20dac00f082fcfbd20fcf24ccc478f261bd0",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^8.1",
-                "symfony/framework-bundle": "^5.4|^6.4|^7.0|^8.0",
-                "symfony/http-foundation": "^5.4|^6.4|^7.0|^8.0",
-                "twig/twig": "^2.7|^3.0"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.16",
-                "phpstan/phpstan": "^1.10",
-                "phpunit/phpunit": "^10.1"
-            },
-            "type": "symfony-bundle",
-            "autoload": {
-                "psr-4": {
-                    "Mezcalito\\ImgproxyBundle\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Mezcalito",
-                    "email": "dev@mezcalito.fr",
-                    "homepage": "https://www.mezcalito.fr/"
-                }
-            ],
-            "homepage": "https://github.com/Mezcalito/imgproxy-bundle",
-            "support": {
-                "issues": "https://github.com/Mezcalito/imgproxy-bundle/issues",
-                "source": "https://github.com/Mezcalito/imgproxy-bundle/tree/0.5.1"
-            },
-            "time": "2025-12-09T07:51:44+00:00"
-        },
-        {
             "name": "monolog/monolog",
             "version": "3.10.0",
             "source": {
@@ -4931,6 +4882,53 @@
                 }
             ],
             "time": "2026-01-02T08:56:05+00:00"
+        },
+        {
+            "name": "mperonnet/imgproxy-php",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mperonnet/imgproxy-php.git",
+                "reference": "abc4e44af8169925b3404a404ac7300503f53d16"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mperonnet/imgproxy-php/zipball/abc4e44af8169925b3404a404ac7300503f53d16",
+                "reference": "abc4e44af8169925b3404a404ac7300503f53d16",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^0.12",
+                "phpunit/phpunit": "^8.5.8|^9.3.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Mperonnet\\ImgProxy\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "ImgProxy URL builder with complete Pro features support for PHP, based on onliner/imgproxy-php",
+            "keywords": [
+                "image",
+                "imageproxy",
+                "imgproxy",
+                "optimization",
+                "pro",
+                "processing",
+                "resize"
+            ],
+            "support": {
+                "issues": "https://github.com/mperonnet/imgproxy-php/issues",
+                "source": "https://github.com/mperonnet/imgproxy-php/tree/v1.0.2"
+            },
+            "time": "2025-12-26T23:19:45+00:00"
         },
         {
             "name": "mtdowling/jmespath.php",
@@ -5406,50 +5404,6 @@
                 }
             ],
             "time": "2024-09-09T07:06:30+00:00"
-        },
-        {
-            "name": "onliner/imgproxy-php",
-            "version": "v0.2.4",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/onliner/imgproxy-php.git",
-                "reference": "cd18759f230945856ec3b0ed6fa079702e6a410f"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/onliner/imgproxy-php/zipball/cd18759f230945856ec3b0ed6fa079702e6a410f",
-                "reference": "cd18759f230945856ec3b0ed6fa079702e6a410f",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^8.0"
-            },
-            "require-dev": {
-                "phpstan/phpstan": "^0.12",
-                "phpunit/phpunit": "^8.5.8|^9.3.3"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Onliner\\ImgProxy\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "description": "ImgProxy url builder for PHP",
-            "keywords": [
-                "image",
-                "imageproxy",
-                "imgproxy",
-                "resize"
-            ],
-            "support": {
-                "issues": "https://github.com/onliner/imgproxy-php/issues",
-                "source": "https://github.com/onliner/imgproxy-php/tree/v0.2.4"
-            },
-            "time": "2024-09-16T10:04:37+00:00"
         },
         {
             "name": "openai-php/client",

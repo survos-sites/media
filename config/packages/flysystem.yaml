@@ -41,11 +41,11 @@ when@test:
 when@dev:
     flysystem:
         storages:
-#            default.storage:
+#            archive.storage:
 #                adapter: 'local'
 #                # not on production!
 #                options:
-#                    directory: '%kernel.project_dir%/public/default-storage'
+#                    directory: '%kernel.project_dir%/public/archive'
             sites.storage:
                 adapter: 'local'
                 options:

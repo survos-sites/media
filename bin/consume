@@ -2,12 +2,12 @@
 
 set SYMFONY_DEPRECATIONS_HELPER=disabled
 # more verbose on the first run
-bin/console mess:stats media.download thumb.resize media.archive
+bin/console mess:stats asset.download asset.analyze asset.archive
 #SYMFONY_DEPRECATIONS_HELPER=disabled bin/console messenger:consume low  -vvv --limit 1 --time-limit 60
 #bin/console messenger:consume high normal low -vv --limit 1 --time-limit 30;
 
 ## use sleep  so that you can break out with ^C
-while true; do  bin/console messenger:consume thumb.resize media.download media.archive -v --limit 400  --time-limit 240; echo "pausing..."; bin/console mess:stats && sleep 4;   done;
+while true; do  bin/console messenger:consume asset.download asset.analyze asset.archive -v --limit 400  --time-limit 240; echo "pausing..."; bin/console mess:stats && sleep 4;   done;
 #while true; do bin/console pixie:iterate translation source --marking=new --transition translate --limit 0; bin/console messenger:consume normal low  -vv --limit 200  --time-limit 240; echo "pausing..."; bin/console mess:stats && sleep 4;   done;
 #while true; do sleep 30; yarn encore dev; bin/console messenger:consume high normal low -vv --limit 30 --time-limit 90;  done;
 

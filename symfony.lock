@@ -174,9 +174,6 @@
             "config/routes/liip_imagine.yaml"
         ]
     },
-    "mezcalito/imgproxy-bundle": {
-        "version": "0.5.1"
-    },
     "nelmio/cors-bundle": {
         "version": "2.5",
         "recipe": {

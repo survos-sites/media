@@ -1,43 +1,45 @@
-# config/packages/imgproxy.yaml
-imgproxy:
-    host: https://images.survos.com
-    media_url: https://media.localhost
-
-    # set the same key and salt in imgproxy environment (https://docs.imgproxy.net/signing_the_url)
-    signature:
-        key: c27f2c1d
-        salt: fa242e79
-
-    # default settings applied for all presets
-    default_preset_settings:
-        format: webp
-        encode: true
-
-    presets:
-        # this is a preset example
-        tiny:
-            format: png
-            options:
-                resize:
-                    # fit, fill, auto|scale,min-fit
-                    resizing_type: auto
-                    width: 150
-                    height: 75
-                    enlarge: true
-
-        png_thumbnail:
-            format: png
-            options:
-                resize:
-                    resizing_type: fit
-                    width: 150
-                    height: 75
-                    enlarge: true
-                    extend:
-                        extend: true
-                        gravity:
-                            type: no
-                            x_offset: 10
-                            y_offset: 10
-                rotate:
-                    angle: 90
+## config/packages/imgproxy.yaml
+#imgproxy:
+#    host: https://imgproxy.survos.com
+#    media_url: https://media.localhost
+#
+#    # set the same key and salt in imgproxy environment (https://docs.imgproxy.net/signing_the_url)
+#    signature:
+##        key: c27f2c1d
+##        salt: fa242e79
+#        key: 50f60a6ff5f7f24efd6918b8a34beb3306feecea0b4918ff9a59129e37e16684
+#        salt: d4a9380d654cf8ca5eec1434a79c35d1794daece1648922b2b8d9ef159bdd28a
+#
+#    # default settings applied for all presets
+#    default_preset_settings:
+#        format: webp
+#        encode: true
+#
+#    presets:
+#        # this is a preset example
+#        tiny:
+#            format: png
+#            options:
+#                resize:
+#                    # fit, fill, auto|scale,min-fit
+#                    resizing_type: auto
+#                    width: 150
+#                    height: 75
+#                    enlarge: true
+#
+#        png_thumbnail:
+#            format: png
+#            options:
+#                resize:
+#                    resizing_type: fit
+#                    width: 150
+#                    height: 75
+#                    enlarge: true
+#                    extend:
+#                        extend: true
+#                        gravity:
+#                            type: no
+#                            x_offset: 10
+#                            y_offset: 10
+#                rotate:
+#                    angle: 90

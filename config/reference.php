@@ -2190,59 +2190,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     user_class?: scalar|null|Param, // Default: "App\\Entity\\User"
  * }
  * @psalm-type SurvosJsonlConfig = array<mixed>
- * @psalm-type ImgproxyConfig = array{
- *     host: scalar|null|Param,
- *     media_url?: scalar|null|Param,
- *     signature?: array{
- *         key: scalar|null|Param,
- *         salt: scalar|null|Param,
- *     },
- *     default_preset_settings?: array{
- *         format?: scalar|null|Param, // Default: "webp"
- *         encode?: bool|Param, // Default: true
- *     },
- *     presets?: array<string, array{ // Default: []
- *         format?: scalar|null|Param, // Default: null
- *         encode?: bool|null|Param, // Default: null
- *         options?: array{
- *             resize?: array{
- *                 resizing_type?: "fit"|"fill"|"fill-down"|"force"|"auto"|Param, // Default: "fit"
- *                 width?: int|Param, // Default: 0
- *                 height?: int|Param, // Default: 0
- *                 enlarge?: bool|Param,
- *                 extend?: array{
- *                     extend?: bool|Param, // Default: false
- *                     gravity?: array{
- *                         type?: "no"|"so"|"ea"|"we"|"noea"|"nowe"|"soea"|"sowe"|"ce"|Param, // Default: "ce"
- *                         x_offset?: int|Param, // Default: 0
- *                         y_offset?: int|Param, // Default: 0
- *                     },
- *                 },
- *             },
- *             rotate?: array{
- *                 angle?: 0|90|180|270|Param,
- *             },
- *             height?: array{
- *                 height?: int|Param,
- *             },
- *             width?: array{
- *                 width?: int|Param,
- *             },
- *             blur?: array{
- *                 sigma?: float|Param,
- *             },
- *             quality?: array{
- *                 quality?: int|Param,
- *             },
- *         },
- *     }>,
- * }
  * @psalm-type SurvosMediaConfig = array{
  *     default_locale?: scalar|null|Param, // Default: "en"
  *     cache_ttl?: scalar|null|Param, // Default: 3600
  *     sais_integration?: bool|Param, // Default: true
  *     imgproxy?: array{
- *         base_url?: scalar|null|Param, // Default: "https://images.survos.com"
+ *         base_url?: scalar|null|Param, // Default: "https://imgproxy.survos.com"
  *         key?: scalar|null|Param, // Default: "%env(IMGPROXY_KEY)%"
  *         salt?: scalar|null|Param, // Default: "%env(IMGPROXY_SALT)%"
  *     },
@@ -2305,7 +2258,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     survos_ez?: SurvosEzConfig,
  *     survos_doc?: SurvosDocConfig,
  *     survos_jsonl?: SurvosJsonlConfig,
- *     imgproxy?: ImgproxyConfig,
  *     survos_media?: SurvosMediaConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
@@ -2354,7 +2306,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_ez?: SurvosEzConfig,
  *         survos_doc?: SurvosDocConfig,
  *         survos_jsonl?: SurvosJsonlConfig,
- *         imgproxy?: ImgproxyConfig,
  *         survos_media?: SurvosMediaConfig,
  *     },
  *     "when@prod"?: array{
@@ -2398,7 +2349,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_ez?: SurvosEzConfig,
  *         survos_doc?: SurvosDocConfig,
  *         survos_jsonl?: SurvosJsonlConfig,
- *         imgproxy?: ImgproxyConfig,
  *         survos_media?: SurvosMediaConfig,
  *     },
  *     "when@test"?: array{
@@ -2445,7 +2395,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_ez?: SurvosEzConfig,
  *         survos_doc?: SurvosDocConfig,
  *         survos_jsonl?: SurvosJsonlConfig,
- *         imgproxy?: ImgproxyConfig,
  *         survos_media?: SurvosMediaConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
