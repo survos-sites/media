@@ -48,14 +48,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
     private ?int $binCount = null;
 
     /**
-     * @var Collection<int, Media>
-     */
-    #[ORM\OneToMany(targetEntity: Media::class, mappedBy: 'user', orphanRemoval: true)]
-    #[Groups(['user.medias'])]
-    public Collection $medias;
-
-
-    /**
      * @param string|null $id
      * @param int|null $approxImageCount
      * @param string|null $mediaCallbackUrl
@@ -81,9 +73,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
         public ?string $thumbCallbackUrl = null,
     )
     {
-        $this->medias = new ArrayCollection();
         $this->password = $this->id;
-        $this->binCount = SaisClientService::calculateBinCount($this->approxImageCount??0);
     }
 
     /**

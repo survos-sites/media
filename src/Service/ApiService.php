@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Entity\Media;
-use App\Entity\Thumb;
 use App\Entity\User;
 use App\Message\DownloadImage;
 use App\Message\SendWebhookMessage;
-use App\Repository\MediaRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
@@ -20,8 +17,6 @@ use Liip\ImagineBundle\Imagine\Cache\CacheManager;
 use Liip\ImagineBundle\Imagine\Cache\Helper\PathHelper;
 use Liip\ImagineBundle\Service\FilterService;
 use Psr\Log\LoggerInterface;
-use Survos\SaisBundle\Model\AccountSetup;
-use Survos\SaisBundle\Service\SaisClientService;
 use Survos\ThumbHashBundle\Service\ThumbHashService;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
@@ -43,7 +38,6 @@ class ApiService
         private readonly HttpClientInterface                      $httpClient,
         private readonly HttpClientInterface                      $localHttpClient,
         private readonly EntityManagerInterface                   $entityManager,
-        private readonly MediaRepository                          $mediaRepository,
         private readonly MessageBusInterface                      $messageBus,
         #[Autowire('@liip_imagine.service.filter')]
         private readonly FilterService                            $filterService,

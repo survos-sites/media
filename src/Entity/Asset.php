@@ -7,8 +7,10 @@ use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
+use Survos\MediaBundle\Util\MediaIdentity;
 use Survos\SaisBundle\Service\SaisClientService;
 use Survos\StateBundle\Traits\MarkingInterface;
 use Survos\StateBundle\Traits\MarkingTrait;
@@ -31,13 +33,13 @@ class Asset implements MarkingInterface, \Stringable
 {
     use MarkingTrait; // provides $marking + getters/setters compatible with the workflow engine
 
-    /** Primary key: 16-byte xxh3_128 (PostgreSQL bytea). */
+    /** Primary key: 16-char lowercase hex xxh3(originalUrl). */
     #[ORM\Id]
     #[ORM\Column(type: Types::STRING, length: 16)]
     public string $id {
         set {
             if (\strlen($value) !== 16) {
-                throw new \InvalidArgumentException('contentHash must be exactly 16 bytes (xxh3_128).');
+                throw new \InvalidArgumentException('asset id must be exactly 16 hex chars (xxh3(originalUrl)). ' . $value);
             }
             $this->id = $value;
         }
@@ -143,10 +145,10 @@ class Asset implements MarkingInterface, \Stringable
     public function __construct(
         /** Source/original URL (for provenance / retries). */
         #[ORM\Column(type: Types::TEXT, nullable: false)]
-        public ?string $originalUrl = null
+        public string $originalUrl
     )
     {
-        $this->id = SaisClientService::calculateCode($originalUrl);
+        $this->id          = MediaIdentity::idFromOriginalUrl($this->originalUrl);
         $this->createdAt   = new \DateTimeImmutable();
         $this->marking     = WF::PLACE_NEW; // seed initial marking via workflow constant
         $this->variants    = new ArrayCollection();

@@ -6,6 +6,8 @@ use App\Entity\Asset;
 use App\Entity\Media;
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Workflow\AssetFlow;
+use App\Workflow\AssetWorkflow;
 use App\Workflow\MediaWorkflow;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -46,7 +48,7 @@ class AssetCrudController extends BaseCrudController
     use EasyMarkingTrait;
 
     public function __construct(
-        #[Target(MediaWorkflow::WORKFLOW_NAME)] protected WorkflowInterface $workflow,
+        #[Target(AssetFlow::WORKFLOW_NAME)] protected WorkflowInterface $workflow,
         private UserRepository $userRepository,
     )
     {
@@ -138,6 +140,7 @@ class AssetCrudController extends BaseCrudController
 //                );
 //            });
 
+        yield TextField::new('archiveUrl');                     // Status/workflow state
         yield TextField::new('marking');                     // Status/workflow state
         yield IntegerField::new('statusCode');               // HTTP status
 //        yield AssociationField::new('user');                 // Owner/user

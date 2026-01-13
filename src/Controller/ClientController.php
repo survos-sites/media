@@ -5,15 +5,10 @@ namespace App\Controller;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
 use App\Entity\File;
-use App\Entity\Media;
-use App\Entity\Thumb;
 use App\Entity\Variant;
 use App\Form\ProcessPayloadType;
-use App\Repository\MediaRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\SaisBundle\Model\ProcessPayload;
-use Survos\SaisBundle\Service\SaisClientService;
 use Survos\StateBundle\Service\EntityInterfaceDetector;
 use Survos\StateBundle\Service\WorkflowHelperService;
 use Survos\StateBundle\Traits\MarkingInterface;
@@ -56,8 +51,7 @@ class ClientController extends AbstractController
      */
     #[Route('/', name: 'app_homepage')]
     #[Template('homepage.html.twig')]
-    public function home(MediaRepository $mediaRepository,
-    UserRepository $userRepository,
+    public function home(UserRepository $userRepository,
     #[MapQueryParameter] int $limit = 5
     ): array
     {
