@@ -83,10 +83,10 @@ class AssetWorkflow
         private string                                          $tempDir,
         private readonly EntityManagerInterface $entityManager,
         private readonly AsyncQueueLocator $asyncQueueLocator,
-        private readonly ?FilesystemOperator                    $archiveStorage = null,
-        private ?GoogleDriveService                             $driveService   = null,
         private readonly VariantPlan                            $plan,
         private readonly StorageService                         $storageService,
+        private readonly ?FilesystemOperator                    $archiveStorage = null,
+        private ?GoogleDriveService                             $driveService   = null,
 
     ) {
     }

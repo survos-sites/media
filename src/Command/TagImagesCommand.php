@@ -4,8 +4,6 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Repository\AssetRepository;
-use App\Repository\MediaRepository;
-use App\Repository\ThumbRepository;
 use App\Service\ImageTaggingService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\Argument;
@@ -21,9 +19,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class TagImagesCommand
 {
     public function __construct(
-        private readonly ?ImageTaggingService $tagger=null,
         private EntityManagerInterface $entityManager,
         private AssetRepository $mediaRepository,
+        private readonly ?ImageTaggingService $tagger=null,
     ) {
 
     }
