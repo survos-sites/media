@@ -4,13 +4,23 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+
+use App\Service\AssetRegistry;
+use App\Workflow\AssetFlow;
 use RuntimeException;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Survos\MediaBundle\Service\MediaKeyService;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
+use Survos\StateBundle\Message\TransitionMessage;
+use Survos\StateBundle\Service\AsyncQueueLocator;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\HttpKernel\Attribute\MapQueryString;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Component\Stopwatch\Stopwatch;
 
 use function base64_decode;
 use function file_exists;
@@ -24,47 +34,87 @@ use function strtr;
 
 final class CachedImageController
 {
-    public const PRESETS = [
-        'small' => 'resize:fit:150:75',
-        'thumb' => 'resize:fill:200:200',
-        'large' => 'resize:fill:800:800',
-        'hero'  => 'resize:fit:1200:600',
-    ];
-
-
 
     public function __construct(
-        private readonly \App\Service\AssetRegistry $assetRegistry,
+        private readonly AssetRegistry $assetRegistry,
+        #[Autowire('%env(AWS_S3_BUCKET_NAME)%')]
+        private readonly string $archiveBucket,
+        #[Autowire('%survos_media.imgproxy_base_url%')]
+        private readonly string $imgproxyBaseUrl,
+        #[Autowire('%survos_media.imgproxy.key%')]
+        private readonly string $imgproxyKey,
+        #[Autowire('%survos_media.imgproxy.salt%')]
+        private readonly string $imgproxySalt,
+        private AsyncQueueLocator $asyncQueueLocator,
+        private MessageBusInterface $messageBus,
     ) {
     }
 
     #[Route('/media/{preset}/{encoded}', name: 'sais_cached_image', options: ['expose' => true])]
-    public function __invoke(string $preset, string $encoded): Response
+    public function renderImage(
+        string $preset, string $encoded,
+        #[MapQueryParameter] ?string $client = null,
+        #[MapQueryParameter] ?bool $sync = null,
+    ): Response
     {
-        if (!isset(self::PRESETS[$preset])) {
+        if (!isset(MediaUrlGenerator::PRESETS[$preset])) {
             throw new BadRequestHttpException('Unknown image preset.');
         }
 
-        $source = base64_decode(strtr($encoded, '-_', '+/'), true);
+        $source = MediaKeyService::stringFromEncoded($encoded);
         if ($source === false) {
             throw new BadRequestHttpException('Invalid base64 source.');
         }
 
+
         // Ensure asset is registered
-        $asset = $this->assetRegistry->ensureAsset($source);
+        $asset = $this->assetRegistry->ensureAsset($source, $client, flush: true);
+        // trigger download
+        if ($asset->getMarking() === AssetFlow::PLACE_NEW) {
+            // dispatch a download request
+            $message = new TransitionMessage($asset->id,
+                $asset::class,
+                AssetFlow::TRANSITION_DOWNLOAD,
+                AssetFlow::WORKFLOW_NAME);
+            if ($sync) {
+                $stamps[] = new TransportNamesStamp(['sync']);
+            } else {
+                $stamps = $this->asyncQueueLocator->stamps($message);
+            }
+            $this->messageBus->dispatch(
+                $message,
+                $stamps
+            );
+        }
+        // if the asset has been stored on OUR s3, then use it, much faster.
+        if ($asset->storageKey) {
+            $source = $this->assetRegistry->s3Url($asset);
+        }
 
         // Redirect to imgproxy for now (no byte streaming or caching yet)
-        $options = self::PRESETS[$preset];
-        $imgproxyUrl = sprintf(
-            '%s/%s/%s',
-            'https://images.survos.com',
-            $options,
-            $encoded
+        $presetDef = MediaUrlGenerator::PRESETS[$preset];
+        [$width, $height] = $presetDef['size'];
+
+        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
+            $this->imgproxyKey,
+            $this->imgproxySalt
+        )->with(
+            new \Mperonnet\ImgProxy\Options\Resize($presetDef['resize']),
+            new \Mperonnet\ImgProxy\Options\Width($width),
+            new \Mperonnet\ImgProxy\Options\Height($height),
+            new \Mperonnet\ImgProxy\Options\Quality($presetDef['quality']),
         );
+
+        if (isset($presetDef['dpr'][0])) {
+//            $builder = $builder->with(new \Mperonnet\ImgProxy\Options\Dpr($presetDef['dpr'][0]));
+        }
+
+        $path = $builder->url($source, $presetDef['format']);
+        $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
 
         $response = new \Symfony\Component\HttpFoundation\RedirectResponse($imgproxyUrl, 302);
         // Cache aggressively: imgproxy URLs are content-addressed
-        $response->headers->set('Cache-Control', 'public, max-age=31536000, immutable');
+//        $response->headers->set('Cache-Control', 'public, max-age=31536000, immutable');
         return $response;
     }
 }

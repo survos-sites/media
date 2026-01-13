@@ -96,9 +96,13 @@ class Asset implements MarkingInterface, \Stringable
     }
 
     /** Arbitrary filterable context (JSONB): aggregator/museum/dataset/etc. */
-    #[ORM\Column(type: Types::JSON, nullable: true)]
-    #[Groups(['asset.read'])]
-    public ?array $context = null;
+     #[ORM\Column(type: Types::JSON, nullable: true)]
+     #[Groups(['asset.read'])]
+     public ?array $context = null;
+
+     /** Client codes referencing this asset (additive). */
+     #[ORM\Column(type: Types::JSON)]
+     public array $clients = [];
 
     /** Storage path/key of ORIGINAL (e.g., o/ab/cd/<hash>.<ext>). */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -138,7 +142,7 @@ class Asset implements MarkingInterface, \Stringable
 
     public int $resizedCount { get => count($this->resized??[]); }
     public string $path { get =>
-        $this->localDir->id . '/' . $this->id . '.' . $this->ext;
+        $this->localDir?->id . '/' . $this->id . '.' . $this->ext;
     }
 
 

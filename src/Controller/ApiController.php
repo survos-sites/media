@@ -190,24 +190,23 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
             assert($image instanceof MediaModel);
             $url = $image->originalUrl;
             $context = $payload->context;
-            $code = SaisClientService::calculateCode($url);
+             $id = \Survos\MediaBundle\Util\MediaIdentity::idFromOriginalUrl($url);
 
-            /** @var Asset $asset */
-            if (!$asset = $this->assetRepository->find($code)) {
-                $asset = new Asset($url);
-                $path = ShardedKey::originalKey($asset->id);
-                $shard = pathinfo($path, PATHINFO_DIRNAME);
-                if (!$assetPath = $this->assetPathRepository->find($shard)) {
-                    $assetPath = new AssetPath($shard);
-                    $this->entityManager->persist($assetPath);
-                }
-                $asset->localDir = $assetPath;
-                $assetPath->files++;
+             /** @var Asset|null $asset */
+             $asset = $this->assetRepository->find($id);
+             if (!$asset) {
+                 $asset = new Asset($url);
+             }
 
-                assert($code === $asset->id);
-                $this->entityManager->persist($asset);
-            }
-            $asset->context = $context;
+             // attach client (additive)
+             if (property_exists($payload, 'client') && is_string($payload->client)) {
+                 if (!in_array($payload->client, $asset->clients, true)) {
+                     $asset->clients[] = $payload->client;
+                 }
+             }
+
+             $asset->context = $context;
+             $this->entityManager->persist($asset);
             // add the filters so we have them for after download.
             $filters = $asset->resized??[];
             foreach ($payload->filters as $filter) {

@@ -15,13 +15,12 @@ use function trim;
 final class ArchiveService
 {
     public function __construct(
-        private readonly MediaKeyService $keyService,
     ) {
     }
 
     public function keyForUrl(string $url): string
     {
-        return $this->keyService->keyFromString($url);
+        return MediaKeyService::keyFromString($url);
     }
 
     public function payloadPath(string $key, string $extension): string

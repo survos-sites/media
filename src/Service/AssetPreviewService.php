@@ -157,10 +157,6 @@ final class AssetPreviewService
 
     public function maybeComputePaletteAndPhash(Asset $asset, string $preset, string $cachedPath): void
     {
-        // Convention: compute palette & pHash on the "medium" preset
-        if ($preset !== 'small') {
-            return;
-        }
 
         try {
             $palette   = Palette::fromFilename($cachedPath);

@@ -5,6 +5,8 @@ namespace App\Repository;
 use App\Entity\Asset;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Survos\MediaBundle\Service\MediaKeyService;
+use Survos\MediaBundle\Util\MediaIdentity;
 
 /**
  * @extends ServiceEntityRepository<Asset>
@@ -31,13 +33,8 @@ class AssetRepository extends ServiceEntityRepository
     //        ;
     //    }
 
-    //    public function findOneBySomeField($value): ?Asset
-    //    {
-    //        return $this->createQueryBuilder('a')
-    //            ->andWhere('a.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        public function findOneByUrl(string $originalUrl): ?Asset
+        {
+            return $this->find(MediaIdentity::idFromOriginalUrl($originalUrl));
+        }
 }

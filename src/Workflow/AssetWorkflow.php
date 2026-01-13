@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace App\Workflow;
 
+use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
-use App\Entity\Media;
 use App\Entity\Variant;
 use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
@@ -22,6 +22,7 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\UnableToWriteFile;
 use League\Flysystem\Visibility;
 use Psr\Log\LoggerInterface;
+use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\SaisBundle\Service\SaisClientService;
 
@@ -30,11 +31,14 @@ use Survos\StateBundle\Attribute\Workflow;
 use Survos\StateBundle\Message\TransitionMessage;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Survos\StorageBundle\Service\StorageService;
+use Survos\ThumbHashBundle\Service\Thumbhash;
+use Survos\ThumbHashBundle\Service\ThumbHashService;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
+use Symfony\Component\Mime\MimeTypes;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Workflow\Attribute\AsCompletedListener;
@@ -56,6 +60,7 @@ class AssetWorkflow
     public function __construct(
         private MediaUrlGenerator $mediaUrlGenerator,
         private readonly ArchiveService $archiveService,
+        private ThumbHashService $thumbHashService,
         private readonly AtomicFileWriter $atomicFileWriter,
         private AssetPreviewService $assetPreviewService,
         private MessageBusInterface          $messageBus,
@@ -78,7 +83,7 @@ class AssetWorkflow
         private string                                          $tempDir,
         private readonly EntityManagerInterface $entityManager,
         private readonly AsyncQueueLocator $asyncQueueLocator,
-        private readonly ?FilesystemOperator                    $defaultStorage = null,
+        private readonly ?FilesystemOperator                    $archiveStorage = null,
         private ?GoogleDriveService                             $driveService   = null,
         private readonly VariantPlan                            $plan,
         private readonly StorageService                         $storageService,
@@ -93,7 +98,61 @@ class AssetWorkflow
         return $asset;
     }
 
-    /**
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
+    public function onArchive(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+
+        if (!$asset->tempFilename || !is_file($asset->tempFilename)) {
+            throw new RuntimeException('Missing temporary file for archive.');
+        }
+
+        // Derive extension from actual MIME
+        $extension = MediaKeyService::extensionFromMime($asset->mime);
+
+        // Deterministic archive key from original URL
+        $path = MediaKeyService::archivePathFromUrl(
+            $asset->originalUrl,
+            $extension
+        );
+
+        $stream = fopen($asset->tempFilename, 'rb');
+        if ($stream === false) {
+            throw new RuntimeException('Failed to open temporary file for streaming.');
+        }
+
+        try {
+            // Idempotency: if object already exists, verify integrity
+            if ($this->archiveStorage->fileExists($path)) {
+                $remoteSize = $this->archiveStorage->fileSize($path);
+                $localSize  = filesize($asset->tempFilename);
+
+                if ($remoteSize !== $localSize) {
+                    throw new RuntimeException(
+                        sprintf(
+                            'Archive object exists with mismatched size (remote=%d, local=%d).',
+                            $remoteSize,
+                            $localSize
+                        )
+                    );
+                }
+
+                // Already archived correctly
+                return;
+            }
+
+            // Stream upload (constant memory)
+            $this->archiveStorage->writeStream($path, $stream);
+            dd($path);
+        } finally {
+            fclose($stream);
+        }
+
+        $asset->storageBackend = 'archive';
+        $asset->storageKey = $path;
+    }
+
+        /**
      * @throws FilesystemException
      * @throws TransportExceptionInterface
      */
@@ -141,6 +200,8 @@ class AssetWorkflow
                 return;
             }
             $asset->tempFilename = $absolutePath;
+        $this->em->flush();
+        // at this point, we have extracted all we need from the local file.  we can now archive in the next step.
     }
 
     public function getLocalAbsolutePath(string $filePath): string
@@ -212,15 +273,19 @@ class AssetWorkflow
     }
 
     /**
-     * After an Asset has been downloaded, create Variant rows for all required presets.
-     * The Variant workflow will auto-advance (Place(next: resize)) and run resizing async.
      *
      * Because onCompleted happens BEFORE the specific transition onCompleted,
      * we need to match this event exactly.  Otherwise, the next events are dispatched too soon.
      */
-    #[AsCompletedListener(WF::TRANSITION_ARCHIVE, priority: 1000)]
-    public function onArchiveCompleted(CompletedEvent $event): void
+    // #[AsCompletedListener(WF::TRANSITION_ARCHIVE, priority: 1000)] NOT THIS!  See note above
+    #[AsCompletedListener(priority: 1000)]
+    public function onCompleted(CompletedEvent $event): void
     {
+        $asset = $this->getAsset($event);
+        if ($event->getTransition()?->getName() === WF::TRANSITION_DOWNLOAD) {
+            return;
+        }
+        return;
         $asset = $this->getAsset($event);
 
         if (!$asset->originalUrl || !$asset->tempFilename) {
@@ -249,44 +314,27 @@ class AssetWorkflow
     }
 
     #[AsTransitionListener(WF::WORKFLOW_NAME, WF::TRANSITION_ANALYZE)]
-    public function onAnalyze(TransitionEvent $event): void
+    public function onLocalAnalyze(TransitionEvent $event): void
     {
-        $asset   = $this->getAsset($event);
-        $context = $event->getContext();
-
-        // need a constant for the small!
-        $url = $this->mediaUrlGenerator->resize($asset->originalUrl, self::THUMBHASH_PRESET);
-        // fetch it to seed the cache and get the thumbHasn
-        $tempFilename = $this->downloadUrl($url, 'small.jpg'); // $asset->tempFilename);
-        $content = file_get_contents($tempFilename);
-        $this->assetPreviewService->maybeComputeThumbhash($asset, self::THUMBHASH_PRESET, $content);
-        // arguably colors could be done on a bigger image
-        $this->assetPreviewService->maybeComputePaletteAndPhash($asset, self::THUMBHASH_PRESET, $tempFilename);
-        dd($asset->context);
-
-        return;
-
         // Guard: only analyze images for now; audio/video can get their own probes
+        $asset = $this->getAsset($event);
         if (!$asset->mime || !str_starts_with($asset->mime, 'image/')) {
-            $this->logger->info("Skipping analysis for non-image asset {$asset->contentHashHex()} ({$asset->mime})");
+            $this->logger->info("Skipping analysis for non-image asset  ({$asset->mime})");
             return;
         }
 
-        // Source path (Liip expects a web URL path, not fs); adapt to your storage scheme
-        $sourceUrlPath = $asset->storageKey ?? $asset->originalUrl;
-        if (!$sourceUrlPath) {
-            $this->logger->warning("Asset {$asset->contentHashHex()} has no sourceUrlPath for analysis.");
-            return;
-        }
 
-        // Run previews/analysis on small + medium variants
-        $presets = $context['presets'] ?? ['small'];
-            $results = $this->assetPreviewService->processPresets($asset, $sourceUrlPath, $presets);
-            $this->logger->info("Analysis complete for {$asset->id}", $results);
-        try {
-        } catch (\Throwable $e) {
-            $this->logger->error("Analysis failed for {$asset->id}: {$e->getMessage()}");
-        }
+        // this skips the save, fetch, etc.
+        [$tw, $th, $pixels]  = $this->resizeForThumbHash($asset->tempFilename);
+        $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+        $key  = Thumbhash::convertHashToString($hash);
+
+        // Store on Asset context or analysis bucket; keeping it simple here:
+        $asset->context ??= [];
+        $asset->context['thumbhash'] = $key;
+
+        $this->assetPreviewService->maybeComputePaletteAndPhash($asset, self::THUMBHASH_PRESET,
+            $asset->tempFilename);
 
         $this->em->persist($asset);
         $this->em->flush();
@@ -388,5 +436,38 @@ class AssetWorkflow
         ];
 
     }
+
+    private function resizeForThumbHash(string $imagePath, int $size = 192): array
+    {
+        $image = new \Imagick($imagePath);
+
+        // Resize to fit within $size x $size, maintaining aspect ratio
+        $image->thumbnailImage($size, $size, true);
+
+        // If you need exactly 192x192 with padding/centering:
+        // $image->setImageBackgroundColor('transparent');
+        // $image->extentImage($size, $size,
+        //     -($size - $image->getImageWidth()) / 2,
+        //     -($size - $image->getImageHeight()) / 2
+        // );
+        $width = $image->getImageWidth();
+        $height = $image->getImageHeight();
+
+        $pixels = [];
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+
+                $pixel = $image->getImagePixelColor($x, $y);
+                $colors = $pixel->getColor(2);
+                $pixels[] = $colors['r'];
+                $pixels[] = $colors['g'];
+                $pixels[] = $colors['b'];
+                $pixels[] = $colors['a'];
+            }
+        }
+
+        return [$width, $height, $pixels];
+    }
+
 
 }

@@ -29,6 +29,7 @@ class AssetFlow
 
     #[Place(
         info: 'Fetched to temp; MIME sniffed/probed',
+        next: [self::TRANSITION_ANALYZE]
     )]
     public const PLACE_DOWNLOADED = 'downloaded';
 
@@ -110,7 +111,7 @@ class AssetFlow
     public const TRANSITION_ANALYZE = 'analyze';
 
      #[Transition(
-         from: self::PLACE_ANALYZED,
+         from: [self::PLACE_ANALYZED],
          to: self::PLACE_ARCHIVED,
          info: 'Archive original',
          description: 'Stub: archive original to durable storage (S3) and seed imgproxy cache',
