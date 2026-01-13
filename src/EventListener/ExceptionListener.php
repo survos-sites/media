@@ -15,7 +15,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 final class ExceptionListener
 {
     public function __construct(
-        private KeyValueManagerInterface $keyValueManager,
         private LoggerInterface $logger,
         private ?Inspector $inspector = null,
         private array $tokens=[]
@@ -52,9 +51,10 @@ final class ExceptionListener
         if ($exception::class === NotFoundHttpException::class) {
             $request = $event->getRequest();
             $path = $request->getPathInfo();
-            if (!$this->keyValueManager->has($path, 'paths')) {
-                $this->keyValueManager->add($path, 'paths');
-            }
+            // jsonl?  due for a refactoring
+//            if (!$this->keyValueManager->has($path, 'paths')) {
+//                $this->keyValueManager->add($path, 'paths');
+//            }
             if ($this->inspector?->isRecording()) {
                 $this->inspector?->stopRecording();
             }

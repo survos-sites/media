@@ -1,21 +1,21 @@
 {
-    "name": "sais",
-    "description": "Symfony Async Image Server",
+    "name": "mediary",
+    "description": "Survos Media Management",
     "keywords": [
         "php",
         "symfony"
     ],
     "cron": [
         {
-            "command": "php -d memory_limit=2G bin/console messenger:consume thumb.resize  --time-limit 270",
+            "command": "php -d memory_limit=2G bin/console messenger:consume asset.download  --time-limit 270",
             "schedule": "*/5 * * * *"
         },
         {
-            "command": "php -d memory_limit=2G bin/console messenger:consume media.archive  --time-limit 270",
+            "command": "php -d memory_limit=2G bin/console messenger:consume asset.analyze --time-limit 270",
             "schedule": "*/5 * * * *"
         },
         {
-            "command": "php -d memory_limit=2G bin/console messenger:consume media.download  --time-limit 270",
+            "command": "php -d memory_limit=2G bin/console messenger:consume asset.archive  --time-limit 270",
             "schedule": "*/5 * * * *"
         },
         {
@@ -23,7 +23,7 @@
             "schedule": "*/5 * * * *"
         }
     ],
-    "repository": "https://github.com/survos-sites/sais",
+    "repository": "https://github.com/survos-sites/media",
     "scripts": {
         "dokku": {
             "predeploy": "bin/console importmap:install && bin/console asset-map:compile && bin/console  secrets:decrypt-to-local --force && bin/console d:m:m -n --allow-no-migration",

@@ -281,9 +281,6 @@
     "survos/jsonl-bundle": {
         "version": "2.0.62"
     },
-    "survos/key-value-bundle": {
-        "version": "1.5.241"
-    },
     "survos/mcp-bundle": {
         "version": "dev-main"
     },
