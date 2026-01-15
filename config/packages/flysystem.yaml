@@ -26,8 +26,7 @@ flysystem:
         local.storage:
             adapter: 'local'
             options:
-                directory: '%kernel.project_dir%/shared'
-
+                directory: '%env(APP_DATA_DIR)%/mediary'
 
 when@test:
     flysystem:
