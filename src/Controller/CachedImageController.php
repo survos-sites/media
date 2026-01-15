@@ -7,6 +7,7 @@ namespace App\Controller;
 
 use App\Service\AssetRegistry;
 use App\Workflow\AssetFlow;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
 use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
@@ -38,32 +39,37 @@ final class CachedImageController
     public function __construct(
         private readonly AssetRegistry $assetRegistry,
         #[Autowire('%env(AWS_S3_BUCKET_NAME)%')]
-        private readonly string $archiveBucket,
+        private readonly string        $archiveBucket,
         #[Autowire('%survos_media.imgproxy_base_url%')]
-        private readonly string $imgproxyBaseUrl,
+        private readonly string        $imgproxyBaseUrl,
         #[Autowire('%survos_media.imgproxy.key%')]
-        private readonly string $imgproxyKey,
+        private readonly string        $imgproxyKey,
         #[Autowire('%survos_media.imgproxy.salt%')]
-        private readonly string $imgproxySalt,
-        private AsyncQueueLocator $asyncQueueLocator,
-        private MessageBusInterface $messageBus,
+        private readonly string        $imgproxySalt,
+        private AsyncQueueLocator      $asyncQueueLocator,
+        private MessageBusInterface    $messageBus, private readonly LoggerInterface $logger,
     ) {
     }
 
     #[Route('/media/{preset}/{encoded}', name: 'sais_cached_image', options: ['expose' => true])]
     public function renderImage(
-        string $preset, string $encoded,
+        string $preset,
+        string $encoded,
         #[MapQueryParameter] ?string $client = null,
         #[MapQueryParameter] ?bool $sync = null,
     ): Response
     {
         if (!isset(MediaUrlGenerator::PRESETS[$preset])) {
-            throw new BadRequestHttpException('Unknown image preset.');
+            throw new BadRequestHttpException('Unknown image preset: ' . $preset);
         }
 
         $source = MediaKeyService::stringFromEncoded($encoded);
         if ($source === false) {
             throw new BadRequestHttpException('Invalid base64 source.');
+        }
+
+        if ($sync) {
+            $this->asyncQueueLocator->sync = true;
         }
 
 
@@ -97,6 +103,7 @@ final class CachedImageController
 
         $path = $builder->url($source, $presetDef['format']);
         $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
+        $this->logger->info("Redirecting with image: {$source}");
 
         $response = new \Symfony\Component\HttpFoundation\RedirectResponse($imgproxyUrl, 302);
         // Cache aggressively: imgproxy URLs are content-addressed

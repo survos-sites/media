@@ -63,7 +63,7 @@ final class AssetRegistry
         $this->entityManager->flush();
     }
 
-    public function dispatch(Asset $asset, bool $sync=false): void
+    public function dispatch(Asset $asset): void
     {
         // trigger download
         if ($asset->getMarking() === AssetFlow::PLACE_NEW) {
@@ -72,11 +72,7 @@ final class AssetRegistry
                 $asset::class,
                 AssetFlow::TRANSITION_DOWNLOAD,
                 AssetFlow::WORKFLOW_NAME);
-            if ($sync) {
-                $stamps[] = new TransportNamesStamp(['sync']);
-            } else {
-                $stamps = $this->asyncQueueLocator->stamps($message);
-            }
+            $stamps = $this->asyncQueueLocator->stamps($message);
             $this->messageBus->dispatch(
                 $message,
                 $stamps

@@ -29,7 +29,7 @@ final class BatchController
 
         foreach ($urls as $url) {
             $asset = $this->assetRegistry->ensureAsset($url, $client, true);
-            $this->assetRegistry->dispatch($asset, sync: false);
+            $this->assetRegistry->dispatch($asset);
             $media[] = [
                 'originalUrl' => $url,
                 'mediaKey' => $asset->id,

@@ -24,8 +24,6 @@ use League\Flysystem\Visibility;
 use Psr\Log\LoggerInterface;
 use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
-use Survos\SaisBundle\Service\SaisClientService;
-
 use App\Util\ImageProbe;
 use Survos\StateBundle\Attribute\Workflow;
 use Survos\StateBundle\Message\TransitionMessage;
@@ -50,7 +48,6 @@ use Symfony\Contracts\EventDispatcher\Event;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
 use App\Workflow\AssetFlow as WF;
-use App\Workflow\ThumbFlowDefinition as TWF;
 use App\Workflow\VariantFlowDefinition as VWF;
 
 #[Workflow(name: WF::WORKFLOW_NAME, supports: [Asset::class])]
@@ -141,8 +138,12 @@ class AssetWorkflow
                 return;
             }
 
-            // Stream upload (constant memory)
-            $this->archiveStorage->writeStream($path, $stream);
+            // Stream upload (constant memory) — ensure public visibility
+            $this->archiveStorage->writeStream(
+                $path,
+                $stream,
+                ['visibility' => Visibility::PUBLIC]
+            );
         } finally {
             fclose($stream);
         }
