@@ -96,9 +96,37 @@ class Asset implements MarkingInterface, \Stringable
     }
 
     /** Arbitrary filterable context (JSONB): aggregator/museum/dataset/etc. */
-     #[ORM\Column(type: Types::JSON, nullable: true)]
-     #[Groups(['asset.read'])]
-     public ?array $context = null;
+      #[ORM\Column(type: Types::JSON, nullable: true)]
+      #[Groups(['asset.read'])]
+      public ?array $context = null;
+
+     /**
+      * Immutable parent reference (xxh3 key of parent Asset).
+      * Null for top-level assets (e.g. PDFs).
+      */
+     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
+     public ?string $parentKey = null;
+
+     /**
+      * Total number of derived child assets.
+      * Includes pages, OCR, and any other derivatives.
+      */
+     #[ORM\Column(type: Types::INTEGER)]
+     public int $childCount = 0;
+
+     /**
+      * 1-based page number for page assets.
+      * Null for non-page assets.
+      */
+     #[ORM\Column(type: Types::INTEGER, nullable: true)]
+     public ?int $pageNumber = null;
+
+     /**
+      * Denormalized indicator that OCR exists for THIS asset.
+      * True means at least one OCR-derived Asset exists whose parentKey equals this asset's key.
+      */
+     #[ORM\Column(type: Types::BOOLEAN)]
+     public bool $hasOcr = false;
 
      /** Client codes referencing this asset (additive). */
      #[ORM\Column(type: Types::JSON)]
