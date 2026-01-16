@@ -14,8 +14,10 @@ use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Message\TransitionMessage;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
+use Symfony\Component\Workflow\WorkflowInterface;
 
 final class AssetRegistry
 {
@@ -24,6 +26,7 @@ final class AssetRegistry
         private readonly AssetRepository $assetRepository,
         private readonly AssetPathRepository $assetPathRepository,
         private AsyncQueueLocator $asyncQueueLocator,
+        #[Target(AssetFlow::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
         private MessageBusInterface $messageBus,
         #[Autowire('%env(S3_ENDPOINT)%')] private readonly string $s3Endpoint,
         #[Autowire('%env(AWS_S3_BUCKET_NAME)%')] private readonly string $s3Bucket,
@@ -77,7 +80,7 @@ final class AssetRegistry
     public function dispatch(Asset $asset): void
     {
         // trigger download
-        if ($asset->getMarking() === AssetFlow::PLACE_NEW)
+        if ($this->assetWorkflow->can($asset, AssetFlow::TRANSITION_DOWNLOAD))
         {
             // dispatch a download request
             $message = new TransitionMessage($asset->id,

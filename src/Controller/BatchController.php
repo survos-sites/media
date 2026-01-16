@@ -27,12 +27,13 @@ final class BatchController
         }
 
         $media = [];
+        $urls = array_unique($urls);
 
+        $queue = [];
         foreach ($urls as $url) {
             $asset = $this->assetRegistry->ensureAsset($url, $client);
-            $queue = [];
             if ($asset->marking === AssetFlow::PLACE_NEW) {
-                $queue[] = $asset;
+                $queue[$asset->originalUrl] = $asset;
             }
             $media[] = [
                 'originalUrl' => $url,
@@ -41,13 +42,15 @@ final class BatchController
                 'storageKey' => $asset->storageKey, // for client to derive
                 's3Url' => $asset->archiveUrl,
                 'smallUrl' => $asset->smallUrl,
+                'dispatched' => key_exists($url, $queue) ? 'yes' : 'no',
             ];
         }
         $this->assetRegistry->flush();
 
-        foreach ($queue as $asset) {
+        foreach ($queue as $url=>$asset) {
             $this->assetRegistry->dispatch($asset);
         }
+        $this->assetRegistry->flush();
 
         return new JsonResponse(['media' => $media]);
     }
