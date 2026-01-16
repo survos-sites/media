@@ -6,6 +6,7 @@ use App\Entity\Asset;
 use App\Entity\Media;
 use App\Entity\User;
 use App\Repository\UserRepository;
+use App\Service\AssetRegistry;
 use App\Workflow\AssetFlow;
 use App\Workflow\AssetWorkflow;
 use App\Workflow\MediaWorkflow;
@@ -27,12 +28,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Form\Type\ComparisonType;
 use Google\Service\GroupsMigration\Resource\Archive;
+use Survos\EzBundle\Controller\BaseCrudController;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Traits\EasyMarkingTrait;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Workflow\WorkflowInterface;
-use Survos\CoreBundle\Controller\BaseCrudController;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
@@ -49,9 +51,11 @@ class AssetCrudController extends BaseCrudController
 
     public function __construct(
         #[Target(AssetFlow::WORKFLOW_NAME)] protected WorkflowInterface $workflow,
+        private AssetRegistry $assetRegistry,
         private UserRepository $userRepository,
     )
     {
+        parent::__construct();
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -128,8 +132,31 @@ class AssetCrudController extends BaseCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        // Visual priority order - most important first
-        yield AvatarField::new('thumbnailUrl')->setHeight(36);  // Visual thumbnail first
+
+
+//            // only if in storage??
+//        yield AvatarField::new('thumbnailUrl')
+//            ->setLabel('Thumb')
+//            ->formatValue(function ($value, Asset $asset) {
+//                if ($asset->storageKey) {
+//                    $imgProxyUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
+//                    return $imgProxyUrl;
+//                }
+//            })
+//            ->setHelp('dynamic?')
+//            ->setHeight(36);
+
+//        yield TextField::new('thumbnailUrl')
+//            ->setLabel('Thumb')
+//            ->formatValue(function ($value, Asset $asset) {
+//                if ($asset->storageKey) {
+//                    $imgProxyUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
+//                    return "<img src='$imgProxyUrl' title='{$asset->storageKey}' style='max-width: 36px;'>";
+//                }
+//            })
+//            ->renderAsHtml();
+
+        yield AvatarField::new('smallUrl')->setHeight(36);  // Visual thumbnail first
 
 //        yield TextField::new('id')
 //            ->formatValue(function ($value, $entity) {
@@ -140,16 +167,19 @@ class AssetCrudController extends BaseCrudController
 //                );
 //            });
 
-        yield TextField::new('archiveUrl');                     // Status/workflow state
+//        yield TextField::new('archiveUrl');                     // Status/workflow state
+//        yield TextField::new('storageKey');                     // Status/workflow state
         yield TextField::new('marking');                     // Status/workflow state
-        yield IntegerField::new('statusCode');               // HTTP status
+        yield IntegerField::new('statusCode');               // HTTP status, from ORIGINAL
 //        yield AssociationField::new('user');                 // Owner/user
         yield TextField::new('mime');                 // actual, from downloaded file
 //        yield TextField::new('root');                        // Storage root, now user
-        yield UrlField::new('originalUrl');                  // Source URL
-        yield ArrayField::new('resized')->onlyOnDetail();
+        yield UrlField::new('originalUrl'); // ->onlyOnDetail();                  // Source URL
+//        yield ArrayField::new('resized')->onlyOnDetail();
         yield TextField::new('tempFilename')->onlyOnDetail();
-        yield ArrayField::new('resizedCount', "#resized");
+        yield UrlField::new('archiveUrl')->onlyOnDetail();
+        yield UrlField::new('smallUrl')->onlyOnDetail();
+//        yield ArrayField::new('resizedCount', "#resized");
         yield IntegerField::new('size')->setLabel('Size (bytes)'); // File size
 
 //        yield ArrayField::new('colorAnalysis', 'Colors')
@@ -163,13 +193,6 @@ class AssetCrudController extends BaseCrudController
 
 //        yield TextEditorField::new('context')->setLabel('Context (JSON)'); // Additional data
 
-//        yield TextField::new('context')
-//            ->setLabel('Context (JSON)')
-//            ->formatValue(static function ($value) {
-//                return $value ? '<pre>' . json_encode($value, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . '</pre>' : null;
-//            })
-//            ->onlyOnDetail()
-//            ->renderAsHtml();
 //        yield CodeEditorField::new('context')
 //            ->setLabel('Context (JSON)')
 //            ->setLanguage('js')

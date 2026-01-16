@@ -14,6 +14,7 @@ use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Message\TransitionMessage;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
@@ -38,32 +39,26 @@ final class CachedImageController
 
     public function __construct(
         private readonly AssetRegistry $assetRegistry,
-        #[Autowire('%env(AWS_S3_BUCKET_NAME)%')]
-        private readonly string        $archiveBucket,
-        #[Autowire('%survos_media.imgproxy_base_url%')]
-        private readonly string        $imgproxyBaseUrl,
-        #[Autowire('%survos_media.imgproxy.key%')]
-        private readonly string        $imgproxyKey,
-        #[Autowire('%survos_media.imgproxy.salt%')]
-        private readonly string        $imgproxySalt,
         private AsyncQueueLocator      $asyncQueueLocator,
-        private MessageBusInterface    $messageBus, private readonly LoggerInterface $logger,
+        private MessageBusInterface    $messageBus,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
     #[Route('/media/{preset}/{encoded}', name: 'sais_cached_image', options: ['expose' => true])]
     public function renderImage(
         string $preset,
-        string $encoded,
+        ?string $encoded=null,
         #[MapQueryParameter] ?string $client = null,
         #[MapQueryParameter] ?bool $sync = null,
+        #[MapQueryParameter] ?string $url = null,
     ): Response
     {
         if (!isset(MediaUrlGenerator::PRESETS[$preset])) {
             throw new BadRequestHttpException('Unknown image preset: ' . $preset);
         }
 
-        $source = MediaKeyService::stringFromEncoded($encoded);
+        $source = $encoded ? MediaKeyService::stringFromEncoded($encoded) : $url;
         if ($source === false) {
             throw new BadRequestHttpException('Invalid base64 source.');
         }
@@ -74,38 +69,16 @@ final class CachedImageController
 
 
         // Ensure asset is registered
-        $asset = $this->assetRegistry->ensureAsset($source, $client, flush: true);
+        $asset = $this->assetRegistry->ensureAsset($source, $client);
+//        dump(beforeDispatch: $asset);
         // queue up download
         $this->assetRegistry->dispatch($asset);
+//        dd(afterDispatch: $asset);
 
-        // if the asset has been stored on OUR s3, then use it, much faster.
-        if ($asset->storageKey) {
-            $source = $this->assetRegistry->s3Url($asset);
-        }
-
-        // Redirect to imgproxy for now (no byte streaming or caching yet)
-        $presetDef = MediaUrlGenerator::PRESETS[$preset];
-        [$width, $height] = $presetDef['size'];
-
-        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
-            $this->imgproxyKey,
-            $this->imgproxySalt
-        )->with(
-            new \Mperonnet\ImgProxy\Options\Resize($presetDef['resize']),
-            new \Mperonnet\ImgProxy\Options\Width($width),
-            new \Mperonnet\ImgProxy\Options\Height($height),
-            new \Mperonnet\ImgProxy\Options\Quality($presetDef['quality']),
-        );
-
-        if (isset($presetDef['dpr'][0])) {
-//            $builder = $builder->with(new \Mperonnet\ImgProxy\Options\Dpr($presetDef['dpr'][0]));
-        }
-
-        $path = $builder->url($source, $presetDef['format']);
-        $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
+        $imgproxyUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
         $this->logger->info("Redirecting with image: {$source}");
 
-        $response = new \Symfony\Component\HttpFoundation\RedirectResponse($imgproxyUrl, 302);
+        $response = new RedirectResponse($imgproxyUrl, 302);
         // Cache aggressively: imgproxy URLs are content-addressed
 //        $response->headers->set('Cache-Control', 'public, max-age=31536000, immutable');
         return $response;

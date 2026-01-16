@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Service\AssetRegistry;
+use App\Workflow\AssetFlow;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -28,15 +29,25 @@ final class BatchController
         $media = [];
 
         foreach ($urls as $url) {
-            $asset = $this->assetRegistry->ensureAsset($url, $client, true);
-            $this->assetRegistry->dispatch($asset);
+            $asset = $this->assetRegistry->ensureAsset($url, $client);
+            $queue = [];
+            if ($asset->marking === AssetFlow::PLACE_NEW) {
+                $queue[] = $asset;
+            }
             $media[] = [
                 'originalUrl' => $url,
                 'mediaKey' => $asset->id,
                 'status' => $asset->marking,
+                'storageKey' => $asset->storageKey, // for client to derive
+                's3Url' => $asset->archiveUrl,
+                'smallUrl' => $asset->smallUrl,
             ];
         }
         $this->assetRegistry->flush();
+
+        foreach ($queue as $asset) {
+            $this->assetRegistry->dispatch($asset);
+        }
 
         return new JsonResponse(['media' => $media]);
     }

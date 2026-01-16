@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Workflow;
 
+use App\Service\AssetRegistry;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
@@ -71,19 +72,19 @@ class AssetWorkflow
         private readonly ApiService                             $apiService,
 //        #[Target(TWF::WORKFLOW_NAME)] private WorkflowInterface $thumbWorkflow,
         #[Target(VWF::WORKFLOW_NAME)] private WorkflowInterface $variantWorkflow,
-        #[Target(WF::WORKFLOW_NAME)] private WorkflowInterface  $assetWorkflow,
-        private SerializerInterface                             $serializer,
-        private NormalizerInterface                             $normalizer,
+        #[Target(WF::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
+        private SerializerInterface                            $serializer,
+        private NormalizerInterface                            $normalizer,
         #[Autowire('%env(SAIS_API_ENDPOINT)%')]
-        private string                                          $apiEndpoint,
+        private string                                         $apiEndpoint,
         #[Autowire('%kernel.project_dir%/public/temp')]
-        private string                                          $tempDir,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly AsyncQueueLocator $asyncQueueLocator,
-        private readonly VariantPlan                            $plan,
-        private readonly StorageService                         $storageService,
-        private readonly ?FilesystemOperator                    $archiveStorage = null,
-        private ?GoogleDriveService                             $driveService   = null,
+        private string                                         $tempDir,
+        private readonly EntityManagerInterface                $entityManager,
+        private readonly AsyncQueueLocator                     $asyncQueueLocator,
+        private readonly VariantPlan                           $plan,
+        private readonly StorageService                        $storageService, private readonly AssetRegistry $assetRegistry,
+        private readonly ?FilesystemOperator                   $archiveStorage = null,
+        private ?GoogleDriveService                            $driveService   = null,
 
     ) {
     }
@@ -95,13 +96,21 @@ class AssetWorkflow
         return $asset;
     }
 
-    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
-    public function onArchive(TransitionEvent $event): void
+    private function uploadToArchive(Asset $asset)
     {
-        $asset = $this->getAsset($event);
+        if (!$asset->tempFilename) {
+            throw new RuntimeException(sprintf(
+                'Missing temporary filename for archive (asset %s).',
+                $asset->id
+            ));
+        }
 
-        if (!$asset->tempFilename || !is_file($asset->tempFilename)) {
-            throw new RuntimeException('Missing temporary file for archive.');
+        if (!is_file($asset->tempFilename)) {
+            throw new RuntimeException(sprintf(
+                'Temporary file missing on disk during archive (asset %s, path "%s").',
+                $asset->id,
+                $asset->tempFilename
+            ));
         }
 
         // Derive extension from actual MIME
@@ -133,26 +142,56 @@ class AssetWorkflow
                         )
                     );
                 }
-
-                // Already archived correctly
-                return;
+            } else {
+                // Stream upload (constant memory) — ensure public visibility
+                $this->archiveStorage->writeStream(
+                    $path,
+                    $stream,
+                    ['visibility' => Visibility::PUBLIC]
+                );
             }
 
-            // Stream upload (constant memory) — ensure public visibility
-            $this->archiveStorage->writeStream(
-                $path,
-                $stream,
-                ['visibility' => Visibility::PUBLIC]
-            );
         } finally {
             fclose($stream);
         }
-        // if archived we don't need the temp file.
+
+        $asset->storageKey = $path;
+        $asset->storageBackend = 'archive';
+        $archiveUrl = $this->assetRegistry->s3Url($asset);
+        // so that thumbs can be served without redirects
+        $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
+        $asset->archiveUrl = $archiveUrl; // if salt expires, this isn't true.
         unlink($asset->tempFilename);
         $asset->tempFilename = null;
+        $this->em->flush();
+    }
+
+//    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
+    public function onArchive(TransitionEvent $event): void
+    {
+        return; // no-op, everything now in download.
+        $asset = $this->getAsset($event);
+//        $this->uploadToArchive($asset);
+        dd(onArchive: $asset);
+
+
+        // if archived we don't need the temp file.
 
         $asset->storageBackend = 'archive';
         $asset->storageKey = $path;
+        // only AFTER we have a storage key, so it uses the s3 image for the thumb
+        $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
+         if ($asset->tempFilename) {
+             // keep files during testing locally
+//             unlink($asset->tempFilename);
+         }
+         $asset->tempFilename = null;
+
+         // Archive marks the end of the asset lifecycle for this worker
+         $this->em->flush();
+//         $this->em->detach($asset);
+         gc_collect_cycles();
+
     }
 
         /**
@@ -178,12 +217,6 @@ class AssetWorkflow
         }
         $asset->ext = $ext;
 
-        // Check if asset is already fully processed (has resized data, proper status and a file size in bytes)
-        if ($asset->resizedCount && $asset->size) {
-            $this->logger->info("Asset {$asset->id} already processed, skipping download and processing");
-            return;
-        }
-
         $key = $this->archiveService->keyForUrl($asset->originalUrl);
         $path = basename($this->archiveService->payloadPath($key, $ext));
 
@@ -195,14 +228,18 @@ class AssetWorkflow
         $asset->statusCode = 200;
         // path will change if there is an extension mismatch!
         [$path, $absolutePath] = $this->downloadFileToLocalStorage($url, $path);
-
+            // no network calls! Only what we need while we have local
             $fileData = $this->processLocalFile($absolutePath, $asset);
             try {
             } catch (\Exception $e) {
                 $asset->statusCode = $e->getCode();
                 return;
             }
-            $asset->tempFilename = $absolutePath;
+        $asset->tempFilename = $absolutePath;
+            assert(file_exists($absolutePath), "Missing $absolutePath");
+            $this->uploadToArchive($asset);
+
+        // now we can save everything and move to the next step.
         $this->em->flush();
         // at this point, we have extracted all we need from the local file.  we can now archive in the next step.
     }
@@ -240,6 +277,10 @@ class AssetWorkflow
 
             // Write the stream directly to Flysystem
             $this->localStorage->writeStream($destinationPath, $stream);
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+            $response->cancel();
 
             $this->logger->info('File downloaded successfully', [
                 'url' => $url,
@@ -285,9 +326,9 @@ class AssetWorkflow
     public function onCompleted(CompletedEvent $event): void
     {
         $asset = $this->getAsset($event);
-        if ($event->getTransition()?->getName() === WF::TRANSITION_DOWNLOAD) {
-            return;
-        }
+        $this->em->flush();
+        // don't detach until AFTER completed is called, or we won't save the marking.
+        $this->em->detach($asset);
         return;
         $asset = $this->getAsset($event);
 
@@ -319,28 +360,33 @@ class AssetWorkflow
     #[AsTransitionListener(WF::WORKFLOW_NAME, WF::TRANSITION_ANALYZE)]
     public function onLocalAnalyze(TransitionEvent $event): void
     {
-        // Guard: only analyze images for now; audio/video can get their own probes
+        // Analysis now happens AFTER archive using S3-backed URLs
         $asset = $this->getAsset($event);
-        if (!$asset->mime || !str_starts_with($asset->mime, 'image/')) {
-            $this->logger->info("Skipping analysis for non-image asset  ({$asset->mime})");
+
+        if (!$asset->tempFilename || !$asset->mime || !str_starts_with($asset->mime, 'image/')) {
+            $this->logger->info("Skipping analysis for non-image or undownloaded asset ({$asset->mime})");
             return;
         }
 
+        // Use imgproxy / remote access instead of local temp files
+        [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
 
-        // this skips the save, fetch, etc.
-        [$tw, $th, $pixels]  = $this->resizeForThumbHash($asset->tempFilename);
         $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
         $key  = Thumbhash::convertHashToString($hash);
 
-        // Store on Asset context or analysis bucket; keeping it simple here:
         $asset->context ??= [];
         $asset->context['thumbhash'] = $key;
 
-        $this->assetPreviewService->maybeComputePaletteAndPhash($asset, self::THUMBHASH_PRESET,
-            $asset->tempFilename);
+        $this->assetPreviewService->maybeComputePaletteAndPhash(
+            $asset,
+            self::THUMBHASH_PRESET,
+            $asset->archiveUrl
+        );
 
-        $this->em->persist($asset);
+        unset($pixels);
+
         $this->em->flush();
+//        $this->em->detach($asset);
     }
 
     /**
@@ -440,13 +486,18 @@ class AssetWorkflow
 
     }
 
-    private function resizeForThumbHash(string $imagePath, int $size = 192): array
+    private function resizeForThumbHash(string $imagePath, int $size = 100): array
     {
         $image = new \Imagick($imagePath);
 
         // Resize to fit within $size x $size, maintaining aspect ratio
+        // it's probably the reason analyze is slow, we _could_ call imgProxy with the file
+        // but seems like an optimization for later.  We could move it to after archive, too!
+        // but now we have the image locally.
+        // imgProxy now runs locally too, so this logic may need rethinking.
         $image->thumbnailImage($size, $size, true);
 
+        // 100x100 is okay, this is a oneoff that's not saved.
         // If you need exactly 192x192 with padding/centering:
         // $image->setImageBackgroundColor('transparent');
         // $image->extentImage($size, $size,

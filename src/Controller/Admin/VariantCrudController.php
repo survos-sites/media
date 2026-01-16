@@ -41,8 +41,8 @@ class VariantCrudController extends BaseCrudController
             ->add($this->markingFilter())
             ->add(TextFilter::new('asset'))
 
-            ->add(ChoiceFilter::new('preset')
-                ->setChoices(array_combine(Media::FILTERS, Media::FILTERS)))
+//            ->add(ChoiceFilter::new('preset')
+//                ->setChoices(array_combine(Media::FILTERS, Media::FILTERS)))
             // too big!
 //            ->add(EntityFilter::new('media'));
 

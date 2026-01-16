@@ -41,14 +41,14 @@ class AssetFlow
 
     #[Place(
         info: 'Features computed (blurhash/palette/pHash/probe)',
-        next: [self::TRANSITION_ARCHIVE]
+//        next: [self::TRANSITION_ARCHIVE]
     )]
     public const PLACE_ANALYZED = 'analyzed';
 
-     #[Place(
-         info: 'Original stored durably with metadata'
-     )]
-     public const PLACE_ARCHIVED = 'archived';
+//     #[Place(
+//         info: 'Original stored durably with metadata'
+//     )]
+//     public const PLACE_ARCHIVED = 'archived';
 
      #[Place(info: 'All done')]
      public const PLACE_COMPLETE = 'complete';
@@ -106,21 +106,22 @@ class AssetFlow
         info: 'Analyze',
         description: 'Compute blurhash/thumbhash, color palette, pHash, media probe',
         async: true,
-        next: [self::TRANSITION_ARCHIVE]
+//        next: [self::TRANSITION_ARCHIVE]
     )]
     public const TRANSITION_ANALYZE = 'analyze';
 
-     #[Transition(
-         from: [self::PLACE_ANALYZED],
-         to: self::PLACE_ARCHIVED,
-         info: 'Archive original',
-         description: 'Stub: archive original to durable storage (S3) and seed imgproxy cache',
-         async: true
-     )]
-     public const TRANSITION_ARCHIVE = 'archive';
+//     #[Transition(
+//         from: [self::PLACE_DOWNLOADED],
+//         to: self::PLACE_ARCHIVED,
+//         info: 'Archive original',
+//         description: 'Stub: archive original to durable storage (S3)',
+//         next: [self::TRANSITION_ARCHIVE]
+////         async: true
+//     )]
+//     public const TRANSITION_ARCHIVE = 'archive';
 
      #[Transition(
-         from: self::PLACE_ARCHIVED,
+         from: self::PLACE_ANALYZED,
          to: self::PLACE_COMPLETE,
          info: 'Finalize',
          description: 'Finalize asset (indexing handled by listeners)'

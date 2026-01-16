@@ -10,6 +10,7 @@ use App\Repository\AssetRepository;
 use App\Workflow\AssetFlow;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Message\TransitionMessage;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -26,6 +27,16 @@ final class AssetRegistry
         private MessageBusInterface $messageBus,
         #[Autowire('%env(S3_ENDPOINT)%')] private readonly string $s3Endpoint,
         #[Autowire('%env(AWS_S3_BUCKET_NAME)%')] private readonly string $s3Bucket,
+
+        #[Autowire('%env(AWS_S3_BUCKET_NAME)%')]
+        private readonly string        $archiveBucket,
+        #[Autowire('%survos_media.imgproxy_base_url%')]
+        private readonly string        $imgproxyBaseUrl,
+        #[Autowire('%survos_media.imgproxy.key%')]
+        private readonly string        $imgproxyKey,
+        #[Autowire('%survos_media.imgproxy.salt%')]
+        private readonly string        $imgproxySalt,
+
     ) {
     }
 
@@ -66,7 +77,8 @@ final class AssetRegistry
     public function dispatch(Asset $asset): void
     {
         // trigger download
-        if ($asset->getMarking() === AssetFlow::PLACE_NEW) {
+        if ($asset->getMarking() === AssetFlow::PLACE_NEW)
+        {
             // dispatch a download request
             $message = new TransitionMessage($asset->id,
                 $asset::class,
@@ -85,6 +97,40 @@ final class AssetRegistry
     public function s3Url(Asset $asset)
     {
         return sprintf("%s/%s/%s", $this->s3Endpoint, $this->s3Bucket, $asset->storageKey);
+    }
+    public function imgProxyUrl(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): ?string
+    {
+        // Redirect to imgproxy for now (no byte streaming or caching yet)
+        $presetDef = MediaUrlGenerator::PRESETS[$preset];
+        [$width, $height] = $presetDef['size'];
+
+        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
+            $this->imgproxyKey,
+            $this->imgproxySalt
+        )->with(
+            new \Mperonnet\ImgProxy\Options\Resize($presetDef['resize']),
+            new \Mperonnet\ImgProxy\Options\Width($width),
+            new \Mperonnet\ImgProxy\Options\Height($height),
+            new \Mperonnet\ImgProxy\Options\Quality($presetDef['quality']),
+        );
+
+        if (isset($presetDef['dpr'][0])) {
+//            $builder = $builder->with(new \Mperonnet\ImgProxy\Options\Dpr($presetDef['dpr'][0]));
+        }
+
+        // if the asset has been stored on OUR s3, then use it, much faster.
+        if ($asset->storageKey) {
+            $source = $this->s3Url($asset);
+        } else {
+            $source = $asset->originalUrl;
+            $builder = $builder->usePlain();
+        }
+        $path = $builder->url($source, $presetDef['format']);
+//        $url = $builder->usePlain()->url($src);
+// Example: /9SaGqJILqstFsWthdP/dpr:2/q:90/w:300/h:400/plain/http://example.com/image.jpg
+
+        $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
+        return $imgproxyUrl;
 
     }
 }

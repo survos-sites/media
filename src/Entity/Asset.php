@@ -24,6 +24,8 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
 #[MeiliIndex(
+    sortable: ['sizeInMegabytes'],
+    filterable: ['mime','clients','statusCode','sizeInMegabytes'],
     persisted: new Fields(
         groups: ['asset.read'],
         fields: ['id','mime','storageBackend','width','height','createdAt'],
@@ -48,6 +50,8 @@ class Asset implements MarkingInterface, \Stringable
     /** HTTP status from last fetch (used by guards); 200 = OK. */
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
     public ?int $statusCode = null;
+
+    public ?int $sizeInMegabytes { get => $this->size ? (int)($this->size / (1024*1024)) : null;}
 
     /** Directory assignment under local.storage for Liip loader (3-hex dir). */
     #[ORM\ManyToOne(targetEntity: AssetPath::class)]
@@ -144,6 +148,9 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])] // for now, maybe removed after debugging
     public ?string $archiveUrl = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])] // directly to imgProxy after archive.  could happen elsewhere, but for now it's here.
+    public ?string $smallUrl = null;
 
     /** Temp filename during fetch; not a durable path. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -198,17 +205,17 @@ class Asset implements MarkingInterface, \Stringable
         return $this->id;
     }
 
-    public function getThumbnailUrl(): ?string
-    {
-        /** @var Variant $variant */
-        foreach ($this->variants as $variant) {
-            if ($variant->preset === 'small') {
-                return $variant->url;
-            }
-        }
-        return null;
-
-    }
+//    public function getThumbnailUrl(): ?string
+//    {
+//        /** @var Variant $variant */
+//        foreach ($this->variants as $variant) {
+//            if ($variant->preset === 'small') {
+//                return $variant->url;
+//            }
+//        }
+//        return null;
+//
+//    }
 
 
     public function addVariant(Variant $v): void
