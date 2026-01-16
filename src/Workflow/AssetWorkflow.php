@@ -96,24 +96,25 @@ class AssetWorkflow
         return $asset;
     }
 
-    private function uploadToArchive(Asset $asset)
+    private function uploadToArchiveFromPath(Asset $asset, string $localPath): void
     {
-        if (!$asset->tempFilename) {
+        if (!is_file($localPath)) {
             throw new RuntimeException(sprintf(
-                'Missing temporary filename for archive (asset %s).',
+                'Local payload missing for archive (asset %s, path "%s").',
+                $asset->id,
+                $localPath
+            ));
+        }
+
+        $localSize = filesize($localPath);
+        if ($localSize === 0) {
+            throw new RuntimeException(sprintf(
+                'Refusing to archive zero-byte payload (asset %s).',
                 $asset->id
             ));
         }
 
-        if (!is_file($asset->tempFilename)) {
-            throw new RuntimeException(sprintf(
-                'Temporary file missing on disk during archive (asset %s, path "%s").',
-                $asset->id,
-                $asset->tempFilename
-            ));
-        }
-
-        // Derive extension from actual MIME
+        // Derive extension from detected MIME
         $extension = MediaKeyService::extensionFromMime($asset->mime);
 
         // Deterministic archive key from original URL
@@ -122,48 +123,39 @@ class AssetWorkflow
             $extension
         );
 
-        $stream = fopen($asset->tempFilename, 'rb');
+        $stream = fopen($localPath, 'rb');
         if ($stream === false) {
-            throw new RuntimeException('Failed to open temporary file for streaming.');
+            throw new RuntimeException('Failed to open local payload for streaming.');
         }
 
         try {
             // Idempotency: if object already exists, verify integrity
             if ($this->archiveStorage->fileExists($path)) {
                 $remoteSize = $this->archiveStorage->fileSize($path);
-                $localSize  = filesize($asset->tempFilename);
-
                 if ($remoteSize !== $localSize) {
-                    throw new RuntimeException(
-                        sprintf(
-                            'Archive object exists with mismatched size (remote=%d, local=%d).',
-                            $remoteSize,
-                            $localSize
-                        )
-                    );
+                    throw new RuntimeException(sprintf(
+                        'Archive object exists with mismatched size (remote=%d, local=%d).',
+                        $remoteSize,
+                        $localSize
+                    ));
                 }
             } else {
-                // Stream upload (constant memory) — ensure public visibility
+                // Stream upload (constant memory)
                 $this->archiveStorage->writeStream(
                     $path,
                     $stream,
                     ['visibility' => Visibility::PUBLIC]
                 );
             }
-
         } finally {
             fclose($stream);
         }
 
+        // Persist archive metadata
         $asset->storageKey = $path;
         $asset->storageBackend = 'archive';
-        $archiveUrl = $this->assetRegistry->s3Url($asset);
-        // so that thumbs can be served without redirects
+        $asset->archiveUrl = $this->assetRegistry->s3Url($asset);
         $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
-        $asset->archiveUrl = $archiveUrl; // if salt expires, this isn't true.
-        unlink($asset->tempFilename);
-        $asset->tempFilename = null;
-        $this->em->flush();
     }
 
 //    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
@@ -227,94 +219,41 @@ class AssetWorkflow
         $tempFile = $this->tempDir . '/' . str_replace('/', '-', $path);
         $asset->statusCode = 200;
         // path will change if there is an extension mismatch!
-        [$path, $absolutePath] = $this->downloadFileToLocalStorage($url, $path);
-            // no network calls! Only what we need while we have local
-            $fileData = $this->processLocalFile($absolutePath, $asset);
-            try {
-            } catch (\Exception $e) {
-                $asset->statusCode = $e->getCode();
-                return;
+        // Download to a process-local temp file (not persisted)
+        $tmpFile = tempnam(sys_get_temp_dir(), 'asset_');
+        try {
+            $this->downloadUrl($url, $tmpFile);
+            if (!is_file($tmpFile) || filesize($tmpFile) === 0) {
+                throw new RuntimeException(sprintf('Downloaded zero-byte payload for asset %s', $asset->id));
             }
-        $asset->tempFilename = $absolutePath;
-            assert(file_exists($absolutePath), "Missing $absolutePath");
-            $this->uploadToArchive($asset);
+
+            // no network calls! Only what we need while we have local
+            // Inspect local file once: size, mime, dimensions, exif (when applicable)
+            $this->processLocalFile($tmpFile, $asset);
+
+            // Normalize extension based on detected mime type
+            $detectedExt = ImageProbe::extFromMime($asset->mime);
+            $currentExt = pathinfo($tmpFile, PATHINFO_EXTENSION);
+            if ($detectedExt && $currentExt !== $detectedExt) {
+                $renamed = $tmpFile . '.' . $detectedExt;
+                rename($tmpFile, $renamed);
+                $tmpFile = $renamed;
+                $asset->ext = $detectedExt;
+            }
+
+            // archive immediately from validated temp file
+            $this->uploadToArchiveFromPath($asset, $tmpFile);
+        } finally {
+            if (is_file($tmpFile)) {
+                @unlink($tmpFile);
+            }
+        }
 
         // now we can save everything and move to the next step.
         $this->em->flush();
         // at this point, we have extracted all we need from the local file.  we can now archive in the next step.
     }
 
-    public function getLocalAbsolutePath(string $filePath): string
-    {
-        $adapter = $this->storageService->getAdapterModel('local.storage');
-        $absolutePath = $adapter->getAbsolutePath($filePath);
-        //
-
-        return $absolutePath;
-    }
-
-    public function downloadFileToLocalStorage(
-        string $url, string $destinationPath): array
-    {
-        if ($this->localStorage->has($destinationPath)) {
-            $absolutePath = $this->getLocalAbsolutePath($destinationPath);
-            return [$destinationPath, $absolutePath];
-        }
-        try {
-            $this->logger->warning("Downloading $url to $destinationPath");
-            // Create a streaming request
-            $response = $this->httpClient->request('GET', $url, [
-                'buffer' => false, // This enables streaming
-            ]);
-
-            // Check if the request was successful
-            if ($response->getStatusCode() !== 200) {
-                throw new \Exception('Failed to download file: ' . $response->getStatusCode());
-            }
-
-            // Get the response body as a stream
-            $stream = $response->toStream();
-
-            // Write the stream directly to Flysystem
-            $this->localStorage->writeStream($destinationPath, $stream);
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-            $response->cancel();
-
-            $this->logger->info('File downloaded successfully', [
-                'url' => $url,
-                'destination' => $destinationPath
-            ]);
-
-        } catch (\Exception $e) {
-            $this->logger->error('Failed to download file', [
-                'url' => $url,
-                'destination' => $destinationPath,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
-        // with localStorage, we can rename the file and fix the asset if the mime type is wrong.
-        $absolutePath = $this->getLocalAbsolutePath($destinationPath);
-        $mimeType = mime_content_type($absolutePath);
-        $correctExt = ImageProbe::extFromMime($mimeType);
-        $extFromFilename = pathinfo($absolutePath, PATHINFO_EXTENSION);
-
-        if ($correctExt <> $extFromFilename) {
-            $destinationInfo = pathinfo($destinationPath);
-            $destinationPath = $destinationInfo['dirname'] . '/' . $destinationInfo['filename'] . '.' . $correctExt;
-            $pathInfo = pathinfo($absolutePath);
-            $directory = $pathInfo['dirname'] === '.' ? '' : $pathInfo['dirname'] . '/';
-            $newFilePath = $directory . $pathInfo['filename'] . '.' . $correctExt;
-            if (file_exists($newFilePath)) {
-                unlink($newFilePath);
-            }
-            rename($absolutePath, $newFilePath);
-            $absolutePath = $newFilePath;
-        }
-        return [$destinationPath, $absolutePath];
-    }
 
     /**
      *
@@ -427,7 +366,7 @@ class AssetWorkflow
 
         }
 
-        $this->logger->info("Downloaded url: $url as $tempFile " . filesize($tempFile));
+        $this->logger->warning("Downloaded url: $url as $tempFile " . filesize($tempFile));
         return $tempFile;
 
     }
