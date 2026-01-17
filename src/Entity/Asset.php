@@ -47,6 +47,10 @@ class Asset implements MarkingInterface, \Stringable
         }
     }
 
+    /** Fast non-cryptographic content hash (xxh3 of bytes). */
+    #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
+    public ?string $contentHash = null;
+
     /** HTTP status from last fetch (used by guards); 200 = OK. */
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
     public ?int $statusCode = null;

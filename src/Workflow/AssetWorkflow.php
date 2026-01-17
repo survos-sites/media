@@ -375,6 +375,10 @@ class AssetWorkflow
     {
         $asset->ext = pathinfo($localAbsoluteFilename, PATHINFO_EXTENSION);
         $mimeType = mime_content_type($localAbsoluteFilename); //
+
+        // Compute content hash once while file is local (fast, non-cryptographic)
+        $asset->context ??= [];
+        $asset->context['contentHash'] = hash_file('xxh3', $localAbsoluteFilename);
         // Only process image files for dimensions and exif
         if (str_starts_with($mimeType, 'image/')) {
             [$width, $height, $type, $attr] = getimagesize($localAbsoluteFilename, $info);
@@ -395,18 +399,28 @@ class AssetWorkflow
                 try {
                     $exif = @exif_read_data($localAbsoluteFilename, 'IFD0,EXIF,COMPUTED', true);
 
-                    if ($exif !== false) {
-                        //clean exif data : remove EXIF key
-                        $exif = array_filter($exif, fn($key) => !str_starts_with($key, 'EXIF'), ARRAY_FILTER_USE_KEY);
-                        // flatten nested arrays but preserve keys
-                        $exif = iterator_to_array(
-                            new \RecursiveIteratorIterator(
-                                new \RecursiveArrayIterator($exif)
-                            ),
-                            true // preserve keys
-                        );
-//                    $media->setExif($exif);
-                    }
+                     if ($exif !== false) {
+                         // clean exif data : remove EXIF key
+                         $exif = array_filter($exif, fn($key) => !str_starts_with($key, 'EXIF'), ARRAY_FILTER_USE_KEY);
+                         // flatten nested arrays but preserve keys
+                         $exif = iterator_to_array(
+                             new \RecursiveIteratorIterator(
+                                 new \RecursiveArrayIterator($exif)
+                             ),
+                             true // preserve keys
+                         );
+                         // normalize values to valid UTF-8 to avoid downstream encoding issues
+                         $exif = array_map(static function ($value) {
+                             if (is_string($value)) {
+                                 // Convert invalid byte sequences to UTF-8, replacing invalid chars
+                                 return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+                             }
+                             return $value;
+                         }, $exif);
+
+                         $asset->context ??= [];
+                         $asset->context['exif'] = $exif;
+                     }
                 } catch (\Throwable $e) {
                     $this->logger->warning("EXIF read failed for $localAbsoluteFilename: " . $e->getMessage());
                 }
