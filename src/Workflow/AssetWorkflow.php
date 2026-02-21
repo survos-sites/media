@@ -92,8 +92,8 @@ class AssetWorkflow
     /** @return Asset */
     private function getAsset(Event $event): Asset
     {
-        /** @var Asset $asset */ $asset = $event->getSubject();
-        return $asset;
+        //        assert($subject instanceof Asset, 'Expected Asset entity, got ' . get_class($subject));
+        return $event->getSubject();
     }
 
     private function uploadToArchiveFromPath(Asset $asset, string $localPath): void
@@ -115,13 +115,18 @@ class AssetWorkflow
         }
 
         // Derive extension from detected MIME
-        $extension = MediaKeyService::extensionFromMime($asset->mime);
+        $extension = MediaKeyService::extensionFromMime($asset->mime) ?? ($asset->ext ?: 'bin');
 
-        // Deterministic archive key from original URL
-        $path = MediaKeyService::archivePathFromUrl(
-            $asset->originalUrl,
-            $extension
-        );
+        // Prefer content-addressed path when available, fallback to URL-based path.
+        $sha256 = $asset->context['sha256'] ?? null;
+        if (is_string($sha256) && preg_match('/^[a-f0-9]{64}$/', $sha256) === 1) {
+            $path = sprintf('orig/%s/%s/%s.%s', substr($sha256, 0, 2), substr($sha256, 2, 2), $sha256, $extension);
+        } else {
+            $path = MediaKeyService::archivePathFromUrl(
+                $asset->originalUrl,
+                $extension
+            );
+        }
 
         $stream = fopen($localPath, 'rb');
         if ($stream === false) {
@@ -158,13 +163,28 @@ class AssetWorkflow
         $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
     }
 
+    public function ingestLocalFile(Asset $asset, string $localPath): void
+    {
+        if (!is_file($localPath)) {
+            throw new RuntimeException(sprintf('Local file not found: %s', $localPath));
+        }
+
+        $asset->statusCode = 200;
+        $this->processLocalFile($localPath, $asset);
+        $detectedExt = ImageProbe::extFromMime($asset->mime);
+        if ($detectedExt) {
+            $asset->ext = $detectedExt;
+        }
+
+        $this->uploadToArchiveFromPath($asset, $localPath);
+        $this->em->flush();
+    }
+
 //    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
     public function onArchive(TransitionEvent $event): void
     {
         return; // no-op, everything now in download.
         $asset = $this->getAsset($event);
-//        $this->uploadToArchive($asset);
-        dd(onArchive: $asset);
 
 
         // if archived we don't need the temp file.
@@ -242,6 +262,7 @@ class AssetWorkflow
             }
 
             // archive immediately from validated temp file
+            // why is download uploading to archive??
             $this->uploadToArchiveFromPath($asset, $tmpFile);
         } finally {
             if (is_file($tmpFile)) {
@@ -261,7 +282,7 @@ class AssetWorkflow
      * we need to match this event exactly.  Otherwise, the next events are dispatched too soon.
      */
     // #[AsCompletedListener(WF::TRANSITION_ARCHIVE, priority: 1000)] NOT THIS!  See note above
-    #[AsCompletedListener(priority: 1000)]
+    #[AsCompletedListener(WF::WORKFLOW_NAME, priority: 1000)]
     public function onCompleted(CompletedEvent $event): void
     {
         $asset = $this->getAsset($event);
@@ -302,7 +323,7 @@ class AssetWorkflow
         // Analysis now happens AFTER archive using S3-backed URLs
         $asset = $this->getAsset($event);
 
-        if (!$asset->tempFilename || !$asset->mime || !str_starts_with($asset->mime, 'image/')) {
+        if (!$asset->archiveUrl || !$asset->mime || !str_starts_with($asset->mime, 'image/')) {
             $this->logger->info("Skipping analysis for non-image or undownloaded asset ({$asset->mime})");
             return;
         }
@@ -376,9 +397,12 @@ class AssetWorkflow
         $asset->ext = pathinfo($localAbsoluteFilename, PATHINFO_EXTENSION);
         $mimeType = mime_content_type($localAbsoluteFilename); //
 
-        // Compute content hash once while file is local (fast, non-cryptographic)
+        // Compute content hashes once while file is local.
+        $asset->contentHash = hash_file('xxh3', $localAbsoluteFilename);
+        $sha256 = hash_file('sha256', $localAbsoluteFilename);
         $asset->context ??= [];
-        $asset->context['contentHash'] = hash_file('xxh3', $localAbsoluteFilename);
+        $asset->context['contentHash'] = $asset->contentHash;
+        $asset->context['sha256'] = $sha256;
         // Only process image files for dimensions and exif
         if (str_starts_with($mimeType, 'image/')) {
             [$width, $height, $type, $attr] = getimagesize($localAbsoluteFilename, $info);

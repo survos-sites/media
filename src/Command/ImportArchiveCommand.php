@@ -120,9 +120,7 @@ final class ImportArchiveCommand extends Command
         $users = [];
         foreach (Ndjson::read($path) as $row) {
             /** @var array{code:string} $row */
-            dump($row['code']);
             $user = $this->userRepo->findOneBy(['id' => $row['code']]);
-            dd($row, $user);
             if ($user) {
                 if (!$skipExisting) {
                     // don't overwrite identifiers; map other fields by name

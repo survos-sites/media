@@ -51,8 +51,8 @@ final class AssetPreviewService
     {
         $results = [];
         foreach ($presets as $preset) {
-                $results[$preset] = $this->processSingle($asset, $sourceUrlPath, $preset);
             try {
+                $results[$preset] = $this->processSingle($asset, $sourceUrlPath, $preset);
             } catch (\Throwable $e) {
                 $this->logger->error(sprintf('Preset "%s" failed for %s: %s',
                     $preset, $asset->id, $e->getMessage()));
@@ -82,7 +82,6 @@ final class AssetPreviewService
             resolver: null,
             webpSupported: true
         );
-        dump($resolveUrl);
 
         $cachedUrl = $this->filterService->getUrlOfFilteredImage(
             $sourceUrlPath,
@@ -90,7 +89,13 @@ final class AssetPreviewService
             null,
             true // return cached URL
         );
-        dd($cachedUrl, $resolveUrl);
+
+        $this->logger->debug('Liip variant resolved', [
+            'assetId' => $asset->id,
+            'preset' => $preset,
+            'resolveUrl' => $resolveUrl,
+            'cachedUrl' => $cachedUrl,
+        ]);
 
         $cachedPath = $this->publicDir . (string) parse_url($cachedUrl, PHP_URL_PATH);
         if (!is_file($cachedPath)) {
@@ -111,10 +116,6 @@ final class AssetPreviewService
         $w = $img->getImageWidth();
         $h = $img->getImageHeight();
 
-        // Persist variant reference on the Asset (map of preset => url)
-        $asset->variants ??= [];
-        $asset->variants[$preset] = $cachedUrl;
-
         // Opportunistically set dimensions on Asset if unknown
         if ($asset->width === null || $asset->height === null) {
             $asset->width = $w;
@@ -132,6 +133,33 @@ final class AssetPreviewService
             'height' => $h,
             'bytes'  => $bytes,
         ];
+    }
+
+    /**
+     * @return array{0:int,1:int,2:list<int|float>}
+     */
+    public function resizeForThumbHashFromUrl(string $imageUrl, int $size = 100): array
+    {
+        $image = new \Imagick();
+        $image->readImage($imageUrl);
+        $image->thumbnailImage($size, $size, true);
+
+        $width = $image->getImageWidth();
+        $height = $image->getImageHeight();
+
+        $pixels = [];
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                $pixel = $image->getImagePixelColor($x, $y);
+                $colors = $pixel->getColor(2);
+                $pixels[] = $colors['r'];
+                $pixels[] = $colors['g'];
+                $pixels[] = $colors['b'];
+                $pixels[] = $colors['a'];
+            }
+        }
+
+        return [$width, $height, $pixels];
     }
 
     public function maybeComputeThumbhash(Asset $asset, string $preset, string $content): void
@@ -157,16 +185,28 @@ final class AssetPreviewService
 
     public function maybeComputePaletteAndPhash(Asset $asset, string $preset, string $cachedPath): void
     {
+        $sourcePath = $cachedPath;
+        $tempPath = null;
+        if (preg_match('#^https?://#', $cachedPath) === 1) {
+            $bytes = @file_get_contents($cachedPath);
+            if ($bytes !== false) {
+                $tempPath = tempnam(sys_get_temp_dir(), 'asset_preview_');
+                if ($tempPath !== false) {
+                    file_put_contents($tempPath, $bytes);
+                    $sourcePath = $tempPath;
+                }
+            }
+        }
 
         try {
-            $palette   = Palette::fromFilename($cachedPath);
+            $palette   = Palette::fromFilename($sourcePath);
             $extractor = new ColorExtractor($palette);
             $colors    = $extractor->extract(5); // array of ints (0xRRGGBB)
             $asset->context ??= [];
             $asset->context['colors'] = $colors;
 
             // Richer analysis (bucketed hues, coverage, etc.)
-            $analysis = $this->colorAnalysisService->analyze($cachedPath, top: 5, hueBuckets: 36);
+            $analysis = $this->colorAnalysisService->analyze($sourcePath, top: 5, hueBuckets: 36);
             $asset->context['color_analysis'] = $analysis;
         } catch (\Throwable $e) {
             // Non-fatal
@@ -174,11 +214,15 @@ final class AssetPreviewService
 
         try {
             $hasher = new ImageHash(new PerceptualHash()); // 64-bit pHash
-            $hash   = $hasher->hash($cachedPath);
+            $hash   = $hasher->hash($sourcePath);
             $asset->context ??= [];
             $asset->context['phash'] = (string) $hash; // hex string
         } catch (\Throwable $e) {
             // Non-fatal
+        }
+
+        if ($tempPath && is_file($tempPath)) {
+            @unlink($tempPath);
         }
     }
 }

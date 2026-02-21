@@ -1,4 +1,0 @@
-# we don't use this anymore, so we can get rid of it.
-liip_imagine:
-    resource: "@LiipImagineBundle/Resources/config/routing.yaml"
-

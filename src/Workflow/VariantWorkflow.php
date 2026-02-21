@@ -202,7 +202,6 @@ final class VariantWorkflow
 
     private function applyLiipFilter(string $localAbsolutePath, string $preset): BinaryInterface
     {
-        dd($localAbsolutePath);
         $bytes = @\file_get_contents($localAbsolutePath);
         if ($bytes === false) {
             throw new \RuntimeException('Failed to read local original: '.$localAbsolutePath);
@@ -222,7 +221,6 @@ final class VariantWorkflow
 
     private function unlinkLocalPath(string $absolute): void
     {
-        dd($absolute);
         @\unlink($absolute);
         // optional: also delete empty parent dirs, if your FilesystemOperator doesn’t handle it
     }

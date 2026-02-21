@@ -45,9 +45,8 @@ when@dev:
 #                # not on production!
 #                options:
 #                    directory: '%kernel.project_dir%/public/archive'
-            sites.storage:
+            local.storage:
                 adapter: 'local'
                 options:
-                    directory: './Pictures'
-
+                    directory: '%kernel.project_dir%/public'
 

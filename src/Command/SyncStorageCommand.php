@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Entity\File;
@@ -94,35 +96,32 @@ final class SyncStorageCommand extends Command
         $io->writeln("File and Storage entities written");
 
         if ($dispatch) {
-            foreach ($this->fileRepository->findBy([
-                'marking' => IFileWorkflow::PLACE_NEW_DIR,
-                'storage' => $storage]) as $file) {
-//                if ($this->fileWorkflow->can($dirEntity, IFileWorkflow::TRANSITION_LIST))
-                if (true)
-                {
-                    $this->logger->warning("Dispatching directory listing for " . $file->path);
-                    $message = new TransitionMessage(
-                        $dirEntity->id,
-                        File::class,
-                        IFileWorkflow::TRANSITION_LIST,
-                        IFileWorkflow::WORKFLOW_NAME);
-                    if ($transport) {
-                        $stamps[] = new TransportNamesStamp([$transport]);
-                    } else {
-                        $stamps = $this->asyncQueueLocator->stamps($message);
-                    }
-                    $this->messageBus->dispatch(
-                        $message,
-                        $stamps
-                    );
-                } else {
-                    $x = $this->fileWorkflow->buildTransitionBlockerList($file, IFileWorkflow::TRANSITION_LIST);
-                    dd($x);
-                    $this->logger->warning(sprintf("cannot list %s from %s ",
-                        $file->getPath(), $file->getMarking()));
-                }
-            }
-            $io->success("$zoneId $path dispatched");
+             foreach ($this->fileRepository->findBy([
+                 'marking' => IFileWorkflow::PLACE_NEW_DIR,
+                 'storage' => $storage,
+             ]) as $file) {
+                 if ($this->fileWorkflow->can($file, IFileWorkflow::TRANSITION_LIST)) {
+                     $this->logger->warning('Dispatching directory listing for ' . $file->path);
+                     $message = new TransitionMessage(
+                         $file->getId(),
+                         File::class,
+                         IFileWorkflow::TRANSITION_LIST,
+                         IFileWorkflow::WORKFLOW_NAME,
+                     );
+
+                     $stamps = [];
+                     if ($transport !== '') {
+                         $stamps[] = new TransportNamesStamp([$transport]);
+                     } else {
+                         $stamps = $this->asyncQueueLocator->stamps($message);
+                     }
+
+                     $this->messageBus->dispatch($message, $stamps);
+                 } else {
+                     $this->logger->warning(sprintf('cannot list %s from %s ', $file->getPath(), $file->getMarking()));
+                 }
+             }
+             $io->success("$zoneId $path dispatched");
         }
         return self::SUCCESS;
 

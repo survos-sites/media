@@ -4,6 +4,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\File;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Survos\CoreBundle\Entity\RouteParametersInterface;
 use Survos\EzBundle\Controller\AbstractEzCrudController;
 use Survos\EzBundle\Field\LinkedTextField;
@@ -27,7 +28,6 @@ final class FileCrudController extends AbstractEzCrudController
             return [];
         }
 
-        yield LinkedTextField::new('name', 'Name')
-            ->setRoute(self::SHOW_ROUTE, 'id', 'id');
+        yield TextField::new('marking');
     }
 }

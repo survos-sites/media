@@ -31,7 +31,7 @@ class IFileWorkflow
 	#[Transition(from: [self::PLACE_NEW_DIR], to: self::PLACE_LISTING, async: true)]
 	public const TRANSITION_LIST = 'list';
 
-	#[Transition(from: [self::PLACE_NEW_FILE], to: self::PLACE_DOWNLOADED)]
+	#[Transition(from: [self::PLACE_NEW_FILE], to: self::PLACE_DOWNLOADED, async: true)]
 	public const TRANSITION_DOWNLOAD = 'download';
 
     #[Transition(from: [self::PLACE_NEW_FILE], to: self::PLACE_META, async: true, info: "Use s3 client to fetch metadata")]

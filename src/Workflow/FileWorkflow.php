@@ -39,5 +39,7 @@ class FileWorkflow
 	{
         $file = $this->getFile($event);
         $results = $this->storageService->syncDirectoryListing($file->storageId, $file->path);
-	}
+        $this->storageService->dispatchDirectoryRequests($results);
+
+    }
 }

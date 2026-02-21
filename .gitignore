@@ -22,11 +22,6 @@
 /public/assets/
 /assets/vendor/
 ###< symfony/asset-mapper ###
-
-###> liip/imagine-bundle ###
-/public/media/cache/
-###< liip/imagine-bundle ###
-
 /public/images
 /public/js/fos_js_routes.js
 
@@ -41,3 +36,5 @@ data/
 stag/
 .editorconfig
 shared
+
+.castor.stub.php

@@ -22,7 +22,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use Survos\StateBundle\Traits\EasyMarkingTrait;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Workflow\WorkflowInterface;
-use Survos\CoreBundle\Controller\BaseCrudController;
+use Survos\EzBundle\Controller\BaseCrudController;
 
 class VariantCrudController extends BaseCrudController
 {
