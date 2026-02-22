@@ -48,6 +48,7 @@ use Symfony\Component\Workflow\WorkflowInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
+use App\Service\OcrService;
 use App\Workflow\AssetFlow as WF;
 use App\Workflow\VariantFlowDefinition as VWF;
 
@@ -69,7 +70,6 @@ class AssetWorkflow
         private readonly LoggerInterface                        $logger,
         private readonly HttpClientInterface                    $httpClient,
         private UserRepository                                  $userRepository,
-        private readonly ApiService                             $apiService,
 //        #[Target(TWF::WORKFLOW_NAME)] private WorkflowInterface $thumbWorkflow,
         #[Target(VWF::WORKFLOW_NAME)] private WorkflowInterface $variantWorkflow,
         #[Target(WF::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
@@ -82,10 +82,11 @@ class AssetWorkflow
         private readonly EntityManagerInterface                $entityManager,
         private readonly AsyncQueueLocator                     $asyncQueueLocator,
         private readonly VariantPlan                           $plan,
-        private readonly StorageService                        $storageService, private readonly AssetRegistry $assetRegistry,
-        private readonly ?FilesystemOperator                   $archiveStorage = null,
-        private ?GoogleDriveService                            $driveService   = null,
-
+        private readonly StorageService $storageService,
+        private readonly AssetRegistry $assetRegistry,
+        private readonly OcrService $ocrService,
+        private readonly ?FilesystemOperator $archiveStorage = null,
+        private ?GoogleDriveService $driveService = null,
     ) {
     }
 
@@ -261,8 +262,54 @@ class AssetWorkflow
                 $asset->ext = $detectedExt;
             }
 
-            // archive immediately from validated temp file
-            // why is download uploading to archive??
+            // tasks[] controls which analysis steps to run for this asset.
+            // Sent by ssai in context hints; defaults to all tasks if absent.
+            $tasks = $asset->context['tasks'] ?? ['ocr', 'thumbhash', 'palette'];
+
+            // OCR — while the file is local, no second download needed
+            if (str_starts_with((string) $asset->mime, 'image/')) {
+                if (in_array('ocr', $tasks, true)) {
+                    $ocrText = $this->ocrService->extractText($tmpFile, $asset->mime);
+                    if ($ocrText !== null) {
+                        $asset->context             ??= [];
+                        $asset->context['ocr']        = $ocrText;
+                        $asset->context['ocr_chars']  = mb_strlen($ocrText);
+                    }
+                }
+
+                // Thumbhash — resize to ≤100px before extracting pixels (thumbhash max is 192x192)
+                if (in_array('thumbhash', $tasks, true)) {
+                    try {
+                        $img = new \Imagick($tmpFile);
+                        $img->thumbnailImage(100, 100, bestfit: true);
+                        $tw = $img->getImageWidth();
+                        $th = $img->getImageHeight();
+                        $pixels = [];
+                        $iter = $img->getPixelIterator();
+                        foreach ($iter as $row) {
+                            foreach ($row as $pixel) {
+                                $c = $pixel->getColor(2);
+                                $pixels[] = $c['r'];
+                                $pixels[] = $c['g'];
+                                $pixels[] = $c['b'];
+                                $pixels[] = $c['a'];
+                            }
+                        }
+                        $img->clear();
+                        $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+                        $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
+                        unset($pixels, $iter, $img);
+                    } catch (\Throwable $e) {
+                        $this->logger->warning('Thumbhash failed for {id}: {err}', ['id' => $asset->id, 'err' => $e->getMessage()]);
+                    }
+                }
+
+                if (in_array('palette', $tasks, true)) {
+                    $this->assetPreviewService->maybeComputePaletteAndPhash($asset, self::THUMBHASH_PRESET, $tmpFile);
+                }
+            }
+
+            // Archive to S3 — now after all local analysis is done
             $this->uploadToArchiveFromPath($asset, $tmpFile);
         } finally {
             if (is_file($tmpFile)) {
@@ -272,7 +319,6 @@ class AssetWorkflow
 
         // now we can save everything and move to the next step.
         $this->em->flush();
-        // at this point, we have extracted all we need from the local file.  we can now archive in the next step.
     }
 
 
@@ -287,6 +333,13 @@ class AssetWorkflow
     {
         $asset = $this->getAsset($event);
         $this->em->flush();
+
+        // Fire webhook back to any registered callback URL once analysis is done
+        $callbackUrl = $asset->context['callback_url'] ?? null;
+        if ($callbackUrl && $asset->marking === WF::PLACE_ANALYZED) {
+            $this->fireWebhook($asset, (string) $callbackUrl);
+        }
+
         // don't detach until AFTER completed is called, or we won't save the marking.
         $this->em->detach($asset);
         return;
@@ -323,27 +376,29 @@ class AssetWorkflow
         // Analysis now happens AFTER archive using S3-backed URLs
         $asset = $this->getAsset($event);
 
-        if (!$asset->archiveUrl || !$asset->mime || !str_starts_with($asset->mime, 'image/')) {
-            $this->logger->info("Skipping analysis for non-image or undownloaded asset ({$asset->mime})");
+        if (!$asset->mime || !str_starts_with($asset->mime, 'image/')) {
+            $this->logger->info("Skipping analysis for non-image asset ({$asset->mime})");
             return;
         }
 
-        // Use imgproxy / remote access instead of local temp files
-        [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
-
-        $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
-        $key  = Thumbhash::convertHashToString($hash);
-
+        // Thumbhash and palette were computed in onDownload while the file was local.
+        // Only fall back to the archive URL fetch if they're missing (e.g. older assets).
         $asset->context ??= [];
-        $asset->context['thumbhash'] = $key;
+        if (empty($asset->context['thumbhash']) && $asset->archiveUrl) {
+            $this->logger->info('onLocalAnalyze: thumbhash missing, fetching from archive URL (fallback)');
+            [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
+            $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+            $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
+            unset($pixels);
+        }
 
-        $this->assetPreviewService->maybeComputePaletteAndPhash(
-            $asset,
-            self::THUMBHASH_PRESET,
-            $asset->archiveUrl
-        );
-
-        unset($pixels);
+        if (empty($asset->context['colors']) && $asset->archiveUrl) {
+            $this->assetPreviewService->maybeComputePaletteAndPhash(
+                $asset,
+                self::THUMBHASH_PRESET,
+                $asset->archiveUrl
+            );
+        }
 
         $this->em->flush();
 //        $this->em->detach($asset);
@@ -500,5 +555,45 @@ class AssetWorkflow
         return [$width, $height, $pixels];
     }
 
+    private function fireWebhook(Asset $asset, string $callbackUrl): void
+    {
+        $payload = [
+            'event'       => 'asset.analyzed',
+            'assetId'     => $asset->id,
+            'originalUrl' => $asset->originalUrl,
+            'clients'     => $asset->clients,
+            'marking'     => $asset->marking,
+            'mime'        => $asset->mime,
+            'width'       => $asset->width,
+            'height'      => $asset->height,
+            'archiveUrl'  => $asset->archiveUrl,
+            'smallUrl'    => $asset->smallUrl,
+            'context'     => [
+                'ocr'          => $asset->context['ocr']          ?? null,
+                'ocr_chars'    => $asset->context['ocr_chars']    ?? null,
+                'thumbhash'    => $asset->context['thumbhash']    ?? null,
+                'colors'       => $asset->context['colors']       ?? null,
+                'phash'        => $asset->context['phash']        ?? null,
+                'path'         => $asset->context['path']         ?? null,
+                'tenant'       => $asset->context['tenant']       ?? null,
+                'image_id'     => $asset->context['image_id']     ?? null,
+            ],
+        ];
 
+        try {
+            $this->httpClient->request('POST', $callbackUrl, [
+                'json'    => $payload,
+                'timeout' => 10,
+            ]);
+            $this->logger->info('Webhook fired to {url} for asset {id}', [
+                'url' => $callbackUrl,
+                'id'  => $asset->id,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('Webhook failed for {id}: {err}', [
+                'id'  => $asset->id,
+                'err' => $e->getMessage(),
+            ]);
+        }
+    }
 }

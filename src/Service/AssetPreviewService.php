@@ -9,8 +9,6 @@ use Jenssegers\ImageHash\ImageHash;
 use Jenssegers\ImageHash\Implementations\PerceptualHash;
 use League\ColorExtractor\ColorExtractor;
 use League\ColorExtractor\Palette;
-use Liip\ImagineBundle\Imagine\Cache\Helper\PathHelper;
-use Liip\ImagineBundle\Service\FilterService;
 use Psr\Log\LoggerInterface;
 use Survos\ThumbHashBundle\Service\ThumbHashService;
 use Survos\ThumbHashBundle\Service\Thumbhash;
@@ -31,7 +29,6 @@ use Survos\ThumbHashBundle\Service\Thumbhash;
 final class AssetPreviewService
 {
     public function __construct(
-        private readonly FilterService $filterService,
         private readonly LoggerInterface $logger,
         private readonly EntityManagerInterface $em,
         private readonly ThumbHashService $thumbHashService,
@@ -75,27 +72,16 @@ final class AssetPreviewService
         // Resolve & build the cached variant; this triggers generation if missing
         $this->logger->debug(sprintf('LiipImagine: %s => %s', $sourceUrlPath, $preset));
 
-        // This returns a URL (may be a /resolve); we call again to get cached URL
-        $resolveUrl = $this->filterService->getUrlOfFilteredImage(
-            path: $sourceUrlPath,
-            filter: $preset,
-            resolver: null,
-            webpSupported: true
-        );
 
-        $cachedUrl = $this->filterService->getUrlOfFilteredImage(
-            $sourceUrlPath,
-            $preset,
-            null,
-            true // return cached URL
-        );
+        // @todo: get the thumbnail image from imgProxy and use THAT for the analysis
+        $resolveUrl = '';
 
         $this->logger->debug('Liip variant resolved', [
             'assetId' => $asset->id,
             'preset' => $preset,
-            'resolveUrl' => $resolveUrl,
-            'cachedUrl' => $cachedUrl,
+            'resolveUrl' => $resolveUrl
         ]);
+
 
         $cachedPath = $this->publicDir . (string) parse_url($cachedUrl, PHP_URL_PATH);
         if (!is_file($cachedPath)) {

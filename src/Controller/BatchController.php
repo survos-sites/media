@@ -20,34 +20,45 @@ final class BatchController
     public function __invoke(string $client, Request $request): JsonResponse
     {
         if ($request->isMethod('GET')) {
-            $urls = [$request->query->get('url')];
+            $urls       = [$request->query->get('url')];
+            $contextMap = [];
+            $callbackUrl = $request->query->get('callback_url');
         } else {
-            $payload = $request->toArray();
-            $urls = $payload['urls'] ?? [];
+            $payload     = $request->toArray();
+            $urls        = $payload['urls'] ?? [];
+            // Per-URL context hints: ['https://...jpg' => ['path' => 'Cabinet 1/Folder 2', 'tenant' => 'rhs']]
+            $contextMap  = is_array($payload['context'] ?? null) ? $payload['context'] : [];
+            $callbackUrl = $payload['callback_url'] ?? null;
         }
 
         $media = [];
-        $urls = array_unique($urls);
+        $urls  = array_unique(array_filter($urls));
 
         $queue = [];
         foreach ($urls as $url) {
-            $asset = $this->assetRegistry->ensureAsset($url, $client);
+            $contextHints = is_array($contextMap[$url] ?? null) ? $contextMap[$url] : [];
+            // Store callback URL in context so the workflow can fire it after analysis
+            if ($callbackUrl) {
+                $contextHints['callback_url'] = $callbackUrl;
+            }
+            $asset = $this->assetRegistry->ensureAsset($url, $client, contextHints: $contextHints);
             if ($asset->marking === AssetFlow::PLACE_NEW) {
                 $queue[$asset->originalUrl] = $asset;
             }
             $media[] = [
                 'originalUrl' => $url,
-                'mediaKey' => $asset->id,
-                'status' => $asset->marking,
-                'storageKey' => $asset->storageKey, // for client to derive
-                's3Url' => $asset->archiveUrl,
-                'smallUrl' => $asset->smallUrl,
-                'dispatched' => key_exists($url, $queue) ? 'yes' : 'no',
+                'mediaKey'    => $asset->id,
+                'status'      => $asset->marking,
+                'storageKey'  => $asset->storageKey,
+                's3Url'       => $asset->archiveUrl,
+                'smallUrl'    => $asset->smallUrl,
+                'clients'     => $asset->clients,
+                'dispatched'  => array_key_exists($url, $queue) ? 'yes' : 'no',
             ];
         }
         $this->assetRegistry->flush();
 
-        foreach ($queue as $url=>$asset) {
+        foreach ($queue as $url => $asset) {
             $this->assetRegistry->dispatch($asset);
         }
         $this->assetRegistry->flush();

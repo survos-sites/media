@@ -50,9 +50,9 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
 
         private readonly SerializerInterface $serializer,
         private readonly LoggerInterface     $logger,
-        private readonly ApiService          $apiService,
         private readonly AssetRepository $assetRepository,
         private readonly AssetPathRepository $assetPathRepository,
+        private readonly ?ApiService          $apiService=null, // old, for when we had an account setup
         private ?ResourceRegistry             $resourceRegistry=null,
         private ?ToolRegistry                 $toolRegistry=null,
     )

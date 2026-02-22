@@ -43,29 +43,30 @@ final class AssetRegistry
     ) {
     }
 
-    public function ensureAsset(string $originalUrl, ?string $client, bool $flush=false): Asset
+    /**
+     * @param array<string,mixed> $contextHints Optional metadata from the caller (folder path, dates, etc.)
+     */
+    public function ensureAsset(string $originalUrl, ?string $client, bool $flush = false, array $contextHints = []): Asset
     {
-
         if (!$asset = $this->assetRepository->findOneByUrl($originalUrl)) {
             $asset = new Asset($originalUrl);
             $this->entityManager->persist($asset);
         }
 
-//        // Determine 3-hex shard from binary id, not longer relevant, but was needed for LIIP.  We might want for archive storage, though.
-//        $hex = bin2hex($asset->id);
-//        $shard = substr($hex, 0, 3);
-//
-//        $assetPath = $this->assetPathRepository->find($shard);
-//        if (!$assetPath) {
-//            $assetPath = new AssetPath($shard);
-//            $this->entityManager->persist($assetPath);
-//        }
-//        if (!in_array($client, $asset->clients)) {
-//            $asset->clients[] = $client;
-//        }
+        // Track which clients submitted this URL
+        if ($client !== null && !in_array($client, $asset->clients, true)) {
+            $asset->clients[] = $client;
+        }
 
-//        $asset->localDir = $assetPath;
-//        $assetPath->files++;
+        // Merge context hints from the caller (non-destructive: never overwrite existing keys)
+        if ($contextHints !== []) {
+            $asset->context ??= [];
+            foreach ($contextHints as $key => $value) {
+                if (!isset($asset->context[$key])) {
+                    $asset->context[$key] = $value;
+                }
+            }
+        }
 
         $flush && $this->flush();
 

@@ -29,8 +29,6 @@ final class VariantWorkflow
     public function __construct(
         private readonly FilesystemOperator $archiveStorage, // originals + variants (S3/Hetzner)
         private readonly FilesystemOperator $localStorage,   // local.storage (Liip loader)
-        private readonly FilterManager      $filterManager,
-        #[Autowire('@liip_imagine.service.filter')] private readonly FilterService $filterService,
         #[Autowire('%kernel.project_dir%/public')] private string                  $publicDir,
 
         private readonly AnalysisService    $analysis,
