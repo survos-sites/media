@@ -52,7 +52,7 @@ use App\Service\OcrService;
 use App\Workflow\AssetFlow as WF;
 use App\Workflow\VariantFlowDefinition as VWF;
 
-#[Workflow(name: WF::WORKFLOW_NAME, supports: [Asset::class])]
+//#[Workflow(name: WF::WORKFLOW_NAME, supports: [Asset::class])]
 class AssetWorkflow
 {
     const THUMBHASH_PRESET = 'small';
