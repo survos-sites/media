@@ -59,10 +59,16 @@ final class ColorAnalysisService
         // 5) Distribution rows (rgb, hex, count, ratio, hsl, hueBucket)
         $dist = [];
         $presentBuckets = [];
+        $bucketCount = max(1, $hueBuckets);
+        $bucketSize = 360.0 / $bucketCount;
         foreach (self::sortByCountDesc($hist) as $rgb => $count) {
             [$r, $g, $b] = self::intToRgb($rgb);
             [$h, $s, $l] = self::rgbToHsl($r, $g, $b); // h: 0..360
-            $bucket = (int) floor(($h % 360) / (360 / max(1, $hueBuckets)));
+            $normalizedHue = fmod($h + 360.0, 360.0);
+            $bucket = (int) floor($normalizedHue / $bucketSize);
+            if ($bucket >= $bucketCount) {
+                $bucket = $bucketCount - 1;
+            }
             $presentBuckets[$bucket] = true;
             $dist[] = [
                 'rgb'       => $rgb,
