@@ -1,0 +1,174 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Assets ({{ total }}){% endblock %}
+
+{% block body %}
+<div class="container-xl py-4">
+
+  {# ── Header ────────────────────────────────────────────────────────────── #}
+  <div class="page-header mb-3">
+    <div class="row align-items-center">
+      <div class="col">
+        <h2 class="page-title">Asset Browser</h2>
+        <div class="text-muted">{{ total }} total assets</div>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{{ path('asset_task_registry') }}" class="btn btn-outline-secondary btn-sm me-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 8l-4 4l4 4"/><path d="M17 8l4 4l-4 4"/><path d="M14 4l-4 16"/></svg>
+          AI Task Registry
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+
+    {# ── Sidebar filters ───────────────────────────────────────────────────── #}
+    <div class="col-md-3 col-lg-2">
+      <div class="card mb-3">
+        <div class="card-header">
+          <h4 class="card-title">Filters</h4>
+        </div>
+        <div class="card-body p-2">
+          <form method="get" action="">
+            <div class="mb-2">
+              <input type="text" name="q" class="form-control form-control-sm"
+                     placeholder="Search title, description…"
+                     value="{{ filter.search|default('') }}">
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label small text-muted mb-1">Workflow State</label>
+              <select name="marking" class="form-select form-select-sm">
+                <option value="">All states</option>
+                {% for m in markings %}
+                  <option value="{{ m }}" {{ filter.marking == m ? 'selected' : '' }}>{{ m }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            {% if types %}
+            <div class="mb-2">
+              <label class="form-label small text-muted mb-1">Document Type</label>
+              <div class="list-group list-group-flush small">
+                <a href="{{ path('asset_browse', filter|merge({type: null})) }}"
+                   class="list-group-item list-group-item-action py-1 px-2 {{ not filter.type ? 'active' : '' }}">
+                  All types
+                </a>
+                {% for row in types %}
+                  <a href="{{ path('asset_browse', filter|merge({type: row.type})) }}"
+                     class="list-group-item list-group-item-action py-1 px-2 d-flex justify-content-between {{ filter.type == row.type ? 'active' : '' }}">
+                    <span>{{ row.type }}</span>
+                    <span class="badge bg-secondary">{{ row.cnt }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary btn-sm w-100">Apply</button>
+            <a href="{{ path('asset_browse') }}" class="btn btn-ghost-secondary btn-sm w-100 mt-1">Clear</a>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    {# ── Main grid ─────────────────────────────────────────────────────────── #}
+    <div class="col-md-9 col-lg-10">
+
+      {% if assets is empty %}
+        <div class="empty">
+          <p class="empty-title">No assets found</p>
+          <p class="empty-subtitle text-muted">Try adjusting the filters, or ingest some assets first.</p>
+        </div>
+      {% else %}
+
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-xl-5 g-3">
+          {% for asset in assets %}
+          <div class="col">
+            <div class="card h-100 asset-card">
+              {# Thumbnail #}
+              <a href="{{ path('asset_show', {id: asset.id}) }}" class="card-img-top d-block overflow-hidden"
+                 style="background:#f0f0f0;height:140px;display:flex;align-items:center;justify-content:center;">
+                {% if asset.smallUrl %}
+                  <img src="{{ asset.smallUrl }}" alt="{{ asset.aiTitle|default(asset.id) }}"
+                       style="max-height:140px;max-width:100%;object-fit:contain;">
+                {% else %}
+                  <span class="text-muted small">{{ asset.mime|default('unknown') }}</span>
+                {% endif %}
+              </a>
+
+              <div class="card-body p-2">
+                {# Title / fallback #}
+                <div class="small fw-semibold text-truncate" title="{{ asset.aiTitle|default(asset.originalUrl) }}">
+                  {{ asset.aiTitle ?? asset.id }}
+                </div>
+
+                {# Type badge + marking badge #}
+                <div class="mt-1">
+                  {% if asset.aiDocumentType %}
+                    <span class="badge bg-blue-lt me-1">{{ asset.aiDocumentType }}</span>
+                  {% endif %}
+                  <span class="badge bg-{{ asset.marking == 'complete' ? 'green' : (asset.marking == 'failed' ? 'red' : 'secondary') }}-lt">
+                    {{ asset.marking }}
+                  </span>
+                  {% if asset.aiLocked %}
+                    <span class="badge bg-warning-lt" title="AI locked">🔒</span>
+                  {% endif %}
+                </div>
+
+                {# AI queue indicator #}
+                {% if asset.aiQueue|length > 0 %}
+                  <div class="text-muted small mt-1">
+                    ⏳ {{ asset.aiQueue|length }} task{{ asset.aiQueue|length > 1 ? 's' : '' }} queued
+                  </div>
+                {% elseif asset.aiCompleted|length > 0 %}
+                  <div class="text-success small mt-1">
+                    ✓ {{ asset.aiCompleted|length }} AI task{{ asset.aiCompleted|length > 1 ? 's' : '' }}
+                  </div>
+                {% endif %}
+
+                {# Date range if available #}
+                {% if asset.aiDateRange %}
+                  <div class="text-muted small">{{ asset.aiDateRange }}</div>
+                {% endif %}
+              </div>
+
+              <div class="card-footer p-1 text-end">
+                <a href="{{ path('asset_show', {id: asset.id}) }}" class="btn btn-xs btn-ghost-secondary">
+                  View →
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {# Pagination #}
+        {% if pages > 1 %}
+        <nav class="mt-4">
+          <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+              <li class="page-item">
+                <a class="page-link" href="{{ path('asset_browse', filter|merge({page: page - 1})) }}">‹ Prev</a>
+              </li>
+            {% endif %}
+            {% for p in max(1, page - 3)..min(pages, page + 3) %}
+              <li class="page-item {{ p == page ? 'active' : '' }}">
+                <a class="page-link" href="{{ path('asset_browse', filter|merge({page: p})) }}">{{ p }}</a>
+              </li>
+            {% endfor %}
+            {% if page < pages %}
+              <li class="page-item">
+                <a class="page-link" href="{{ path('asset_browse', filter|merge({page: page + 1})) }}">Next ›</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
+      {% endif %}
+    </div>{# /col #}
+  </div>{# /row #}
+</div>
+{% endblock %}

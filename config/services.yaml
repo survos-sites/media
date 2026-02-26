@@ -16,3 +16,19 @@ services:
     App\:
         resource: '../src/'
 
+    # ── AI task pipeline ──────────────────────────────────────────────────────
+    # Auto-tag every class implementing AssetAiTaskInterface so the runner
+    # can collect them all via tagged_iterator.
+    _instanceof:
+        App\Ai\Task\AssetAiTaskInterface:
+            tags: ['app.ai_task']
+
+    App\Ai\AssetAiTaskRunner:
+        arguments:
+            $taskServices: !tagged_iterator app.ai_task
+
+    App\Controller\AiRegistryController:
+        arguments:
+            $taskServices: !tagged_iterator app.ai_task
+        tags: ['controller.service_arguments']
+

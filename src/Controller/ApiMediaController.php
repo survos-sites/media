@@ -4,22 +4,35 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Asset;
-use App\Entity\Media;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Debug-friendly media resolution:
+ * Debug-friendly media resolution/probe:
+ * - GET  /fetch/media/{id}             (single asset probe)
  * - GET  /api/media/by-ids?id=a,b,c   (also supports multiple id=)
  * - POST /api/media/by-ids            (JSON: {"ids": ["a","b","c"]})
  */
 final class ApiMediaController extends AbstractController
 {
     public function __construct(public readonly EntityManagerInterface $em) {}
+
+    #[Route('/fetch/media/{id}', name: 'api_media_probe_single', methods: ['GET'])]
+    public function probeSingle(string $id): JsonResponse
+    {
+        /** @var Asset|null $asset */
+        $asset = $this->em->getRepository(Asset::class)->find($id);
+        if (!$asset) {
+            throw new NotFoundHttpException(sprintf('Asset not found: %s', $id));
+        }
+
+        return $this->json($this->probeAsset($asset));
+    }
 
     #[Route('/fetch/media/by-ids', name: 'api_media_by_ids_get', methods: ['GET'])]
     public function byIdsGet(Request $request,
@@ -60,75 +73,77 @@ final class ApiMediaController extends AbstractController
             ->setParameter('ids', $ids)
             ->orderBy('m.id', 'ASC');
 
-        /** @var list<Media> $medias */
-        $medias = $qb->getQuery()->getResult();
+        /** @var list<Asset> $assets */
+        $assets = $qb->getQuery()->getResult();
 
-        $rows = array_map($this->normalizeMedia(...), $medias);
+        $rows = array_map($this->probeAsset(...), $assets);
 
         return $this->json($rows);
     }
 
     /**
-     * Normalize a Media entity into the SAIS payload the iterator expects.
-     * Uses your known public properties; no method_exists checks.
-     *
-     * Example shape:
-     * [
-     *   'id'      => 'forte_0eeaf54f...',
-     *   'source'  => 'https://…/original.jpg',
-     *   'thumbs'  => ['small' => '…', 'medium' => '…'],
-     *   'context' => ['saisCode' => 'forte_0eea…'],
-     *   'meta'    => ['width' => 2048, 'height' => 1365, 'mimeType' => 'image/jpeg'],
-     *   'updatedAt' => '2025-09-20T10:15:30+00:00'
-     * ]
+     * Returns the current known state for one asset, including variants and child derivatives.
+     * OCR/AI results are expected in context fields (either parent or children).
      */
-    private function normalizeMedia(Asset $m): array
+    private function probeAsset(Asset $asset): array
     {
-        // Prefer your denormalized array of size=>url stored in $m->resized
+        /** @var list<Asset> $children */
+        $children = $this->em->getRepository(Asset::class)->findBy(['parentKey' => $asset->id], ['pageNumber' => 'ASC']);
+
         $thumbs = [];
-        foreach ($m->variants as $variant) {
+        $variants = [];
+        foreach ($asset->variants as $variant) {
             if ($variant->url) {
                 $thumbs[$variant->preset] = $variant->url;
             }
+            $variants[] = [
+                'id' => $variant->id,
+                'preset' => $variant->preset,
+                'format' => $variant->format,
+                'url' => $variant->url,
+                'width' => $variant->width,
+                'height' => $variant->height,
+                'size' => $variant->size,
+                'marking' => $variant->marking,
+            ];
         }
 
-        // Context: always include the SAIS code explicitly
-        $context = [
-            'saisCode' => $m->id,
-            // Add anything else you want to round-trip here (e.g., userId):
-            // 'userId' => $m->user?->getId(),
+        $childRows = array_map(static fn (Asset $child): array => [
+            'id' => $child->id,
+            'pageNumber' => $child->pageNumber,
+            'marking' => $child->marking,
+            'mime' => $child->mime,
+            'archiveUrl' => $child->archiveUrl,
+            'smallUrl' => $child->smallUrl,
+            'context' => $child->context,
+        ], $children);
+
+        $meta = [
+            'mimeType' => $asset->mime,
+            'width' => $asset->width,
+            'height' => $asset->height,
+            'size' => $asset->size,
+            'statusCode' => $asset->statusCode,
+            'storageKey' => $asset->storageKey,
+            'archiveUrl' => $asset->archiveUrl,
+            'smallUrl' => $asset->smallUrl,
+            'contentHash' => $asset->contentHash,
+            'childCount' => $asset->childCount,
+            'hasOcr' => $asset->hasOcr,
         ];
-        $meta = [];
-
-//        $meta = (array)$m;
-
-//        $meta = [
-//            'width'     => $m->originalWidth,
-//            'height'    => $m->originalHeight,
-//            'mimeType'  => $m->mimeType,
-//            'size'      => $m->size,
-//            'ext'       => $m->ext,
-//            'status'    => $m->statusCode,
-//            'pHash'     => $m->perceptualHash ?? null,
-////            'colors'    => $m->colors,
-////            'analysis'  => $m->colorAnalysis,
-//            'resizedCount' => \count($thumbs),
-//        ];
-
-        // Timestamps may be private DateTimes in your entity; expose formatted strings if available.
-        $updatedAt = null;
-//        if (property_exists($m, 'updatedAt') && $m->updatedAt instanceof \DateTimeInterface) {
-//            $updatedAt = $m->updatedAt->format(DATE_ATOM);
-//        }
 
         return [
-            'id'        => $m->id,               // stable identifier (string)
-            'source'    => (string) ($m->originalUrl ?? ''),// original image URL
-            'thumbs'    => $thumbs,                         // map size => URL
-            'context'   => $context,                        // must include saisCode
+            'id'        => $asset->id,
+            'source'    => (string) $asset->originalUrl,
+            'marking'   => $asset->marking,
+            'thumbs'    => $thumbs,
+            'variants'  => $variants,
+            'context'   => $asset->context,
             'meta'      => $meta,
-            'marking' => $m->marking,
-            'updatedAt' => $updatedAt,
+            'children'  => $childRows,
+            // Optional convenience mirrors for common AI/OCR keys in context.
+            'ocr'       => $asset->context['ocr'] ?? null,
+            'ai'        => $asset->context['ai'] ?? null,
         ];
     }
 }

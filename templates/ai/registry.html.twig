@@ -1,0 +1,118 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}AI Task Registry{% endblock %}
+
+{% block body %}
+<div class="container-xl py-4">
+
+  <div class="page-header mb-4">
+    <div class="row align-items-center">
+      <div class="col">
+        <h2 class="page-title">AI Task Registry</h2>
+        <div class="text-muted">All registered AI enrichment tasks and pipeline membership</div>
+      </div>
+      <div class="col-auto ms-auto">
+        <a href="{{ path('asset_browse') }}" class="btn btn-outline-secondary btn-sm">
+          ← Asset Browser
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# Pipeline summary cards #}
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">Quick Scan Pipeline</h4>
+          <div class="card-subtitle text-muted">{{ pipelines.quick|length }} tasks</div>
+        </div>
+        <div class="card-body p-2">
+          <ol class="mb-0 ps-3 small">
+            {% for task in pipelines.quick %}
+              <li class="py-1">
+                <code>{{ task.value }}</code>
+              </li>
+            {% endfor %}
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">Full Enrichment Pipeline</h4>
+          <div class="card-subtitle text-muted">{{ pipelines.full|length }} tasks</div>
+        </div>
+        <div class="card-body p-2">
+          <ol class="mb-0 ps-3 small">
+            {% for task in pipelines.full %}
+              <li class="py-1">
+                <code>{{ task.value }}</code>
+              </li>
+            {% endfor %}
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Task table #}
+  <div class="card">
+    <div class="card-header">
+      <h4 class="card-title">All Tasks ({{ tasks|length }})</h4>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter table-hover card-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Value</th>
+            <th class="text-center">Registered</th>
+            <th class="text-center">Quick</th>
+            <th class="text-center">Full</th>
+            <th>Service Class</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+          <tr>
+            <td class="fw-semibold">{{ task.name }}</td>
+            <td><code class="small">{{ task.value }}</code></td>
+            <td class="text-center">
+              {% if task.registered %}
+                <span class="badge bg-success-lt">yes</span>
+              {% else %}
+                <span class="badge bg-danger-lt">missing</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if task.inQuick %}
+                <span class="text-success">✓</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if task.inFull %}
+                <span class="text-success">✓</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted font-monospace">
+              {% if task.class %}
+                {{ task.class|split('\\')|last }}
+              {% else %}
+                <em>—</em>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

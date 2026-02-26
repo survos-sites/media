@@ -1,0 +1,136 @@
+# Test image fixtures for AI task development and regression testing.
+#
+# All images are publicly accessible URLs from stable, free-to-use collections:
+#   - Library of Congress (loc.gov)         — highly stable, free, high-res
+#   - Wikimedia Commons                     — stable via File: hash URLs
+#   - Internet Archive                      — scanned docs and books
+#   - Smithsonian Open Access              — open license
+#
+# Each entry describes what tasks it exercises well, so you can target
+# specific tasks with specific images rather than running everything on everything.
+#
+# Usage:
+#   bin/console media:fixture --load        # create Asset rows for all fixtures
+#   bin/console media:fixture --load --task=ocr_mistral  # load then run one task
+#   bin/console media:fixture --list        # print the list without loading
+
+fixtures:
+
+  # ── Handwriting ─────────────────────────────────────────────────────────────
+
+  - id: hw_lincoln_letter
+    label: "Lincoln letter to Mrs Bixby, 1864 (handwritten)"
+    url: "https://tile.loc.gov/storage-services/service/mss/mal/003/0033400/0033400.jpg"
+    mime: image/jpeg
+    tasks: [ocr, ocr_mistral, transcribe_handwriting, layout, classify, extract_metadata]
+    notes: "Classic American cursive. Good benchmark for handwriting transcription."
+
+  - id: hw_civil_war_diary
+    label: "Civil War diary page, 1863"
+    url: "https://tile.loc.gov/storage-services/service/mss/msn/21001/21001011/0001.jpg"
+    mime: image/jpeg
+    tasks: [transcribe_handwriting, ocr_mistral, classify, extract_metadata, people_and_places]
+    notes: "Dense period cursive. Named people and places present."
+
+  - id: hw_declaration
+    label: "Declaration of Independence (handwritten parchment)"
+    url: "https://upload.wikimedia.org/wikipedia/commons/8/8f/United_States_Declaration_of_Independence.jpg"
+    mime: image/jpeg
+    tasks: [transcribe_handwriting, ocr_mistral, layout, classify, people_and_places, keywords]
+    notes: "Well-known ground truth. Multi-column, formal script."
+
+  # ── Typed / Printed Documents ────────────────────────────────────────────────
+
+  - id: typed_wwii_memo
+    label: "WWII War Department typed memo, 1944"
+    url: "https://tile.loc.gov/storage-services/service/mss/eadxmlmss/finding-aids/ead/sn84026749-c0001.jpg"
+    mime: image/jpeg
+    tasks: [ocr, classify, extract_metadata, people_and_places, generate_title, summarize]
+    notes: "Clean typewritten text. Good OCR baseline."
+
+  - id: typed_census_1900
+    label: "1900 US Census page (tabular, handwritten entries)"
+    url: "https://upload.wikimedia.org/wikipedia/commons/3/39/1900_census_Scanned_form.jpg"
+    mime: image/jpeg
+    tasks: [ocr_mistral, layout, extract_metadata, people_and_places, classify]
+    notes: "Complex table structure with handwritten cell content. Layout task focus."
+
+  # ── Newspapers ───────────────────────────────────────────────────────────────
+
+  - id: newspaper_1865_lincoln
+    label: "NY Tribune front page, April 15 1865 (Lincoln assassination)"
+    url: "https://chroniclingamerica.loc.gov/lccn/sn83030213/1865-04-15/ed-1/seq-1.jpg"
+    mime: image/jpeg
+    tasks: [ocr, ocr_mistral, layout, classify, extract_metadata, people_and_places, keywords, generate_title]
+    notes: "Multi-column broadsheet. Ideal layout + OCR combination test."
+
+  - id: newspaper_1906_quake
+    label: "San Francisco Call, April 19 1906 (earthquake)"
+    url: "https://chroniclingamerica.loc.gov/lccn/sn85066387/1906-04-19/ed-1/seq-1.jpg"
+    mime: image/jpeg
+    tasks: [ocr, ocr_mistral, layout, classify, extract_metadata, people_and_places]
+    notes: "Banner headlines, mixed column widths. Good layout stress test."
+
+  # ── Photographs ──────────────────────────────────────────────────────────────
+
+  - id: photo_dorothea_lange_migrant
+    label: "Migrant Mother by Dorothea Lange, 1936"
+    url: "https://upload.wikimedia.org/wikipedia/commons/5/54/Lange-MigrantMother02.jpg"
+    mime: image/jpeg
+    tasks: [basic_description, context_description, classify, keywords, people_and_places, generate_title]
+    notes: "Famous photograph. No text. Tests visual description and classification."
+
+  - id: photo_civil_war_soldiers
+    label: "Civil War soldiers camp photograph, c.1863"
+    url: "https://tile.loc.gov/storage-services/service/pnp/cwpb/04000/04052v.jpg"
+    mime: image/jpeg
+    tasks: [basic_description, context_description, classify, keywords, people_and_places, extract_metadata]
+    notes: "Historical photograph with people. People+places NER on visual content."
+
+  - id: photo_1904_fair
+    label: "Louisiana Purchase Exposition (St Louis World's Fair), 1904"
+    url: "https://tile.loc.gov/storage-services/service/pnp/det/4a10000/4a11000/4a11700/4a11780v.jpg"
+    mime: image/jpeg
+    tasks: [basic_description, classify, keywords, extract_metadata, generate_title]
+    notes: "Architecture + crowd. Good context description test."
+
+  # ── Maps ─────────────────────────────────────────────────────────────────────
+
+  - id: map_1862_civil_war
+    label: "Map of Virginia battlefields, 1862"
+    url: "https://tile.loc.gov/storage-services/service/gmd/gmd388/g3882/g3882s/cw0122000.jpg"
+    mime: image/jpeg
+    tasks: [classify, basic_description, layout, ocr_mistral, people_and_places, keywords]
+    notes: "Complex cartographic layout. Place names embedded as text."
+
+  # ── Mixed / Complex Layout ───────────────────────────────────────────────────
+
+  - id: layout_scientific_journal
+    label: "Scientific American page, 1895 (text + engravings)"
+    url: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/Scientific_American_1895_front_page.jpg/800px-Scientific_American_1895_front_page.jpg"
+    mime: image/jpeg
+    tasks: [layout, ocr, ocr_mistral, classify, extract_metadata, keywords]
+    notes: "Mixed text and illustration. Good layout block detection test."
+
+  - id: layout_illuminated_manuscript
+    label: "Book of Kells illuminated page (complex layout, medieval script)"
+    url: "https://upload.wikimedia.org/wikipedia/commons/1/1b/KellsFol032vChristEnthroned.jpg"
+    mime: image/jpeg
+    tasks: [basic_description, context_description, classify, layout, transcribe_handwriting]
+    notes: "Extreme case: decorative borders, Latin script, illustration integration."
+
+  # ── Non-English / Translation ────────────────────────────────────────────────
+
+  - id: translate_french_letter
+    label: "French diplomatic letter, 1778"
+    url: "https://tile.loc.gov/storage-services/service/mss/mgw/mgw2/025/0396.jpg"
+    mime: image/jpeg
+    tasks: [ocr_mistral, transcribe_handwriting, classify, translate, extract_metadata]
+    notes: "18th-century French cursive. Tests translate task."
+
+  - id: translate_russian_propaganda
+    label: "Soviet propaganda poster with text, c.1930"
+    url: "https://upload.wikimedia.org/wikipedia/commons/b/b7/RIAN_archive_887721_Electrification_of_the_whole_country.jpg"
+    mime: image/jpeg
+    tasks: [basic_description, classify, ocr, translate, keywords, extract_metadata]
+    notes: "Cyrillic text. Translate + OCR on non-Latin script."

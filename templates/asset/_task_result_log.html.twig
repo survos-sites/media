@@ -1,0 +1,145 @@
+{#
+  Log entry for one completed AI task.
+  Prepended into #task-log via HTMX afterbegin, or rendered on page load.
+
+  Variables:
+    entry  - aiCompleted entry {task, at, result}
+#}
+{% set result = entry.result %}
+{% set failed  = result.failed  is defined %}
+{% set skipped = result.skipped is defined %}
+
+<div class="p-2 mb-1 rounded border {{ failed ? 'border-danger' : (skipped ? 'border-secondary' : 'border-success') }}"
+     style="{{ failed ? 'border-left:3px solid var(--tblr-danger)' : (skipped ? '' : 'border-left:3px solid var(--tblr-success)') }};background:#fff;color:inherit;"
+     id="log-entry-{{ entry.task }}-{{ entry.at|replace({' ': '-', ':': ''}) }}">
+
+  {# Header row #}
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <span class="fw-semibold small">
+      {{ failed ? '✗' : (skipped ? '⊘' : '✓') }}
+      {{ entry.task }}
+    </span>
+    <span class="d-flex align-items-center gap-2">
+      {% if result._tokens is defined and result._tokens.total %}
+        <span class="text-muted" style="font-size:0.7rem;"
+              title="prompt: {{ result._tokens.prompt }} / completion: {{ result._tokens.completion }}{% if result._tokens.cached %} / cached: {{ result._tokens.cached }}{% endif %}">
+          {{ result._tokens.total }} tok
+        </span>
+      {% endif %}
+      <span class="text-muted" style="font-size:0.7rem;">{{ entry.at }}</span>
+    </span>
+  </div>
+
+  {# Body — render according to result shape #}
+  {% if failed %}
+    <div class="small text-danger">{{ result.error|default('Unknown error') }}</div>
+
+  {% elseif skipped %}
+    <div class="small text-muted">{{ result.reason|default('Skipped') }}</div>
+
+  {% elseif result.text is defined %}
+    {# OCR / transcription / translation raw text #}
+    {% if result.language is defined and result.language %}
+      <span class="badge bg-secondary-lt me-1">{{ result.language }}</span>
+    {% endif %}
+    {% if result.confidence is defined %}
+      <span class="badge bg-{{ result.confidence == 'high' ? 'green' : (result.confidence == 'medium' ? 'yellow' : 'red') }}-lt me-1">
+        {{ result.confidence }}
+      </span>
+    {% endif %}
+    <pre class="small mt-1 mb-0 p-2 rounded border" style="max-height:200px;overflow-y:auto;white-space:pre-wrap;background:#f8f9fa;color:#1a1a2e;">{{ result.text }}</pre>
+
+  {% elseif result.translated_text is defined %}
+    {% if result.source_language is defined and result.source_language %}
+      <span class="badge bg-secondary-lt me-1">from {{ result.source_language }}</span>
+    {% endif %}
+    <pre class="small mt-1 mb-0 p-2 rounded border" style="max-height:200px;overflow-y:auto;white-space:pre-wrap;background:#f8f9fa;color:#1a1a2e;">{{ result.translated_text }}</pre>
+
+  {% elseif result.type is defined %}
+    {# Classification #}
+    <span class="badge bg-blue me-1">{{ result.type }}</span>
+    {% if result.subtype is defined and result.subtype %}
+      <span class="badge bg-blue-lt me-1">{{ result.subtype }}</span>
+    {% endif %}
+    {% if result.confidence is defined %}
+      <span class="badge bg-secondary-lt">{{ (result.confidence * 100)|round }}% confidence</span>
+    {% endif %}
+    {% if result.reasoning is defined and result.reasoning %}
+      <div class="small text-muted mt-1">{{ result.reasoning }}</div>
+    {% endif %}
+
+  {% elseif result.description is defined %}
+    <div class="small mt-1">{{ result.description }}</div>
+
+  {% elseif result.title is defined %}
+    <div class="fw-semibold mt-1">{{ result.title }}</div>
+    {% if result.subtitle is defined and result.subtitle %}
+      <div class="small text-muted">{{ result.subtitle }}</div>
+    {% endif %}
+
+  {% elseif result.summary is defined and result.page_count is not defined %}
+    {# Summarize result (not LayoutTask which also has summary) #}
+    <div class="small mt-1">{{ result.summary }}</div>
+
+  {% elseif result.keywords is defined %}
+    <div class="mt-1">
+      {% for k in result.keywords %}
+        <span class="badge bg-secondary-lt me-1 mb-1">{{ k }}</span>
+      {% endfor %}
+    </div>
+
+  {% elseif result.people is defined or result.places is defined %}
+    {% if result.people|default([])|length > 0 %}
+      <div class="small mt-1">
+        <span class="text-muted me-1">People:</span>
+        {% for p in result.people %}<span class="badge bg-cyan-lt me-1">{{ p }}</span>{% endfor %}
+      </div>
+    {% endif %}
+    {% if result.places|default([])|length > 0 %}
+      <div class="small mt-1">
+        <span class="text-muted me-1">Places:</span>
+        {% for p in result.places %}<span class="badge bg-green-lt me-1">{{ p }}</span>{% endfor %}
+      </div>
+    {% endif %}
+    {% if result.organisations|default([])|length > 0 %}
+      <div class="small mt-1">
+        <span class="text-muted me-1">Orgs:</span>
+        {% for o in result.organisations %}<span class="badge bg-purple-lt me-1">{{ o }}</span>{% endfor %}
+      </div>
+    {% endif %}
+
+  {% elseif result.page_count is defined %}
+    {# Layout task #}
+    <div class="small mt-1">
+      <span class="text-muted me-1">{{ result.page_count }} page(s):</span>
+      {{ result.summary }}
+    </div>
+    {% if result.regions|default([])|length > 0 %}
+      <div class="mt-1 p-1 rounded border" style="max-height:150px;overflow-y:auto;background:#f8f9fa;color:inherit;">
+        {% for region in result.regions %}
+          <div class="small font-monospace text-muted">
+            <span class="badge bg-secondary-lt me-1">{{ region.type }}</span>
+            {{ region.text|slice(0,80) }}{% if region.text|length > 80 %}…{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+  {% elseif result.date_range is defined or result.dates is defined %}
+    {# Metadata extraction #}
+    {% if result.date_range is defined and result.date_range %}
+      <div class="small mt-1"><span class="text-muted me-1">Date:</span>{{ result.date_range }}</div>
+    {% endif %}
+    {% if result.language is defined and result.language %}
+      <div class="small"><span class="text-muted me-1">Language:</span>{{ result.language }}</div>
+    {% endif %}
+
+  {% else %}
+    {# Fallback: pretty-print the raw result #}
+    <details class="mt-1">
+      <summary class="small text-muted" style="cursor:pointer;">raw result</summary>
+      <pre class="small mt-1 mb-0 p-2 rounded border" style="max-height:200px;overflow-y:auto;white-space:pre-wrap;background:#f8f9fa;color:#1a1a2e;">{{ result|json_encode(constant('JSON_PRETTY_PRINT') b-or constant('JSON_UNESCAPED_UNICODE')) }}</pre>
+    </details>
+  {% endif %}
+
+</div>

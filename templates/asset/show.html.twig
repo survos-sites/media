@@ -1,0 +1,323 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ asset.aiTitle ?? asset.id }}{% endblock %}
+
+{% block body %}
+<div class="container-xl py-4">
+
+  {# ── Breadcrumb ──────────────────────────────────────────────────────────── #}
+  <nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{{ path('asset_browse') }}">Assets</a></li>
+      <li class="breadcrumb-item active">{{ asset.aiTitle ?? asset.id }}</li>
+    </ol>
+  </nav>
+
+  <div class="row g-4">
+
+    {# ── LEFT: image + core metadata ────────────────────────────────────────── #}
+    <div class="col-lg-5">
+
+      {# Image preview #}
+      <div class="card mb-3">
+        <div class="card-body text-center p-3" style="background:#f8f9fa;">
+          {% if asset.smallUrl %}
+            <a href="{{ asset.archiveUrl ?? asset.originalUrl }}" target="_blank">
+              <img src="{{ asset.smallUrl }}"
+                   alt="{{ asset.aiTitle|default(asset.id) }}"
+                   class="img-fluid rounded"
+                   style="max-height:400px;">
+            </a>
+          {% elseif asset.archiveUrl %}
+            <a href="{{ asset.archiveUrl }}" target="_blank">
+              <img src="{{ asset.archiveUrl }}"
+                   alt="{{ asset.aiTitle|default(asset.id) }}"
+                   class="img-fluid rounded"
+                   style="max-height:400px;">
+            </a>
+          {% else %}
+            <div class="text-muted py-5">No preview available</div>
+          {% endif %}
+        </div>
+        <div class="card-footer small text-muted d-flex justify-content-between align-items-center">
+          <span>{{ asset.mime|default('unknown') }}
+            {% if asset.width and asset.height %}
+              · {{ asset.width }}×{{ asset.height }}
+            {% endif %}
+            {% if asset.size %}
+              · {{ (asset.size / 1024)|round }}KB
+            {% endif %}
+          </span>
+          <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
+        </div>
+      </div>
+
+      {# Core AI fields #}
+      <div class="card mb-3">
+        <div class="card-header"><h4 class="card-title">AI Metadata</h4></div>
+        <div class="card-body">
+
+          {% if asset.aiTitle %}
+            <div class="mb-2">
+              <div class="small text-muted">Title</div>
+              <div class="fw-semibold">{{ asset.aiTitle }}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiDocumentType %}
+            <div class="mb-2">
+              <div class="small text-muted">Type</div>
+              <span class="badge bg-blue">{{ asset.aiDocumentType }}</span>
+              {% if asset.aiDocumentSubtype %}
+                <span class="badge bg-blue-lt ms-1">{{ asset.aiDocumentSubtype }}</span>
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if asset.aiDateRange %}
+            <div class="mb-2">
+              <div class="small text-muted">Date</div>
+              <div>{{ asset.aiDateRange }}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiDescription %}
+            <div class="mb-2">
+              <div class="small text-muted">Description</div>
+              <div class="small">{{ asset.aiDescription }}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiSummary %}
+            <div class="mb-2">
+              <div class="small text-muted">Summary</div>
+              <div class="small">{{ asset.aiSummary }}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiPeople|length > 0 %}
+            <div class="mb-2">
+              <div class="small text-muted">People</div>
+              <div>{% for p in asset.aiPeople %}<span class="badge bg-cyan-lt me-1">{{ p }}</span>{% endfor %}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiPlaces|length > 0 %}
+            <div class="mb-2">
+              <div class="small text-muted">Places</div>
+              <div>{% for p in asset.aiPlaces %}<span class="badge bg-green-lt me-1">{{ p }}</span>{% endfor %}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiOrganisations|length > 0 %}
+            <div class="mb-2">
+              <div class="small text-muted">Organisations</div>
+              <div>{% for o in asset.aiOrganisations %}<span class="badge bg-purple-lt me-1">{{ o }}</span>{% endfor %}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiKeywords|length > 0 %}
+            <div class="mb-2">
+              <div class="small text-muted">Keywords</div>
+              <div class="small">{% for k in asset.aiKeywords %}<span class="badge bg-secondary-lt me-1 mb-1">{{ k }}</span>{% endfor %}</div>
+            </div>
+          {% endif %}
+
+          {% if asset.aiOcrText %}
+            <div class="mb-2">
+              <div class="small text-muted">OCR Text <span class="text-muted">(excerpt)</span></div>
+              <pre class="small bg-light p-2 rounded" style="max-height:120px;overflow-y:auto;white-space:pre-wrap;">{{ asset.aiOcrText|slice(0,500) }}{% if asset.aiOcrText|length > 500 %}…{% endif %}</pre>
+            </div>
+          {% endif %}
+
+          {% if not (asset.aiTitle or asset.aiDescription or asset.aiDocumentType) %}
+            <div class="text-muted small">No AI metadata yet — run tasks below.</div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      {# Technical details #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <h4 class="card-title">Technical</h4>
+          <div class="card-options">
+            <span class="badge bg-{{ asset.marking == 'complete' ? 'green' : (asset.marking == 'failed' ? 'red' : (asset.marking == 'ai_ready' ? 'yellow' : 'secondary')) }}">
+              {{ asset.marking }}
+            </span>
+          </div>
+        </div>
+        <div class="card-body small p-2">
+          <table class="table table-sm table-borderless mb-0">
+            <tr><th>ID</th><td><code>{{ asset.id }}</code></td></tr>
+            <tr><th>MIME</th><td>{{ asset.mime|default('—') }}</td></tr>
+            <tr><th>Created</th><td>{{ asset.createdAt|date('Y-m-d H:i') }}</td></tr>
+            {% if asset.clients %}
+            <tr><th>Clients</th><td>{{ asset.clients|join(', ') }}</td></tr>
+            {% endif %}
+            <tr><th>AI Locked</th>
+              <td>
+                <form method="post" action="{{ path('asset_toggle_lock', {id: asset.id}) }}" class="d-inline">
+                  <button class="btn btn-xs {{ asset.aiLocked ? 'btn-warning' : 'btn-ghost-secondary' }}">
+                    {{ asset.aiLocked ? '🔒 Locked' : '🔓 Unlocked' }}
+                  </button>
+                </form>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+    </div>{# /col-lg-5 #}
+
+    {# ── RIGHT: AI task runner ───────────────────────────────────────────────── #}
+    <div class="col-lg-7">
+
+      {# Pipeline shortcuts #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <h4 class="card-title">Pipelines</h4>
+        </div>
+        <div class="card-body d-flex gap-2 flex-wrap">
+          {% for pipelineName, pipelineTasks in pipelines %}
+            <form method="post" action="{{ path('asset_enqueue_pipeline', {id: asset.id, name: pipelineName}) }}">
+              <button class="btn btn-sm btn-outline-primary">
+                ▶ {{ pipelineName|capitalize }} pipeline
+                <span class="badge bg-primary-lt ms-1">{{ pipelineTasks|length }}</span>
+              </button>
+            </form>
+          {% endfor %}
+          <a href="{{ path('asset_task_registry') }}" class="btn btn-sm btn-ghost-secondary">
+            View task registry →
+          </a>
+        </div>
+        {% if asset.aiQueue|length > 0 %}
+          <div class="card-footer small text-muted">
+            Queue: {{ asset.aiQueue|join(' → ') }}
+          </div>
+        {% endif %}
+      </div>
+
+      {# Individual task buttons #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <h4 class="card-title">Run Individual Task</h4>
+          <div class="card-options text-muted small">results appear in the log below</div>
+        </div>
+        <div class="card-body">
+          {#
+            hx-sync="this:queue" on the grid means HTMX will queue requests
+            from any button — they run one at a time, in the order clicked.
+          #}
+          <div class="row g-2" id="task-grid" hx-sync="this:queue sequential">
+            {% for task in tasks %}
+              {% set isDone = completedMap[task.value] is defined %}
+              {% set hasFailed = isDone and (completedMap[task.value].result.failed is defined) %}
+              {% set meta = taskMeta[task.value] ?? {} %}
+              {% set popContent %}agent: {{ meta.agent|default('?') }}
+model: {{ meta.model|default('—') }}
+platform: {{ meta.platform|default('—') }}
+
+{{ meta.system_prompt|default('no prompt info')|slice(0, 400) }}{% if (meta.system_prompt|default(''))|length > 400 %}…{% endif %}{% endset %}
+              <div class="col-sm-6">
+                <div class="d-flex align-items-center gap-2 p-2 rounded border
+                            {{ isDone ? (hasFailed ? 'border-danger' : 'border-success') : 'border-secondary-subtle' }}"
+                     style="{{ isDone and not hasFailed ? 'background:#f6fdf6' : '' }}">
+                  <form method="post"
+                        action="{{ path('asset_run_task', {id: asset.id, taskName: task.value}) }}"
+                        hx-post="{{ path('asset_run_task', {id: asset.id, taskName: task.value}) }}"
+                        hx-target="#task-log"
+                        hx-swap="afterbegin"
+                        hx-indicator="#spinner-{{ task.value }}">
+                    <button class="btn btn-sm {{ isDone ? (hasFailed ? 'btn-danger' : 'btn-success') : 'btn-primary' }}"
+                            title="{{ isDone ? 'Re-run' : 'Run' }} {{ task.value }}">
+                      <span id="spinner-{{ task.value }}" class="htmx-indicator spinner-border spinner-border-sm" role="status"></span>
+                      <span class="htmx-indicator-hide">{{ isDone ? '↺' : '▶' }}</span>
+                    </button>
+                  </form>
+                  <div class="flex-grow-1 min-width-0">
+                    <div class="fw-semibold small">{{ task.value }}</div>
+                    <div class="text-muted" style="font-size:0.7rem;">{{ task.name|lower|replace({'_': ' '}) }}</div>
+                  </div>
+                  {# Info icon — popover with agent/model/prompt on hover #}
+                  <span class="text-muted ms-auto flex-shrink-0"
+                        style="cursor:default;"
+                        data-bs-toggle="popover"
+                        data-bs-trigger="hover focus"
+                        data-bs-placement="left"
+                        data-bs-title="{{ task.value }}"
+                        data-bs-content="{{ popContent|e('html_attr') }}"
+                        data-bs-custom-class="task-popover">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {# ── Task log — new results prepended here by HTMX ─────────────────────── #}
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h4 class="card-title mb-0">Results Log</h4>
+          {% if asset.aiCompleted|length > 0 %}
+            <span class="badge bg-secondary">{{ asset.aiCompleted|length }} completed</span>
+          {% endif %}
+        </div>
+        <div class="card-body p-2" id="task-log">
+          {% if asset.aiCompleted|length == 0 %}
+            <div class="text-muted small p-2" id="log-empty">No tasks run yet — click a button above.</div>
+          {% else %}
+            {% for entry in asset.aiCompleted|reverse %}
+              {{ include('asset/_task_result_log.html.twig', {entry: entry}, with_context: false) }}
+            {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+    </div>{# /col-lg-7 #}
+  </div>{# /row #}
+</div>
+{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    /* HTMX request in flight: show spinner, hide the arrow label.
+       htmx-request is added to the element with hx-post (the <form>),
+       but with hx-sync on a parent HTMX 2 may add it to the grid div too.
+       Cover both cases. */
+    .htmx-indicator                          { display: none; }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator             { display: inline-block !important; }
+    .htmx-request .htmx-indicator-hide,
+    .htmx-request.htmx-indicator-hide        { display: none !important; }
+    .htmx-request button                     { pointer-events: none; opacity: 0.75; }
+
+    /* Task info popover — monospace prompt text, reasonable width */
+    .task-popover .popover-body {
+      font-family: var(--tblr-font-monospace, monospace);
+      font-size: 0.72rem;
+      white-space: pre-wrap;
+      max-width: 360px;
+      color: #333;
+    }
+    .popover { max-width: 380px; }
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script type="module">
+    import 'htmx.org';
+    import { Popover } from 'bootstrap';
+
+    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
+      new Popover(el, { html: false });
+    });
+  </script>
+{% endblock %}

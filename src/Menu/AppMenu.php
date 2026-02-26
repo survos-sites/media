@@ -50,6 +50,8 @@ final class AppMenu implements KnpMenuHelperInterface
         $menu = $event->getMenu();
         $options = $event->getOptions();
         $this->add($menu, 'app_homepage');
+        $this->add($menu, 'asset_browse', label: 'Assets');
+        $this->add($menu, 'asset_task_registry', label: 'AI Tasks');
         $this->add($menu, 'survos_state_workflow_dashboard');
         $subMenu = $this->addSubmenu($menu, 'dispatch');
         $this->add($subMenu, 'app_dispatch_process_ui');

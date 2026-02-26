@@ -1,0 +1,76 @@
+{#
+  Partial: a compact result summary for one completed task.
+  Used both on initial page load (pre-filled) and via HTMX swap.
+
+  Variables:
+    asset    - Asset entity
+    taskName - string task name
+    entry    - aiCompleted entry {task, at, result} or null
+#}
+{% if entry %}
+  {% set result = entry.result %}
+  {% if result.failed is defined %}
+    <div class="alert alert-danger py-1 px-2 small mb-0 mt-1">
+      ✗ {{ result.error|default('Failed') }}
+    </div>
+  {% elseif result.skipped is defined %}
+    <div class="text-muted small mt-1">⊘ Skipped: {{ result.reason|default('') }}</div>
+  {% else %}
+    <div class="small text-muted mt-1" style="font-size:0.7rem;">{{ entry.at }}</div>
+    {% if result.text is defined %}
+      {# OCR / transcription / translation #}
+      <div class="small mt-1 text-truncate" title="{{ result.text }}">
+        <em>{{ result.text|slice(0, 120) }}{% if result.text|length > 120 %}…{% endif %}</em>
+      </div>
+      {% if result.language is defined and result.language %}
+        <span class="badge bg-secondary-lt">{{ result.language }}</span>
+      {% endif %}
+      <span class="badge bg-{{ result.confidence == 'high' ? 'green' : (result.confidence == 'medium' ? 'yellow' : 'red') }}-lt">
+        {{ result.confidence|default('?') }}
+      </span>
+    {% elseif result.description is defined %}
+      <div class="small mt-1">{{ result.description|slice(0,150) }}{% if result.description|length > 150 %}…{% endif %}</div>
+    {% elseif result.type is defined %}
+      {# Classification #}
+      <span class="badge bg-blue">{{ result.type }}</span>
+      {% if result.subtype is defined and result.subtype %}
+        <span class="badge bg-blue-lt ms-1">{{ result.subtype }}</span>
+      {% endif %}
+      {% if result.confidence is defined %}
+        <span class="badge bg-secondary-lt ms-1">{{ (result.confidence * 100)|round }}%</span>
+      {% endif %}
+    {% elseif result.title is defined %}
+      <div class="small fw-semibold mt-1">{{ result.title }}</div>
+    {% elseif result.keywords is defined %}
+      <div class="small mt-1">
+        {% for k in result.keywords|slice(0,8) %}
+          <span class="badge bg-secondary-lt me-1">{{ k }}</span>
+        {% endfor %}
+        {% if result.keywords|length > 8 %}
+          <span class="text-muted">+{{ result.keywords|length - 8 }}</span>
+        {% endif %}
+      </div>
+    {% elseif result.people is defined or result.places is defined %}
+      {% if result.people|default([])|length > 0 %}
+        <div class="small mt-1">
+          {% for p in result.people|slice(0,4) %}<span class="badge bg-cyan-lt me-1">{{ p }}</span>{% endfor %}
+          {% if result.people|length > 4 %}<span class="text-muted">+{{ result.people|length - 4 }}</span>{% endif %}
+        </div>
+      {% endif %}
+      {% if result.places|default([])|length > 0 %}
+        <div class="small">
+          {% for p in result.places|slice(0,4) %}<span class="badge bg-green-lt me-1">{{ p }}</span>{% endfor %}
+        </div>
+      {% endif %}
+    {% elseif result.summary is defined %}
+      <div class="small mt-1">{{ result.summary|slice(0,150) }}…</div>
+    {% elseif result.translated_text is defined %}
+      <div class="small mt-1"><em>{{ result.translated_text|slice(0,150) }}…</em></div>
+      {% if result.source_language %}<span class="badge bg-secondary-lt">from {{ result.source_language }}</span>{% endif %}
+    {% else %}
+      <div class="small text-muted mt-1">✓ completed</div>
+    {% endif %}
+  {% endif %}
+{% else %}
+  <div class="text-muted small mt-1">not run yet</div>
+{% endif %}

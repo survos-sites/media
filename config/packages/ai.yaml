@@ -1,27 +1,88 @@
+# config/packages/ai.yaml
 ai:
-    platform:
-        # Inference Platform configuration
-        # see https://github.com/symfony/ai/tree/main/src/platform#platform-bridges
+    store: ~
 
-        # openai:
-        #    api_key: '%env(OPENAI_API_KEY)%'
+    platform:
+        openai:
+            api_key: '%env(OPENAI_API_KEY)%'
+        anthropic:
+             api_key: '%env(ANTHROPIC_API_KEY)%'
+        mistral:
+            api_key: '%env(MISTRAL_API_KEY)%'
 
     agent:
-        # Agent configuration
-        # see https://symfony.com/doc/current/ai/bundles/ai-bundle.html
+        # ── OCR / handwriting transcription ───────────────────────────────────
+        # gpt-4o for best vision quality on dense / handwritten text.
+        # Structured output (OcrResult) is supported by gpt-4o.
+        ocr:
+            platform: 'ai.platform.openai'
+            model: 'gpt-4o'
+            prompt:
+                text: 'You are an expert OCR and document transcription engine. Return structured JSON only.'
+            tools: false
 
-        # default:
-        #    platform: 'ai.platform.openai'
-        #    model: 'gpt-5-mini'
-        #    prompt: |
-        #        You are a pirate and you write funny.
-        #    tools:
-        #        - 'Symfony\AI\Agent\Bridge\Clock\Clock'
+        # ── Mistral vision agent (handwriting, complex layout) ────────────────
+        # pixstral-large-latest: best Mistral vision model, supports INPUT_IMAGE
+        # and OUTPUT_STRUCTURED. Used for handwriting transcription and layout
+        # analysis where Mistral's document understanding outperforms GPT-4o.
+        # Use the documented mistral-ocr-2512 model for production. ??
+        mistral_vision:
+            platform: 'ai.platform.mistral'
+            model: 'pixstral-large-latest'
+            prompt:
+                text: 'You are an expert at reading historical documents, handwriting, and complex page layouts. Return structured JSON only.'
+            tools: false
 
-    store:
-        # Store configuration
+        # ── Classification ────────────────────────────────────────────────────
+        # gpt-4o-mini is sufficient and cheap for single-label classification.
+        classify:
+            platform: 'ai.platform.openai'
+            model: 'gpt-4o-mini'
+            prompt:
+                text: 'You are an expert document classifier. Return structured JSON only.'
+            tools: false
 
-        # chromadb:
-        #    default:
-        #        client: 'client.service.id'
-        #        collection: 'my_collection'
+        # ── Description (basic + context) ─────────────────────────────────────
+        # gpt-4o-mini balances vision quality with cost for descriptive tasks.
+        description:
+            platform: 'ai.platform.openai'
+            model: 'gpt-4o-mini'
+            prompt:
+                text: 'You are a museum archivist generating visual descriptions and keyword lists. Return structured JSON only.'
+            tools: false
+
+        # ── Metadata extraction, NER, title generation, summarization ─────────
+        # gpt-4o-mini handles structured extraction well at low cost.
+        # Switch to gpt-4o for collections where precision matters more than cost.
+        metadata:
+            platform: 'ai.platform.openai'
+            model: 'gpt-4o-mini'
+            prompt:
+                text: 'You are a specialist archivist extracting structured metadata from historical documents and objects. Return structured JSON only.'
+            tools: false
+
+        # ── Conversational chat agent (RAG over the collection) ───────────────
+        # Uses AssetLookupTool to ground answers in real asset data.
+        # gpt-4o for best conversational + vision reasoning.
+        # "tools: true" (default) so AssetLookupTool is auto-injected.
+        chat:
+            platform: 'ai.platform.openai'
+            model: 'gpt-4o'
+            prompt:
+                text: |
+                    You are an expert museum archivist assistant with access to a digitised media collection.
+
+                    When asked about a specific item, ALWAYS call the asset_lookup tool first to retrieve
+                    the item's metadata before answering. Never fabricate descriptions, dates, or names —
+                    only use what the tool returns.
+
+                    If the user provides a URL or asset ID, pass it directly to asset_lookup.
+                    If they describe an item in words, use those keywords with asset_lookup.
+
+                    When you have the asset data, you can also describe the image visually if a smallUrl
+                    is available — tell the user you're looking at it.
+
+                    Be concise, factual, and use archival language. Acknowledge uncertainty where present.
+                include_tools: true
+            tools:
+                - 'App\Ai\Tool\AssetLookupTool'

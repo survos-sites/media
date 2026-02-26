@@ -24,12 +24,17 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
 #[MeiliIndex(
-    sortable: ['sizeInMegabytes'],
-    filterable: ['mime','clients','statusCode','sizeInMegabytes'],
+    sortable: ['createdAt', 'aiTokensTotal'],
+    filterable: ['mime', 'clients', 'marking', 'aiDocumentType', 'aiDocumentSubtype',
+                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'],
+    searchable: ['aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
+                 'aiPeople', 'aiPlaces', 'aiSubjects', 'originalUrl'],
     persisted: new Fields(
         groups: ['asset.read'],
-        fields: ['id','mime','storageBackend','width','height','createdAt'],
-    )
+        fields: ['id', 'mime', 'width', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
+                 'aiDocumentType'],
+    ),
+    ui: ['columns' => 4, 'cardClass' => 'asset-card'],
 )]
 class Asset implements MarkingInterface, \Stringable
 {
@@ -136,6 +141,38 @@ class Asset implements MarkingInterface, \Stringable
      #[ORM\Column(type: Types::BOOLEAN)]
      public bool $hasOcr = false;
 
+     // ─────────────── AI task pipeline ───────────────
+
+     /**
+      * Ordered list of AI task names still to be executed.
+      * Example: ["classify", "extract_metadata", "generate_title"]
+      * A worker picks the first entry, runs it, then moves it to aiCompleted.
+      */
+     #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+     public array $aiQueue = [];
+
+     /**
+      * History of completed AI tasks.
+      * Each entry: { task: string, at: ISO-8601 string, result: mixed }
+      */
+     #[ORM\Column(type: Types::JSON, options: ['default' => '[]'])]
+     public array $aiCompleted = [];
+
+     /**
+      * When true the AI worker skips this asset entirely.
+      * Lets an operator pause processing (e.g. while reviewing results).
+      */
+     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
+     public bool $aiLocked = false;
+
+     // ── AI classification — kept as a real column for SQL WHERE in browse ────
+     // All other AI result fields (title, description, OCR text, keywords, etc.)
+     // are computed at normalisation time by AssetNormalizer from aiCompleted.
+
+     /** Classified document/object type — stored for SQL filtering only. */
+     #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+     public ?string $aiDocumentType = null;
+
      /** Client codes referencing this asset (additive). */
      #[ORM\Column(type: Types::JSON)]
      public array $clients = [];
@@ -232,7 +269,99 @@ class Asset implements MarkingInterface, \Stringable
 
     public function removeVariant(Variant $v): void
     {
-            $this->variants->removeElement($v);
-        }
+        $this->variants->removeElement($v);
+    }
 
+    // ── Computed AI accessors (read from aiCompleted — no DB columns) ─────────
+    // Used by Twig templates and anywhere that needs AI results without going
+    // through the serializer. The normalizer uses its own expandAiCompleted()
+    // for Meilisearch/API output; these are the entity-side equivalents.
+
+    /** @return array<string, mixed>  last successful result per task, keyed by task name */
+    public function aiResults(): array
+    {
+        $byTask = [];
+        foreach ($this->aiCompleted as $entry) {
+            $task = $entry['task'] ?? null;
+            if ($task && empty($entry['result']['failed']) && empty($entry['result']['skipped'])) {
+                $byTask[$task] = $entry['result'];
+            }
+        }
+        return $byTask;
+    }
+
+    public function getAiTitle(): ?string
+    {
+        $r = $this->aiResults();
+        return $r['generate_title']['title'] ?? null;
+    }
+
+    public function getAiDescription(): ?string
+    {
+        $r = $this->aiResults();
+        return $r['context_description']['description']
+            ?? $r['basic_description']['description']
+            ?? null;
+    }
+
+    public function getAiOcrText(): ?string
+    {
+        $r = $this->aiResults();
+        return $r['ocr_mistral']['text'] ?? $r['ocr']['text'] ?? $r['transcribe_handwriting']['text'] ?? null;
+    }
+
+    /** @return string[] */
+    public function getAiKeywords(): array
+    {
+        return $this->aiResults()['keywords']['keywords'] ?? [];
+    }
+
+    /** @return string[] */
+    public function getAiPeople(): array
+    {
+        $r = $this->aiResults();
+        return $r['people_and_places']['people'] ?? $r['extract_metadata']['people'] ?? [];
+    }
+
+    /** @return string[] */
+    public function getAiPlaces(): array
+    {
+        $r = $this->aiResults();
+        return $r['people_and_places']['places'] ?? $r['extract_metadata']['places'] ?? [];
+    }
+
+    /** @return string[] */
+    public function getAiOrganisations(): array
+    {
+        $r = $this->aiResults();
+        return array_values(array_unique(array_merge(
+            $r['people_and_places']['organisations'] ?? [],
+            $r['extract_metadata']['organisations'] ?? [],
+        )));
+    }
+
+    public function getAiDateRange(): ?string
+    {
+        return $this->aiResults()['extract_metadata']['dateRange'] ?? null;
+    }
+
+    public function getAiSummary(): ?string
+    {
+        return $this->aiResults()['summarize']['summary'] ?? null;
+    }
+
+    public function getAiDocumentSubtype(): ?string
+    {
+        return $this->aiResults()['classify']['subtype'] ?? null;
+    }
+
+    /** Total tokens spent across all completed tasks. */
+    public function getAiTokensTotal(): int
+    {
+        $total = 0;
+        foreach ($this->aiCompleted as $entry) {
+            $total += $entry['result']['_tokens']['total'] ?? 0;
+        }
+        return $total;
+    }
 }
