@@ -506,4 +506,7 @@ return [
     '@standard-schema/spec' => [
         'version' => '1.1.0',
     ],
+    'htmx.org' => [
+        'version' => '2.0.8',
+    ],
 ];

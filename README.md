@@ -121,6 +121,34 @@ Applications are required to maintain a thumbnail status, which the image server
 
 Also tests bad-bot, key-value.  
 
+## Probe API (polling fallback)
+
+If callbacks fail (e.g. local dev webhook endpoint is down), you can poll SAIS directly.
+
+Single asset probe (recommended for debugging one image):
+
+```bash
+curl -s "https://sais.wip/fetch/media/<asset_id>" | jq
+```
+
+Batch probe by ids:
+
+```bash
+curl -s "https://sais.wip/fetch/media/by-ids?id=<asset_id_1>,<asset_id_2>" | jq
+
+curl -s -X POST "https://sais.wip/fetch/media/by-ids" \
+  -H 'Content-Type: application/json' \
+  -d '{"ids": ["<asset_id_1>", "<asset_id_2>"]}' | jq
+```
+
+Probe response includes:
+
+* top-level asset fields (`id`, `source`, `marking`, `meta`)
+* `thumbs` and full `variants`
+* `context` (where OCR/AI enrichment is stored)
+* `children` (derived assets such as page/OCR children)
+* convenience mirrors `ocr` and `ai` from `context` when present
+
 
 ## Notes
 
