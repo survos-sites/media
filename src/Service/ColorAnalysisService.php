@@ -16,7 +16,10 @@ final class ColorAnalysisService
      */
     public function analyze(string $thumbFilename, int $top = 5, int $hueBuckets = 36): array
     {
-        $palette   = Palette::fromFilename($thumbFilename);
+        // Cap the palette at 500 colours — enough for meaningful analysis, prevents
+        // full-resolution images producing hundreds-of-thousands-entry histograms
+        // that blow up the JSON stored in Asset.context.
+        $palette   = Palette::fromFilename($thumbFilename, -1, 500);
         $extractor = new ColorExtractor($palette);
 
         // 1) Basic top-N palette (ints)
@@ -82,11 +85,11 @@ final class ColorAnalysisService
             ];
         }
 
-        // 6) Final object
+        // 6) Final object — dist is already sorted by count desc; keep only top-N
         return [
             'dominant'   => $dominant,
             'palette'    => array_values($topPalette),
-            'dist'       => $dist,
+            'dist'       => array_slice($dist, 0, $top),
             'avg'        => [
                 'rgb' => $avgRgb,
                 'hex' => self::rgbToHex($avgR, $avgG, $avgB),
