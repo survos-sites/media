@@ -22,13 +22,13 @@ ai:
             tools: false
 
         # ── Mistral vision agent (handwriting, complex layout) ────────────────
-        # pixstral-large-latest: best Mistral vision model, supports INPUT_IMAGE
+        # pixtral-large-latest: best Mistral vision model, supports INPUT_IMAGE
         # and OUTPUT_STRUCTURED. Used for handwriting transcription and layout
         # analysis where Mistral's document understanding outperforms GPT-4o.
         # Use the documented mistral-ocr-2512 model for production. ??
         mistral_vision:
             platform: 'ai.platform.mistral'
-            model: 'pixstral-large-latest'
+            model: 'pixtral-large-latest'
             prompt:
                 text: 'You are an expert at reading historical documents, handwriting, and complex page layouts. Return structured JSON only.'
             tools: false

@@ -45,6 +45,7 @@
         "phpstan/phpdoc-parser": "^2.3.2",
         "roave/better-reflection": "^6.69",
         "stof/doctrine-extensions-bundle": "^1.15.3",
+        "survos/ai-pipeline-bundle": "dev-main",
         "survos/babel-bundle": "^2.0.114",
         "survos/bootstrap-bundle": "^2.0.114",
         "survos/command-bundle": "^2.0.114",
@@ -117,7 +118,8 @@
     },
     "autoload": {
         "psr-4": {
-            "App\\": "src/"
+            "App\\": "src/",
+            "Survos\\AiPipelineBundle\\": "../mono/bu/ai-pipeline-bundle/src/"
         }
     },
     "autoload-dev": {

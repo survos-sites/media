@@ -1,38 +1,30 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Ai;
 
-use App\Ai\Task\AssetAiTaskInterface;
 use App\Entity\Asset;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Survos\AiPipelineBundle\Task\AiTaskInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Workflow\WorkflowInterface;
 
 /**
- * Picks the next task off an Asset's aiQueue, runs it, records the result,
- * and advances the workflow transition.
+ * Doctrine-aware runner: picks the next task off an Asset's aiQueue, runs it
+ * via the bundle's AiTaskInterface, records the result, and advances the workflow.
  *
- * Usage:
- *   $runner->runNext($asset);        // run one task
- *   $runner->runAll($asset);         // drain the whole queue
- *
- * The runner is intentionally single-task-per-call so that async workers
- * can checkpoint between tasks and the operator can lock mid-pipeline.
- *
- * Task classes are auto-discovered via the `ai.task` service tag.
- * See services.yaml for the tag configuration.
+ * Task classes are auto-discovered via the `ai_pipeline.task` service tag
+ * (registered in SurvosAiPipelineBundle via autoconfiguration on AiTaskInterface).
  */
 final class AssetAiTaskRunner
 {
-    /** @var array<string, AssetAiTaskInterface>  keyed by AssetAiTask::value */
+    /** @var array<string, AiTaskInterface>  keyed by task name (getTask()) */
     private array $tasks = [];
 
     /**
-     * @param iterable<AssetAiTaskInterface> $taskServices
+     * @param iterable<AiTaskInterface> $taskServices
      */
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -42,7 +34,7 @@ final class AssetAiTaskRunner
         iterable $taskServices = [],
     ) {
         foreach ($taskServices as $task) {
-            $this->tasks[$task->getTask()->value] = $task;
+            $this->tasks[$task->getTask()] = $task;
         }
     }
 
@@ -50,7 +42,6 @@ final class AssetAiTaskRunner
 
     /**
      * Run the next pending task from the asset's aiQueue.
-     *
      * Returns the task name that was run, or null if the queue was empty / locked.
      */
     public function runNext(Asset $asset): ?string
@@ -66,20 +57,22 @@ final class AssetAiTaskRunner
         }
 
         $taskName = array_shift($asset->aiQueue);
+        $handler  = $this->tasks[$taskName] ?? null;
 
-        $task = $this->tasks[$taskName] ?? null;
-        if ($task === null) {
+        if ($handler === null) {
             $this->logger->warning(
                 'AssetAiTaskRunner: unknown task "{task}" on asset {id}, skipping.',
                 ['task' => $taskName, 'id' => $asset->id],
             );
-            // Still record as completed (skipped) so the queue drains
             $this->recordCompleted($asset, $taskName, ['skipped' => true, 'reason' => 'task class not found']);
             $this->entityManager->flush();
             return $taskName;
         }
 
-        if (!$task->supports($asset)) {
+        // Build inputs from the asset
+        $inputs = $this->buildInputs($asset);
+
+        if (!$handler->supports($inputs, $asset->context ?? [])) {
             $this->logger->info(
                 'AssetAiTaskRunner: task "{task}" does not support asset {id}, skipping.',
                 ['task' => $taskName, 'id' => $asset->id],
@@ -97,26 +90,20 @@ final class AssetAiTaskRunner
         );
 
         try {
-            $result = $task->run($asset, $priorResults);
+            $result = $handler->run($inputs, $priorResults, $asset->context ?? []);
             $this->recordCompleted($asset, $taskName, $result);
         } catch (\Throwable $e) {
             $this->logger->error(
                 'AssetAiTaskRunner: task "{task}" failed on asset {id}: {error}',
                 ['task' => $taskName, 'id' => $asset->id, 'error' => $e->getMessage()],
             );
-            $this->recordCompleted($asset, $taskName, [
-                'error'   => $e->getMessage(),
-                'failed'  => true,
-            ]);
+            $this->recordCompleted($asset, $taskName, ['error' => $e->getMessage(), 'failed' => true]);
         }
 
-        // Advance workflow: stay in ai_ready if more tasks remain, else finish.
         if (empty($asset->aiQueue)) {
             $this->finishPipeline($asset);
         } else {
             if ($this->assetWorkflow->can($asset, WF::TRANSITION_AI_TASK)) {
-                // Stays in ai_ready; the marking doesn't actually change but
-                // the transition fires listeners / logs.
                 $this->assetWorkflow->apply($asset, WF::TRANSITION_AI_TASK);
             }
         }
@@ -127,8 +114,7 @@ final class AssetAiTaskRunner
     }
 
     /**
-     * Drain the entire aiQueue synchronously (use with caution in web context).
-     *
+     * Drain the entire aiQueue synchronously.
      * Returns the list of task names that were run.
      */
     public function runAll(Asset $asset): array
@@ -147,14 +133,16 @@ final class AssetAiTaskRunner
     /**
      * Populate aiQueue with the given task list and apply the queue_ai transition.
      *
-     * @param AssetAiTask[] $tasks
+     * @param string[]|AssetAiTask[] $tasks  Task names or AssetAiTask enum cases
      */
     public function enqueue(Asset $asset, array $tasks): void
     {
-        $asset->aiQueue = array_merge(
-            $asset->aiQueue,
-            array_map(fn(AssetAiTask $t): string => $t->value, $tasks),
+        $names = array_map(
+            fn($t): string => $t instanceof AssetAiTask ? $t->value : (string) $t,
+            $tasks,
         );
+
+        $asset->aiQueue = array_merge($asset->aiQueue, $names);
 
         if ($this->assetWorkflow->can($asset, WF::TRANSITION_QUEUE_AI)) {
             $this->assetWorkflow->apply($asset, WF::TRANSITION_QUEUE_AI);
@@ -165,6 +153,19 @@ final class AssetAiTaskRunner
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Build the inputs array from an Asset for passing to AiTaskInterface::run().
+     *
+     * @return array<string, mixed>
+     */
+    private function buildInputs(Asset $asset): array
+    {
+        return array_filter([
+            'image_url' => $asset->smallUrl ?? $asset->archiveUrl ?? $asset->originalUrl ?? null,
+            'mime'      => $asset->mime ?? null,
+        ], fn($v) => $v !== null);
+    }
+
     private function recordCompleted(Asset $asset, string $taskName, array $result): void
     {
         $asset->aiCompleted[] = [
@@ -173,15 +174,11 @@ final class AssetAiTaskRunner
             'result' => $result,
         ];
 
-        // aiDocumentType is the one field kept as a real column (for SQL WHERE).
         if ($taskName === AssetAiTask::CLASSIFY->value
             && empty($result['failed']) && empty($result['skipped'])
         ) {
             $asset->aiDocumentType = $result['type'] ?? null;
         }
-
-        // Everything else (title, description, OCR text, keywords, etc.) is
-        // computed from aiCompleted by AssetNormalizer at serialisation time.
     }
 
     private function finishPipeline(Asset $asset): void
@@ -192,8 +189,6 @@ final class AssetAiTaskRunner
     }
 
     /**
-     * Build an array of prior results keyed by task name for easy lookup.
-     *
      * @return array<string, array>
      */
     private function indexedPriorResults(Asset $asset): array
@@ -207,23 +202,12 @@ final class AssetAiTaskRunner
         return $index;
     }
 
-    /**
-     * Strip large/irrelevant keys from a prior result before passing it to
-     * downstream tasks via their prompts.
-     *
-     * - raw_response: full Mistral OCR API payload — can be several MB
-     * - blocks: per-page block arrays — useful only to LayoutTask which reads
-     *   raw_response directly; other tasks only need the text
-     * - text: cap at 8 000 chars — enough context for any downstream prompt
-     */
     private function sanitisePriorResult(array $result): array
     {
         unset($result['raw_response'], $result['blocks']);
-
         if (isset($result['text']) && strlen($result['text']) > 8000) {
             $result['text'] = mb_substr($result['text'], 0, 8000) . "\n[… truncated for context]";
         }
-
         return $result;
     }
 }

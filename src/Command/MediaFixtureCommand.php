@@ -9,6 +9,7 @@ use App\Ai\AssetAiTaskRunner;
 use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Survos\AiPipelineBundle\Task\AiTaskRegistry;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -38,6 +39,7 @@ final class MediaFixtureCommand extends Command
         private readonly EntityManagerInterface $em,
         private readonly AssetRepository $assetRepository,
         private readonly AssetAiTaskRunner $runner,
+        private readonly AiTaskRegistry $taskRegistry,
         #[Autowire('%kernel.project_dir%')]
         private readonly string $projectDir,
     ) {
@@ -105,16 +107,12 @@ final class MediaFixtureCommand extends Command
             return Command::SUCCESS;
         }
 
-        $taskEnum     = null;
         $taskName     = $input->getOption('task');
         $pipelineName = $input->getOption('pipeline');
 
-        if ($taskName !== null) {
-            $taskEnum = AssetAiTask::tryFrom($taskName);
-            if ($taskEnum === null) {
-                $io->error("Unknown task: {$taskName}. Valid values: " . implode(', ', array_column(AssetAiTask::cases(), 'value')));
-                return Command::FAILURE;
-            }
+        if ($taskName !== null && !$this->taskRegistry->has($taskName)) {
+            $io->error("Unknown task: {$taskName}. Valid values: " . implode(', ', array_keys($this->taskRegistry->getTaskMap())));
+            return Command::FAILURE;
         }
 
         $pipelineTasks = null;
@@ -156,19 +154,19 @@ final class MediaFixtureCommand extends Command
             }
 
             // ── Run task ──────────────────────────────────────────────────────
-            if ($taskEnum !== null) {
+            if ($taskName !== null) {
                 // Check the fixture declares this task (warn but don't skip)
-                if (!in_array($taskEnum->value, $f['tasks'] ?? [], true)) {
-                    $io->warning("  Fixture '{$f['id']}' does not list task '{$taskEnum->value}' — running anyway.");
+                if (!in_array($taskName, $f['tasks'] ?? [], true)) {
+                    $io->warning("  Fixture '{$f['id']}' does not list task '{$taskName}' — running anyway.");
                 }
-                $asset->aiQueue = [$taskEnum->value, ...$asset->aiQueue];
+                $asset->aiQueue = [$taskName, ...$asset->aiQueue];
                 $this->em->flush();
 
                 try {
                     $this->runner->runNext($asset);
-                    $io->success("  Task {$taskEnum->value} completed.");
+                    $io->success("  Task {$taskName} completed.");
                 } catch (\Throwable $e) {
-                    $io->error("  Task {$taskEnum->value} failed: " . $e->getMessage());
+                    $io->error("  Task {$taskName} failed: " . $e->getMessage());
                 }
             }
 

@@ -39,3 +39,4 @@ shared
 
 .castor.stub.php
 .DS_Store
+.env.prod

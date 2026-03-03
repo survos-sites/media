@@ -1,8 +1,6 @@
 # This file is the entry point to configure your own services.
 # Files in the packages/ subdirectory configure your dependencies.
 
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
 
 services:
@@ -17,10 +15,11 @@ services:
         resource: '../src/'
 
     # ── AI task pipeline ──────────────────────────────────────────────────────
-    # Auto-tag every class implementing AssetAiTaskInterface so the runner
-    # can collect them all via tagged_iterator.
+    # AiTaskInterface implementations are auto-tagged as ai_pipeline.task by
+    # SurvosAiPipelineBundle (via autoconfiguration). We also collect them here
+    # for the Doctrine-aware AssetAiTaskRunner.
     _instanceof:
-        App\Ai\Task\AssetAiTaskInterface:
+        Survos\AiPipelineBundle\Task\AiTaskInterface:
             tags: ['app.ai_task']
 
     App\Ai\AssetAiTaskRunner:
@@ -28,7 +27,4 @@ services:
             $taskServices: !tagged_iterator app.ai_task
 
     App\Controller\AiRegistryController:
-        arguments:
-            $taskServices: !tagged_iterator app.ai_task
         tags: ['controller.service_arguments']
-

@@ -212,6 +212,9 @@
             "config/packages/stof_doctrine_extensions.yaml"
         ]
     },
+    "survos/ai-pipeline-bundle": {
+        "version": "dev-main"
+    },
     "survos/api-grid-bundle": {
         "version": "1.5.508"
     },

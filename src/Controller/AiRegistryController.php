@@ -1,11 +1,10 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Controller;
 
 use App\Ai\AssetAiTask;
-use App\Ai\Task\AssetAiTaskInterface;
+use Survos\AiPipelineBundle\Task\AiTaskRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -13,44 +12,36 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/ai', name: 'asset_')]
 final class AiRegistryController extends AbstractController
 {
-    /**
-     * @param iterable<AssetAiTaskInterface> $taskServices
-     */
     public function __construct(
-        private readonly iterable $taskServices,
+        private readonly AiTaskRegistry $registry,
     ) {
     }
 
     #[Route('/tasks', name: 'task_registry')]
     public function registry(): Response
     {
-        // Build a map: task value → registered service class
-        $registered = [];
-        foreach ($this->taskServices as $service) {
-            $registered[$service->getTask()->value] = [
-                'class'   => $service::class,
-                'service' => $service,
-            ];
-        }
+        $taskMap = $this->registry->getTaskMap();
+
+        // Build a display list enriched with pipeline membership
+        $quickValues = array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::quickScanPipeline());
+        $fullValues  = array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::fullEnrichmentPipeline());
 
         $tasks = [];
-        foreach (AssetAiTask::cases() as $case) {
+        foreach ($taskMap as $taskName => $serviceId) {
             $tasks[] = [
-                'enum'       => $case,
-                'value'      => $case->value,
-                'name'       => $case->name,
-                'registered' => isset($registered[$case->value]),
-                'class'      => $registered[$case->value]['class'] ?? null,
-                'inQuick'    => in_array($case, AssetAiTask::quickScanPipeline(), true),
-                'inFull'     => in_array($case, AssetAiTask::fullEnrichmentPipeline(), true),
+                'value'      => $taskName,
+                'registered' => true,
+                'class'      => basename(str_replace('\\', '/', $serviceId)),
+                'inQuick'    => in_array($taskName, $quickValues, true),
+                'inFull'     => in_array($taskName, $fullValues, true),
             ];
         }
 
         return $this->render('ai/registry.html.twig', [
             'tasks'     => $tasks,
             'pipelines' => [
-                'quick' => AssetAiTask::quickScanPipeline(),
-                'full'  => AssetAiTask::fullEnrichmentPipeline(),
+                'quick' => $quickValues,
+                'full'  => $fullValues,
             ],
         ]);
     }

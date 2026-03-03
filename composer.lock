@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "862aceb3e00ef18c54a12ed64e1e901f",
+    "content-hash": "902310effc3f7dafbf3769a5d74671d1",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -6763,6 +6763,53 @@
                 "source": "https://github.com/stof/StofDoctrineExtensionsBundle/tree/v1.15.3"
             },
             "time": "2026-01-23T08:45:07+00:00"
+        },
+        {
+            "name": "survos/ai-pipeline-bundle",
+            "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/survos/ai-pipeline-bundle.git",
+                "reference": "44288a3c7df61646f0d3e11eb771fea3e8caa3f8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/survos/ai-pipeline-bundle/zipball/44288a3c7df61646f0d3e11eb771fea3e8caa3f8",
+                "reference": "44288a3c7df61646f0d3e11eb771fea3e8caa3f8",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "symfony/framework-bundle": "^7.0|^8.0"
+            },
+            "default-branch": true,
+            "type": "symfony-bundle",
+            "extra": {
+                "symfony": {
+                    "require": "^7.0|^8.0"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Survos\\AiPipelineBundle\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Generic AI task pipeline bundle for Symfony — vision, text, audio, and beyond",
+            "support": {
+                "issues": "https://github.com/survos/ai-pipeline-bundle/issues",
+                "source": "https://github.com/survos/ai-pipeline-bundle/tree/main"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/kbond",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-02-27T11:14:55+00:00"
         },
         {
             "name": "survos/babel-bundle",
@@ -19574,7 +19621,8 @@
     "stability-flags": {
         "knplabs/knp-menu": 20,
         "meilisearch/meilisearch-php": 20,
-        "roave/security-advisories": 20
+        "roave/security-advisories": 20,
+        "survos/ai-pipeline-bundle": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

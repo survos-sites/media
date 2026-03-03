@@ -1,0 +1,2 @@
+survos_ai_pipeline:
+    store_dir: '%kernel.project_dir%/var/ai-results'

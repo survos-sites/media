@@ -2517,6 +2517,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         store?: string|Param, // Service name of store // Default: "Symfony\\AI\\Store\\StoreInterface"
  *     }>,
  * }
+ * @psalm-type SurvosAiPipelineConfig = array{
+ *     store_dir?: scalar|Param|null, // Directory for JsonFileResultStore output. // Default: "%kernel.project_dir%/var/ai-results"
+ *     disabled_tasks?: list<scalar|Param|null>,
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -2556,6 +2560,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     survos_doc?: SurvosDocConfig,
  *     survos_media?: SurvosMediaConfig,
  *     ai?: AiConfig,
+ *     survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2601,6 +2606,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_doc?: SurvosDocConfig,
  *         survos_media?: SurvosMediaConfig,
  *         ai?: AiConfig,
+ *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -2641,6 +2647,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_doc?: SurvosDocConfig,
  *         survos_media?: SurvosMediaConfig,
  *         ai?: AiConfig,
+ *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -2684,6 +2691,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_doc?: SurvosDocConfig,
  *         survos_media?: SurvosMediaConfig,
  *         ai?: AiConfig,
+ *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

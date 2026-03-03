@@ -10,6 +10,7 @@ use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\ORM\EntityManagerInterface;
+use Survos\AiPipelineBundle\Task\AiTaskRegistry;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -51,6 +52,7 @@ final class MediaTaskCommand
         private readonly AssetRepository $assetRepository,
         private readonly AssetAiTaskRunner $runner,
         private readonly EntityManagerInterface $entityManager,
+        private readonly AiTaskRegistry $taskRegistry,
         #[Target(WF::WORKFLOW_NAME)]
         private readonly WorkflowInterface $assetWorkflow,
     ) {
@@ -180,10 +182,10 @@ final class MediaTaskCommand
 
         $io->section('Available task names:');
         $rows = [];
-        foreach (AssetAiTask::cases() as $case) {
-            $rows[] = [$case->value, $case->name];
+        foreach ($this->taskRegistry->getTaskMap() as $name => $serviceId) {
+            $rows[] = [$name, basename(str_replace('\\', '/', $serviceId))];
         }
-        $io->table(['Task name', 'Constant'], $rows);
+        $io->table(['Task name', 'Handler'], $rows);
 
         return Command::SUCCESS;
     }
@@ -204,10 +206,9 @@ final class MediaTaskCommand
     private function runNamedTask(SymfonyStyle $io, Asset $asset, string $taskName, bool $json): int
     {
         // Validate task name
-        $taskEnum = AssetAiTask::tryFrom($taskName);
-        if ($taskEnum === null) {
+        if (!$this->taskRegistry->has($taskName)) {
             $io->error("Unknown task \"{$taskName}\".");
-            $io->comment('Valid task names: ' . implode(', ', array_column(AssetAiTask::cases(), 'value')));
+            $io->comment('Valid task names: ' . implode(', ', array_keys($this->taskRegistry->getTaskMap())));
             return Command::FAILURE;
         }
 

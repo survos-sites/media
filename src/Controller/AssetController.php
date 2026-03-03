@@ -6,12 +6,11 @@ namespace App\Controller;
 
 use App\Ai\AssetAiTask;
 use App\Ai\AssetAiTaskRunner;
-use App\Ai\Task\AssetAiTaskInterface;
 use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Survos\AiPipelineBundle\Task\AiTaskRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\DependencyInjection\Attribute\TaggedIterator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,26 +19,17 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/media', name: 'asset_')]
 final class AssetController extends AbstractController
 {
-    /** @var array<string, array>  taskValue => getMeta() result, built once */
-    private array $taskMetaCache = [];
-
     public function __construct(
         private readonly AssetRepository $assetRepository,
         private readonly AssetAiTaskRunner $runner,
         private readonly EntityManagerInterface $em,
-        #[TaggedIterator('app.ai_task')]
-        private readonly iterable $taskServices = [],
+        private readonly AiTaskRegistry $taskRegistry,
     ) {
     }
 
     private function taskMeta(): array
     {
-        if ($this->taskMetaCache === []) {
-            foreach ($this->taskServices as $service) {
-                $this->taskMetaCache[$service->getTask()->value] = $service->getMeta();
-            }
-        }
-        return $this->taskMetaCache;
+        return $this->taskRegistry->getMeta();
     }
 
     /** Browse grid — most recent first, simple pagination. */
@@ -106,8 +96,6 @@ final class AssetController extends AbstractController
     #[Route('/{id}', name: 'show')]
     public function show(Asset $asset): Response
     {
-        $tasks = AssetAiTask::cases();
-
         // Index completed results for template convenience
         $completedMap = [];
         foreach ($asset->aiCompleted as $entry) {
@@ -116,12 +104,12 @@ final class AssetController extends AbstractController
 
         return $this->render('asset/show.html.twig', [
             'asset'        => $asset,
-            'tasks'        => $tasks,
+            'tasks'        => array_keys($this->taskRegistry->getTaskMap()),
             'taskMeta'     => $this->taskMeta(),
             'completedMap' => $completedMap,
             'pipelines'    => [
-                'quick' => AssetAiTask::quickScanPipeline(),
-                'full'  => AssetAiTask::fullEnrichmentPipeline(),
+                'quick' => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::quickScanPipeline()),
+                'full'  => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::fullEnrichmentPipeline()),
             ],
         ]);
     }
@@ -133,8 +121,7 @@ final class AssetController extends AbstractController
     #[Route('/{id}/task/{taskName}', name: 'run_task', methods: ['POST'])]
     public function runTask(Asset $asset, string $taskName, Request $request): Response
     {
-        $taskEnum = AssetAiTask::tryFrom($taskName);
-        if ($taskEnum === null) {
+        if (!$this->taskRegistry->has($taskName)) {
             if ($request->isXmlHttpRequest() || $request->headers->get('HX-Request')) {
                 return new JsonResponse(['error' => "Unknown task: {$taskName}"], 400);
             }
@@ -188,6 +175,7 @@ final class AssetController extends AbstractController
             'full'  => AssetAiTask::fullEnrichmentPipeline(),
             default => null,
         };
+        // $tasks is array<AssetAiTask> — runner->enqueue() accepts enum or string
 
         if ($tasks === null) {
             $this->addFlash('danger', "Unknown pipeline: {$name}");

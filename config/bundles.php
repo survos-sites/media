@@ -47,4 +47,5 @@ return [
     Survos\JsonlBundle\SurvosJsonlBundle::class => ['all' => true],
     Survos\MediaBundle\SurvosMediaBundle::class => ['all' => true],
     Symfony\AI\AiBundle\AiBundle::class => ['all' => true],
+    Survos\AiPipelineBundle\SurvosAiPipelineBundle::class => ['all' => true],
 ];
