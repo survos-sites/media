@@ -205,7 +205,21 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
                  }
              }
 
-             $asset->context = $context;
+             // Merge only safe scalar/small context keys — never store bulk AI results
+             // (OCR blobs, raw_response, image_base64, etc.) which can be 50-150MB.
+             $safeKeys = ['tenant', 'path', 'image_id', 'tasks', 'callback_url',
+                          'root', 'sha256', 'ocr_chars', 'thumbhash', 'colors',
+                          'phash', 'contentHash'];
+             $asset->context ??= [];
+             foreach ($safeKeys as $key) {
+                 if (array_key_exists($key, $context)) {
+                     $asset->context[$key] = $context[$key];
+                 }
+             }
+             // OCR plain text is useful but must be capped to avoid OOM on large scans
+             if (isset($context['ocr']) && is_string($context['ocr'])) {
+                 $asset->context['ocr'] = mb_substr($context['ocr'], 0, 20000);
+             }
              $this->entityManager->persist($asset);
             // add the filters so we have them for after download.
             $filters = $asset->resized??[];
