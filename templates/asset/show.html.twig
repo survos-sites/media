@@ -18,28 +18,20 @@
     {# ── LEFT: image + core metadata ────────────────────────────────────────── #}
     <div class="col-lg-5">
 
-      {# Image preview — OpenSeadragon IIIF viewer #}
+      {# Image preview — IIIF viewer component #}
+      {% set meta %}{{ asset.mime|default('unknown') }}{% if asset.width and asset.height %} · {{ asset.width }}×{{ asset.height }}{% endif %}{% if asset.size %} · {{ (asset.size / 1024)|round }}KB{% endif %}{% endset %}
       <div class="card mb-3">
-        <div class="card-body p-0" style="background:#111;">
-          <div id="osd-viewer"
-               data-info-url="{{ url('iiif_image_info', {id: asset.id}) }}"
-               style="width:100%;height:420px;"></div>
+        <div class="card-body p-0">
+          <twig:iiif:viewer
+            infoUrl="{{ url('iiif_image_info', {id: asset.id}) }}"
+            manifestUrl="{{ url('iiif_manifest', {id: asset.id}) }}"
+            miradorUrl="{{ url('iiif_mirador', {id: asset.id}) }}"
+            uvUrl="{{ url('iiif_uv', {id: asset.id}) }}"
+            meta="{{ meta }}"
+          />
         </div>
-        <div class="card-footer small text-muted d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <span>{{ asset.mime|default('unknown') }}
-            {% if asset.width and asset.height %}
-              · {{ asset.width }}×{{ asset.height }}
-            {% endif %}
-            {% if asset.size %}
-              · {{ (asset.size / 1024)|round }}KB
-            {% endif %}
-          </span>
-          <div class="d-flex gap-2">
-            <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
-            <a href="{{ url('iiif_manifest', {id: asset.id}) }}" target="_blank" class="btn btn-xs btn-ghost-secondary">IIIF ↗</a>
-            <a href="https://projectmirador.org/embed/?iiif-content={{ url('iiif_manifest', {id: asset.id})|url_encode }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Mirador ↗</a>
-            <a href="https://demo.universalviewer.io/uv.html?manifest={{ url('iiif_manifest', {id: asset.id})|url_encode }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Universal Viewer ↗</a>
-          </div>
+        <div class="card-footer small text-muted">
+          <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
         </div>
       </div>
 
@@ -304,30 +296,9 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
   <script type="module">
     import 'htmx.org';
     import { Popover } from 'bootstrap';
-    import OpenSeadragon from 'openseadragon';
 
     document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
       new Popover(el, { html: false });
     });
-
-    // ── OpenSeadragon IIIF viewer ────────────────────────────────────────────
-    const osdEl = document.getElementById('osd-viewer');
-    if (osdEl) {
-      const infoUrl = osdEl.dataset.infoUrl;
-      OpenSeadragon({
-        id: 'osd-viewer',
-        prefixUrl: 'https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.1/images/',
-        tileSources: infoUrl,
-        showNavigator: true,
-        navigatorPosition: 'BOTTOM_RIGHT',
-        gestureSettingsMouse: { scrollToZoom: true },
-        showRotationControl: true,
-        showFlipControl: false,
-        minZoomLevel: 0.5,
-        defaultZoomLevel: 0,
-        visibilityRatio: 0.5,
-        constrainDuringPan: false,
-      });
-    }
   </script>
 {% endblock %}

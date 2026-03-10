@@ -77,6 +77,26 @@ final class IiifController extends AbstractController
         return new RedirectResponse($url, 302);
     }
 
+    #[Route('/iiif/3/{id}/mirador', name: 'iiif_mirador', methods: ['GET'])]
+    public function mirador(string $id): RedirectResponse
+    {
+        $manifestUrl = $this->generateUrl('iiif_manifest', ['id' => $id], UrlGeneratorInterface::ABSOLUTE_URL);
+        return new RedirectResponse(
+            'https://projectmirador.org/embed/?iiif-content=' . urlencode($manifestUrl),
+            302,
+        );
+    }
+
+    #[Route('/iiif/3/{id}/uv', name: 'iiif_uv', methods: ['GET'])]
+    public function universalViewer(string $id): RedirectResponse
+    {
+        $manifestUrl = $this->generateUrl('iiif_manifest', ['id' => $id], UrlGeneratorInterface::ABSOLUTE_URL);
+        return new RedirectResponse(
+            'https://demo.universalviewer.io/uv.html?manifest=' . urlencode($manifestUrl),
+            302,
+        );
+    }
+
     #[Route('/iiif/3/{id}/manifest', name: 'iiif_manifest', methods: ['GET'])]
     public function manifest(string $id): JsonResponse
     {
