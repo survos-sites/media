@@ -39,7 +39,7 @@
             <div class="text-muted py-5">No preview available</div>
           {% endif %}
         </div>
-        <div class="card-footer small text-muted d-flex justify-content-between align-items-center">
+        <div class="card-footer small text-muted d-flex justify-content-between align-items-center flex-wrap gap-2">
           <span>{{ asset.mime|default('unknown') }}
             {% if asset.width and asset.height %}
               · {{ asset.width }}×{{ asset.height }}
@@ -48,7 +48,12 @@
               · {{ (asset.size / 1024)|round }}KB
             {% endif %}
           </span>
-          <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
+          <div class="d-flex gap-2">
+            <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
+            <a href="{{ url('iiif_manifest', {id: asset.id}) }}" target="_blank" class="btn btn-xs btn-ghost-secondary">IIIF ↗</a>
+            <a href="https://projectmirador.org/embed/?manifest={{ url('iiif_manifest', {id: asset.id})|url_encode }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Mirador ↗</a>
+            <a href="https://universalviewer.io/uv/uv.html?manifest={{ url('iiif_manifest', {id: asset.id})|url_encode }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Universal Viewer ↗</a>
+          </div>
         </div>
       </div>
 
@@ -211,9 +216,9 @@
           #}
           <div class="row g-2" id="task-grid" hx-sync="this:queue sequential">
             {% for task in tasks %}
-              {% set isDone = completedMap[task.value] is defined %}
-              {% set hasFailed = isDone and (completedMap[task.value].result.failed is defined) %}
-              {% set meta = taskMeta[task.value] ?? {} %}
+              {% set isDone = completedMap[task] is defined %}
+              {% set hasFailed = isDone and (completedMap[task].result.failed is defined) %}
+              {% set meta = taskMeta[task] ?? {} %}
               {% set popContent %}agent: {{ meta.agent|default('?') }}
 model: {{ meta.model|default('—') }}
 platform: {{ meta.platform|default('—') }}
@@ -224,20 +229,18 @@ platform: {{ meta.platform|default('—') }}
                             {{ isDone ? (hasFailed ? 'border-danger' : 'border-success') : 'border-secondary-subtle' }}"
                      style="{{ isDone and not hasFailed ? 'background:#f6fdf6' : '' }}">
                   <form method="post"
-                        action="{{ path('asset_run_task', {id: asset.id, taskName: task.value}) }}"
-                        hx-post="{{ path('asset_run_task', {id: asset.id, taskName: task.value}) }}"
-                        hx-target="#task-log"
-                        hx-swap="afterbegin"
-                        hx-indicator="#spinner-{{ task.value }}">
+action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
+                        hx-post="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
+                        hx-indicator="#spinner-{{ task }}">
                     <button class="btn btn-sm {{ isDone ? (hasFailed ? 'btn-danger' : 'btn-success') : 'btn-primary' }}"
-                            title="{{ isDone ? 'Re-run' : 'Run' }} {{ task.value }}">
-                      <span id="spinner-{{ task.value }}" class="htmx-indicator spinner-border spinner-border-sm" role="status"></span>
+                            title="{{ isDone ? 'Re-run' : 'Run' }} {{ task }}">
+                      <span id="spinner-{{ task }}" class="htmx-indicator spinner-border spinner-border-sm" role="status"></span>
                       <span class="htmx-indicator-hide">{{ isDone ? '↺' : '▶' }}</span>
                     </button>
                   </form>
                   <div class="flex-grow-1 min-width-0">
-                    <div class="fw-semibold small">{{ task.value }}</div>
-                    <div class="text-muted" style="font-size:0.7rem;">{{ task.name|lower|replace({'_': ' '}) }}</div>
+                    <div class="fw-semibold small">{{ task }}</div>
+                    <div class="text-muted" style="font-size:0.7rem;">{{ task|lower|replace({'_': ' '}) }}</div>
                   </div>
                   {# Info icon — popover with agent/model/prompt on hover #}
                   <span class="text-muted ms-auto flex-shrink-0"
@@ -245,7 +248,7 @@ platform: {{ meta.platform|default('—') }}
                         data-bs-toggle="popover"
                         data-bs-trigger="hover focus"
                         data-bs-placement="left"
-                        data-bs-title="{{ task.value }}"
+                        data-bs-title="{{ task }}"
                         data-bs-content="{{ popContent|e('html_attr') }}"
                         data-bs-custom-class="task-popover">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"

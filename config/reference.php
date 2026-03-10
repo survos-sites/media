@@ -2079,6 +2079,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             deploymentId?: scalar|Param|null, // Default: null
  *             label?: scalar|Param|null, // Human-readable label used in dynamic prompts (defaults to indexName) // Default: null
  *             detailUrlPattern?: scalar|Param|null, // URL pattern for item detail pages; use {id} as placeholder e.g. /product/{id} // Default: null
+ *             schemaUrl?: scalar|Param|null, // Optional OpenAPI schema URL used to explain field meanings in collection overview responses // Default: null
  *             examples?: list<scalar|Param|null>,
  *             prompts?: array{ // Static prompt overrides — these win over dynamic template rendering
  *                 system?: scalar|Param|null, // Default: null

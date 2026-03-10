@@ -20,11 +20,11 @@ services:
     # for the Doctrine-aware AssetAiTaskRunner.
     _instanceof:
         Survos\AiPipelineBundle\Task\AiTaskInterface:
-            tags: ['app.ai_task']
+            tags: ['ai_pipeline.task']
 
     App\Ai\AssetAiTaskRunner:
         arguments:
-            $taskServices: !tagged_iterator app.ai_task
+            $taskServices: !tagged_iterator ai_pipeline.task
 
     App\Controller\AiRegistryController:
         tags: ['controller.service_arguments']
