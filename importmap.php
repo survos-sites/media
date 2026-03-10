@@ -509,4 +509,10 @@ return [
     'htmx.org' => [
         'version' => '2.0.8',
     ],
+    '@tacman1123/twig-browser' => [
+        'version' => '0.4.12',
+    ],
+    '@tacman1123/twig-browser/src/compat/compileTwigBlocks.js' => [
+        'version' => '0.4.12',
+    ],
 ];

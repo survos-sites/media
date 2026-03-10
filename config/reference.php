@@ -1678,7 +1678,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     lifetime?: int|Param, // The length of time in seconds that a signed URI is valid for after it is created. // Default: 3600
  * }
  * @psalm-type SurvosTreeConfig = array{
- *     stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/tree"
+ *     tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/tree"
+ *     api_tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/api_tree"
+ *     stimulus_controller?: scalar|Param|null, // Deprecated: The "stimulus_controller" option is deprecated, use "api_tree_stimulus_controller" and/or "tree_stimulus_controller" instead. // Default: null
  * }
  * @psalm-type ApiPlatformConfig = array{
  *     title?: scalar|Param|null, // The title of the API. // Default: ""
@@ -2010,6 +2012,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type SurvosMeiliConfig = array{
  *     core_name?: scalar|Param|null, // Default: "core"
  *     enabled?: bool|Param, // Default: true
+ *     meiliUiUrl?: scalar|Param|null, // Base URL of the Meilisearch UI (riccox). Used to generate per-index links. Override via MEILI_UI_URL env var. // Default: "http://127.0.0.1:24900/ins/0"
  *     host?: scalar|Param|null, // Default: "%env(default::MEILI_SERVER)%"
  *     apiKey?: scalar|Param|null, // Default: "%env(default::MEILI_ADMIN_KEY)%"
  *     transport?: scalar|Param|null, // Default: "%env(default::MEILI_TRANSPORT)%"
@@ -2061,6 +2064,29 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         allow_hidden?: bool|Param, // Default: false
  *         cache_control?: scalar|Param|null, // Default: "private, max-age=60"
  *         roots?: list<scalar|Param|null>,
+ *     },
+ *     chat?: array{
+ *         workspaces?: array<string, array{ // Default: []
+ *             source?: scalar|Param|null, // LLM provider: openAi | azureOpenAi | mistral | gemini | vLlm // Default: "openAi"
+ *             apiKey?: scalar|Param|null, // Provider API key (use %env(OPENAI_API_KEY)%) // Default: null
+ *             model?: scalar|Param|null, // Model sent in each completion request (not stored in workspace settings) // Default: "gpt-4o-mini"
+ *             baseUrl?: scalar|Param|null, // Default: null
+ *             orgId?: scalar|Param|null, // Default: null
+ *             projectId?: scalar|Param|null, // Default: null
+ *             apiVersion?: scalar|Param|null, // Default: null
+ *             deploymentId?: scalar|Param|null, // Default: null
+ *             label?: scalar|Param|null, // Human-readable label used in dynamic prompts (defaults to indexName) // Default: null
+ *             detailUrlPattern?: scalar|Param|null, // URL pattern for item detail pages; use {id} as placeholder e.g. /product/{id} // Default: null
+ *             schemaUrl?: scalar|Param|null, // Optional OpenAPI schema URL used to explain field meanings in collection overview responses // Default: null
+ *             examples?: list<scalar|Param|null>,
+ *             prompts?: array{ // Static prompt overrides — these win over dynamic template rendering
+ *                 system?: scalar|Param|null, // Default: null
+ *                 searchFilterParam?: scalar|Param|null, // Default: null
+ *                 searchDescription?: scalar|Param|null, // Default: null
+ *                 searchQParam?: scalar|Param|null, // Default: null
+ *             },
+ *             indexes?: list<scalar|Param|null>,
+ *         }>,
  *     },
  * }
  * @psalm-type SurvosCodeConfig = array{

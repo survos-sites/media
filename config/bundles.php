@@ -48,4 +48,5 @@ return [
     Survos\MediaBundle\SurvosMediaBundle::class => ['all' => true],
     Symfony\AI\AiBundle\AiBundle::class => ['all' => true],
     Survos\AiPipelineBundle\SurvosAiPipelineBundle::class => ['all' => true],
+    Survos\IiifBundle\SurvosIiifBundle::class => ['all' => true],
 ];

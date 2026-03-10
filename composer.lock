@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "902310effc3f7dafbf3769a5d74671d1",
+    "content-hash": "c88faaa6e12396b77e8f681486d5808b",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -7363,6 +7363,60 @@
                 }
             ],
             "time": "2025-10-27T12:45:39+00:00"
+        },
+        {
+            "name": "survos/iiif-bundle",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/survos/iiif-bundle.git",
+                "reference": "dd7974eb204353e62f58f50a79a187e8c763cfe5"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/survos/iiif-bundle/zipball/dd7974eb204353e62f58f50a79a187e8c763cfe5",
+                "reference": "dd7974eb204353e62f58f50a79a187e8c763cfe5",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.4",
+                "symfony/framework-bundle": "^8.0",
+                "symfony/serializer": "^8.0"
+            },
+            "require-dev": {
+                "justinrainbow/json-schema": "^6.0",
+                "phpstan/extension-installer": "^1.4",
+                "phpstan/phpstan": "^2.0",
+                "phpunit/phpunit": "^13",
+                "roave/security-advisories": "dev-latest"
+            },
+            "type": "symfony-bundle",
+            "extra": {
+                "symfony": {
+                    "bundle": "Survos\\IiifBundle\\SurvosIiifBundle"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Survos\\IiifBundle\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "PHP 8.4+ Symfony bundle for generating IIIF Presentation API 3.0 manifests",
+            "support": {
+                "issues": "https://github.com/survos/iiif-bundle/issues",
+                "source": "https://github.com/survos/iiif-bundle/tree/1.0.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/kbond",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-03-10T11:35:29+00:00"
         },
         {
             "name": "survos/installer",
