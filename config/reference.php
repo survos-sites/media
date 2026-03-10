@@ -1939,19 +1939,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ...<mixed>
  *     },
  * }
- * @psalm-type FosJsRoutingConfig = array{
- *     serializer?: scalar|Param|null,
- *     routes_to_expose?: list<scalar|Param|null>,
- *     router?: scalar|Param|null, // Default: "router"
- *     request_context_base_url?: scalar|Param|null, // Default: null
- *     cache_control?: array{
- *         public?: bool|Param, // Default: false
- *         expires?: scalar|Param|null, // Default: null
- *         maxage?: scalar|Param|null, // Default: null
- *         smaxage?: scalar|Param|null, // Default: null
- *         vary?: list<scalar|Param|null>,
- *     },
- * }
  * @psalm-type DoctrineDiagramConfig = array{
  *     er?: array{
  *         filename?: scalar|Param|null, // Default: "%kernel.project_dir%/er"
@@ -2614,7 +2601,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     symfonycasts_verify_email?: SymfonycastsVerifyEmailConfig,
  *     survos_tree?: SurvosTreeConfig,
  *     api_platform?: ApiPlatformConfig,
- *     fos_js_routing?: FosJsRoutingConfig,
  *     survos_google_sheets?: SurvosGoogleSheetsConfig,
  *     survos_crawler?: SurvosCrawlerConfig,
  *     zenstruck_messenger_monitor?: ZenstruckMessengerMonitorConfig,
@@ -2659,7 +2645,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         symfonycasts_verify_email?: SymfonycastsVerifyEmailConfig,
  *         survos_tree?: SurvosTreeConfig,
  *         api_platform?: ApiPlatformConfig,
- *         fos_js_routing?: FosJsRoutingConfig,
  *         doctrine_diagram?: DoctrineDiagramConfig,
  *         survos_google_sheets?: SurvosGoogleSheetsConfig,
  *         survos_crawler?: SurvosCrawlerConfig,
@@ -2703,7 +2688,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         symfonycasts_verify_email?: SymfonycastsVerifyEmailConfig,
  *         survos_tree?: SurvosTreeConfig,
  *         api_platform?: ApiPlatformConfig,
- *         fos_js_routing?: FosJsRoutingConfig,
  *         survos_google_sheets?: SurvosGoogleSheetsConfig,
  *         survos_crawler?: SurvosCrawlerConfig,
  *         zenstruck_messenger_monitor?: ZenstruckMessengerMonitorConfig,
@@ -2746,7 +2730,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         symfonycasts_verify_email?: SymfonycastsVerifyEmailConfig,
  *         survos_tree?: SurvosTreeConfig,
  *         api_platform?: ApiPlatformConfig,
- *         fos_js_routing?: FosJsRoutingConfig,
  *         doctrine_diagram?: DoctrineDiagramConfig,
  *         survos_google_sheets?: SurvosGoogleSheetsConfig,
  *         survos_crawler?: SurvosCrawlerConfig,
