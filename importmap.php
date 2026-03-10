@@ -521,4 +521,7 @@ return [
     '@tacman1123/twig-browser/adapters/symfony' => [
         'version' => '0.4.12',
     ],
+    'openseadragon' => [
+        'version' => '6.0.1',
+    ],
 ];
