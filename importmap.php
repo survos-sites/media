@@ -515,4 +515,10 @@ return [
     '@tacman1123/twig-browser/src/compat/compileTwigBlocks.js' => [
         'version' => '0.4.12',
     ],
+    'dexie' => [
+        'version' => '4.3.0',
+    ],
+    '@tacman1123/twig-browser/adapters/symfony' => [
+        'version' => '0.4.12',
+    ],
 ];

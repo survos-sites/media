@@ -49,4 +49,5 @@ return [
     Symfony\AI\AiBundle\AiBundle::class => ['all' => true],
     Survos\AiPipelineBundle\SurvosAiPipelineBundle::class => ['all' => true],
     Survos\IiifBundle\SurvosIiifBundle::class => ['all' => true],
+    Survos\JsTwigBundle\SurvosJsTwigBundle::class => ['all' => true],
 ];
