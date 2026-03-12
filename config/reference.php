@@ -2571,6 +2571,60 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         response_key?: scalar|Param|null, // key if API returns an object response, e.g. dummyjson returns {'products': [...]}
  *     }>,
  * }
+ * @psalm-type ImgproxyConfig = array{
+ *     host?: scalar|Param|null,
+ *     media_url?: scalar|Param|null,
+ *     signature?: array{
+ *         key?: scalar|Param|null,
+ *         salt?: scalar|Param|null,
+ *     },
+ *     default_preset_settings?: array{
+ *         format?: scalar|Param|null, // Default: "webp"
+ *         encode?: bool|Param, // Default: true
+ *     },
+ *     presets?: array<string, array{ // Default: []
+ *         format?: scalar|Param|null, // Default: null
+ *         encode?: bool|Param|null, // Default: null
+ *         options?: array{
+ *             resize?: array{
+ *                 resizing_type?: "fit"|"fill"|"fill-down"|"force"|"auto"|Param, // Default: "fit"
+ *                 width?: int|Param, // Default: 0
+ *                 height?: int|Param, // Default: 0
+ *                 enlarge?: bool|Param,
+ *                 extend?: array{
+ *                     extend?: bool|Param, // Default: false
+ *                     gravity?: array{
+ *                         type?: "no"|"so"|"ea"|"we"|"noea"|"nowe"|"soea"|"sowe"|"ce"|Param, // Default: "ce"
+ *                         x_offset?: int|Param, // Default: 0
+ *                         y_offset?: int|Param, // Default: 0
+ *                     },
+ *                 },
+ *             },
+ *             rotate?: array{
+ *                 angle?: 0|90|180|270|Param,
+ *             },
+ *             height?: array{
+ *                 height?: int|Param,
+ *             },
+ *             width?: array{
+ *                 width?: int|Param,
+ *             },
+ *             blur?: array{
+ *                 sigma?: float|Param,
+ *             },
+ *             quality?: array{
+ *                 quality?: int|Param,
+ *             },
+ *             watermark?: array{
+ *                 opacity?: float|Param,
+ *                 position?: "ce"|"no"|"so"|"ea"|"we"|"noea"|"nowe"|"soea"|"sowe"|"re"|Param, // Default: "ce"
+ *                 x_offset?: int|Param, // Default: 0
+ *                 y_offset?: int|Param, // Default: 0
+ *                 scale?: float|Param, // Default: 0
+ *             },
+ *         },
+ *     }>,
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -2611,6 +2665,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     ai?: AiConfig,
  *     survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     survos_js_twig?: SurvosJsTwigConfig,
+ *     imgproxy?: ImgproxyConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2657,6 +2712,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         imgproxy?: ImgproxyConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -2698,6 +2754,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         imgproxy?: ImgproxyConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -2742,6 +2799,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         imgproxy?: ImgproxyConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

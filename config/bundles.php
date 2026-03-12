@@ -49,4 +49,5 @@ return [
     Survos\AiPipelineBundle\SurvosAiPipelineBundle::class => ['all' => true],
     Survos\IiifBundle\SurvosIiifBundle::class => ['all' => true],
     Survos\JsTwigBundle\SurvosJsTwigBundle::class => ['all' => true],
+    Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
 ];

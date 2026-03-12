@@ -41,10 +41,10 @@ return [
         'type' => 'css',
     ],
     'simple-datatables' => [
-        'version' => '10.2.0',
+        'version' => '9.2.2',
     ],
     'simple-datatables/dist/style.min.css' => [
-        'version' => '10.2.0',
+        'version' => '9.2.2',
         'type' => 'css',
     ],
     'thumbhash' => [
@@ -343,10 +343,10 @@ return [
         'type' => 'css',
     ],
     '@meilisearch/instant-meilisearch' => [
-        'version' => '0.30.0',
+        'version' => '0.29.1',
     ],
     'meilisearch' => [
-        'version' => '0.55.0',
+        'version' => '0.54.0',
     ],
     '@stimulus-components/dialog' => [
         'version' => '1.0.1',

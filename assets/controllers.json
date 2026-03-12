@@ -7,6 +7,12 @@
                 "autoimport": []
             }
         },
+        "@survos/iiif-bundle": {
+            "iiif-viewer": {
+                "enabled": true,
+                "fetch": "lazy"
+            }
+        },
         "@survos/js-twig-bundle": {
             "dexie": {
                 "enabled": true,
@@ -51,13 +57,6 @@
             "api_tree": {
                 "enabled": true,
                 "fetch": "lazy"
-            }
-        },
-        "@survos/iiif-bundle": {
-            "iiif-viewer": {
-                "enabled": true,
-                "fetch": "lazy",
-                "autoimport": []
             }
         }
     },
