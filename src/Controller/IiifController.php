@@ -36,12 +36,12 @@ final class IiifController extends AbstractController
         }
 
         return $this->json([
-            '@context' => 'http://iiif.io/api/image/2/context.json',
+            '@context' => 'https://iiif.io/api/image/2/context.json',
             '@id' => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL),
-            'protocol' => 'http://iiif.io/api/image',
+            'protocol' => 'https://iiif.io/api/image',
             'width' => $width,
             'height' => $height,
-            'profile' => ['http://iiif.io/api/image/2/level0.json'],
+            'profile' => ['https://iiif.io/api/image/2/level0.json'],
             'tiles' => [],
             'sizes' => $sizes,
         ]);
@@ -137,7 +137,7 @@ final class IiifController extends AbstractController
         $label = $asset->context['title'] ?? ('Asset ' . $asset->id);
 
         return $this->json([
-            '@context' => 'http://iiif.io/api/presentation/3/context.json',
+            '@context' => 'https://iiif.io/api/presentation/3/context.json',
             'id' => $manifestId,
             'type' => 'Manifest',
             'label' => ['en' => [(string) $label]],
