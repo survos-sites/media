@@ -18,6 +18,12 @@
     {# ── LEFT: image + core metadata ────────────────────────────────────────── #}
     <div class="col-lg-5">
 
+      <div class="card mb-3">
+        <div class="card-body">
+          <div id="mirador" style="width: 100%; min-height: 512px;"></div>
+        </div>
+      </div>
+
       {# Image preview — IIIF viewer component #}
       {% set meta %}{{ asset.mime|default('unknown') }}{% if asset.width and asset.height %} · {{ asset.width }}×{{ asset.height }}{% endif %}{% if asset.size %} · {{ (asset.size / 1024)|round }}KB{% endif %}{% endset %}
       <div class="card mb-3">
@@ -299,6 +305,21 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
 
     document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
       new Popover(el, { html: false });
+    });
+
+    const miradorInstance = Mirador.viewer({
+      id: "mirador",
+      windows: [
+        {
+          loadedManifest: "https://api.digitale-sammlungen.de/iiif/presentation/v2/bsb12024369/manifest", // Example manifest
+        }
+      ],
+      window: {
+        defaultSideBarPanel: "info", // Shows metadata by default
+      },
+      workspace: {
+        showZoomControls: true
+      }
     });
   </script>
 {% endblock %}

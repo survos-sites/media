@@ -6,7 +6,7 @@
     {% block javascripts %}
         {{ parent() }}
         {{ importmap('app') }}
-
+        <script src="https://unpkg.com/mirador/dist/mirador.min.js"></script>
     {% endblock %}
 
     {% block stylesheets %}
