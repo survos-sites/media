@@ -137,4 +137,50 @@ final class AssetRegistry
         return $imgproxyUrl;
 
     }
+
+    public function imgProxyUrlWithCrop(
+        Asset $asset,
+        ?array $crop,
+        ?int $resizeW,
+        ?int $resizeH,
+        bool $bestFit = false,
+        ?string $effect = null
+    ): string {
+        $options = [];
+
+        if ($crop !== null) {
+            [$x, $y, $w, $h] = $crop;
+            $options[] = new \Mperonnet\ImgProxy\Options\Crop(
+                $w,
+                $h,
+                \Mperonnet\ImgProxy\Options\Gravity::northWest((float) $x, (float) $y)
+            );
+        }
+
+        if ($resizeW || $resizeH) {
+            $options[] = new \Mperonnet\ImgProxy\Options\Resize($bestFit ? 'fit' : 'fill');
+            $options[] = new \Mperonnet\ImgProxy\Options\Width($resizeW ?? 0);
+            $options[] = new \Mperonnet\ImgProxy\Options\Height($resizeH ?? 0);
+        }
+
+        if ($effect === 'grayscale') {
+            $options[] = new \Mperonnet\ImgProxy\Options\Monochrome();
+        }
+
+        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
+            $this->imgproxyKey,
+            $this->imgproxySalt
+        )->with(...$options);
+
+        if ($asset->storageKey) {
+            $source = $this->s3Url($asset);
+        } else {
+            $source = $asset->originalUrl;
+            $builder = $builder->usePlain();
+        }
+
+        $path = $builder->url($source, 'jpg');
+
+        return rtrim($this->imgproxyBaseUrl, '/') . $path;
+    }
 }

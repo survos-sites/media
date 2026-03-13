@@ -18,16 +18,19 @@
     {# ── LEFT: image + core metadata ────────────────────────────────────────── #}
     <div class="col-lg-5">
 
+      {#
       <div class="card mb-3">
         <div class="card-body">
           <div id="mirador" style="width: 100%; min-height: 512px;"></div>
         </div>
       </div>
+      #}
 
       {# Image preview — IIIF viewer component #}
       {% set meta %}{{ asset.mime|default('unknown') }}{% if asset.width and asset.height %} · {{ asset.width }}×{{ asset.height }}{% endif %}{% if asset.size %} · {{ (asset.size / 1024)|round }}KB{% endif %}{% endset %}
       <div class="card mb-3">
         <div class="card-body p-0">
+          {#
           <twig:iiif:viewer
             infoUrl="{{ url('iiif_image_info', {id: asset.id}) }}"
             manifestUrl="{{ url('iiif_manifest', {id: asset.id}) }}"
@@ -35,8 +38,12 @@
             uvUrl="{{ url('iiif_uv', {id: asset.id}) }}"
             meta="{{ meta }}"
           />
+          #}
+          <div id="openseadragon" style="width: 100%; min-height: 512px;"></div>
         </div>
         <div class="card-footer small text-muted">
+          {{ url('iiif_image_info', {id: asset.id}) }}
+          {{ url('iiif_manifest', {id: asset.id}) }}
           <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
         </div>
       </div>
@@ -294,6 +301,18 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
       color: #333;
     }
     .popover { max-width: 380px; }
+
+    .openseadragon-container {
+      height: 512px !important;
+    }
+
+    .iiif-annotation {
+      box-sizing: border-box;
+      transition: background 0.15s;
+    }
+    .iiif-annotation:hover {
+      background: rgba(255, 100, 0, 0.25) !important;
+    }
   </style>
 {% endblock %}
 
@@ -307,6 +326,7 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
       new Popover(el, { html: false });
     });
 
+    /*
     const miradorInstance = Mirador.viewer({
       id: "mirador",
       windows: [
@@ -320,6 +340,61 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
       workspace: {
         showZoomControls: true
       }
+    });
+    */
+
+    const osd = OpenSeadragon({
+      id: 'openseadragon',
+      prefixUrl: 'https://cdn.jsdelivr.net/npm/openseadragon@6.0.1/build/openseadragon/images/',
+      crossOriginPolicy: false,
+      tileSources: [{
+        manifest: '{{ url("iiif_manifest", {id: asset.id}) }}',
+        tileSource: '{{ url("iiif_image_info", {id: asset.id})|raw }}'
+      }],
+    });
+
+    osd.addHandler('open', async function() {
+  const manifestUrl = '{{ url("iiif_manifest", {id: asset.id})|raw }}';
+  const manifest = await fetch(manifestUrl).then(r => r.json());
+
+  const annotationPages = manifest.items?.[0]?.annotations ?? [];
+
+  for (const pageRef of annotationPages) {
+    const page = await fetch(pageRef.id).then(r => r.json());
+    console.log('annotations loaded:', page.items);
+
+    // Render each annotation as an OSD overlay
+    for (const annotation of page.items) {
+      const target = annotation.target;
+
+      // Handle xywh fragment e.g. canvas#xywh=100,200,300,400
+      const match = typeof target === 'string' && target.match(/#xywh=(\d+),(\d+),(\d+),(\d+)/);
+      if (match) {
+        const [, x, y, w, h] = match.map(Number);
+        const canvasW = manifest.items[0].width;
+        const canvasH = manifest.items[0].height;
+
+        // Convert canvas pixel coords to OSD viewport coords (0-1)
+        const rect = osd.viewport.imageToViewportRectangle(x, y, w, h);
+
+        const el = document.createElement('div');
+        el.className = 'iiif-annotation';
+        el.title = annotation.body?.value ?? '';
+        el.style.cssText = 'border: 2px solid rgba(255,100,0,0.8); background: rgba(255,100,0,0.1); pointer-events: auto; cursor: pointer;';
+
+        el.addEventListener('click', () => {
+          console.log('annotation clicked:', annotation);
+        });
+
+        osd.addOverlay({ element: el, location: rect });
+      }
+    }
+  }
+});
+
+    osd.addHandler('open-failed', function(event) {
+      console.error('open-failed message:', event.message);
+      console.error('open-failed source:', event.source);
     });
   </script>
 {% endblock %}

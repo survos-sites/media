@@ -8,6 +8,7 @@ use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -23,6 +24,7 @@ final class IiifController extends AbstractController
     ) {
     }
 
+    /*
     #[Route('/iiif/2/{id}/info.json', name: 'iiif_image_info', methods: ['GET'])]
     public function info(string $id): JsonResponse
     {
@@ -36,13 +38,61 @@ final class IiifController extends AbstractController
         }
 
         return $this->json([
-            '@context' => 'https://iiif.io/api/image/2/context.json',
+            '@context' => 'http://iiif.io/api/image/2/context.json',
             '@id' => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL),
-            'protocol' => 'https://iiif.io/api/image',
+            'protocol' => 'http://iiif.io/api/image',
             'width' => $width,
             'height' => $height,
-            'profile' => ['https://iiif.io/api/image/2/level0.json'],
+            'profile' => ['http://iiif.io/api/image/2/level0.json'],
             'tiles' => [],
+            'sizes' => $sizes,
+        ]);
+    }
+    */
+
+    #[Route('/iiif/2/{id}/info.json', name: 'iiif_image_info', methods: ['GET'])]
+    public function info(string $id): JsonResponse
+    {
+        $asset = $this->findAsset($id);
+        [$width, $height] = $this->dimensions($asset);
+
+        $sizes = [];
+        foreach ([192, 600, 1200] as $w) {
+            $sizes[] = [
+                'width'  => $w,
+                'height' => (int) round($w * $height / $width),
+            ];
+        }
+
+        return $this->json([
+            '@context' => 'http://iiif.io/api/image/2/context.json',
+            '@id'      => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL),
+            'protocol' => 'http://iiif.io/api/image',
+            'width'    => (int) $width,
+            'height'   => (int) $height,
+            'profile'  => [
+                'http://iiif.io/api/image/2/level2.json',
+                [
+                    'formats'   => ['jpg'],
+                    'qualities' => ['default', 'gray'],
+                    'supports'  => [
+                        'regionByPx',
+                        'regionByPct',
+                        'sizeByW',
+                        'sizeByH',
+                        'sizeByWh',
+                        'sizeByForcedWh',
+                        'sizeByConfinedWh',
+                    ],
+                ],
+            ],
+            'tiles' => [
+                [
+                    'width'        => 256,
+                    'height'       => 256,
+                    'scaleFactors' => [1, 2, 4, 8, 16, 32],
+                ],
+            ],
             'sizes' => $sizes,
         ]);
     }
@@ -53,6 +103,7 @@ final class IiifController extends AbstractController
         return $this->info($id);
     }
 
+    /*
     #[Route('/iiif/2/{id}/{region}/{size}/{rotation}/{quality}.{format}', name: 'iiif_image', methods: ['GET'])]
     public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): RedirectResponse
     {
@@ -75,6 +126,78 @@ final class IiifController extends AbstractController
         $url = $this->assetRegistry->imgProxyUrl($asset, $preset);
 
         return new RedirectResponse($url, 302);
+    }
+    */
+
+    #[Route('/iiif/2/{id}/{region}/{size}/{rotation}/{quality}.{format}', name: 'iiif_image', methods: ['GET'])]
+    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): Response
+    {
+        $asset = $this->findAsset($id);
+        [$fullWidth, $fullHeight] = $this->dimensions($asset);
+
+        if ($format !== 'jpg' && $format !== 'jpeg') {
+            throw new BadRequestHttpException('Only jpg is supported.');
+        }
+
+        // ── Region ────────────────────────────────────────────────────────────
+        $crop = null;
+        if ($region === 'full' || $region === 'max') {
+            $crop = null;
+        } elseif (preg_match('/^(\d+),(\d+),(\d+),(\d+)$/', $region, $m)) {
+            $crop = [(int)$m[1], (int)$m[2], (int)$m[3], (int)$m[4]]; // x,y,w,h
+        } elseif (preg_match('/^pct:([\d.]+),([\d.]+),([\d.]+),([\d.]+)$/', $region, $m)) {
+            $crop = [
+                (int)round((float)$m[1] / 100 * $fullWidth),
+                (int)round((float)$m[2] / 100 * $fullHeight),
+                (int)round((float)$m[3] / 100 * $fullWidth),
+                (int)round((float)$m[4] / 100 * $fullHeight),
+            ];
+        } else {
+            throw new BadRequestHttpException('Unsupported region: ' . $region);
+        }
+
+        // ── Size ──────────────────────────────────────────────────────────────
+        $resizeW = null;
+        $resizeH = null;
+        $bestFit = false;
+
+        if ($size === 'full' || $size === 'max') {
+            // no resize
+        } elseif (preg_match('/^(\d+),$/', $size, $m)) {
+            $resizeW = (int)$m[1];
+        } elseif (preg_match('/^,(\d+)$/', $size, $m)) {
+            $resizeH = (int)$m[1];
+        } elseif (preg_match('/^!(\d+),(\d+)$/', $size, $m)) {
+            $resizeW = (int)$m[1];
+            $resizeH = (int)$m[2];
+            $bestFit = true;
+        } elseif (preg_match('/^(\d+),(\d+)$/', $size, $m)) {
+            $resizeW = (int)$m[1];
+            $resizeH = (int)$m[2];
+        } else {
+            throw new BadRequestHttpException('Unsupported size: ' . $size);
+        }
+
+        // ── Build imgproxy URL ────────────────────────────────────────────────
+        $url = $this->assetRegistry->imgProxyUrlWithCrop(
+            $asset,
+            $crop,
+            $resizeW,
+            $resizeH,
+            $bestFit,
+            $quality === 'gray' ? 'grayscale' : null
+        );
+
+        $imageContents = file_get_contents($url);
+        if ($imageContents === false) {
+            throw $this->createNotFoundException('Failed to fetch tile from imgproxy');
+        }
+
+        return new Response($imageContents, 200, [
+            'Content-Type'                => 'image/jpeg',
+            'Cache-Control'               => 'public, max-age=86400',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
     }
 
     #[Route('/iiif/3/{id}/mirador', name: 'iiif_mirador', methods: ['GET'])]
@@ -137,7 +260,7 @@ final class IiifController extends AbstractController
         $label = $asset->context['title'] ?? ('Asset ' . $asset->id);
 
         return $this->json([
-            '@context' => 'https://iiif.io/api/presentation/3/context.json',
+            '@context' => 'http://iiif.io/api/presentation/3/context.json',
             'id' => $manifestId,
             'type' => 'Manifest',
             'label' => ['en' => [(string) $label]],
