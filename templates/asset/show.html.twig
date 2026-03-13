@@ -32,18 +32,18 @@
         <div class="card-body p-0">
           {#
           <twig:iiif:viewer
-            infoUrl="{{ url('iiif_image_info', {id: asset.id}) }}"
-            manifestUrl="{{ url('iiif_manifest', {id: asset.id}) }}"
-            miradorUrl="{{ url('iiif_mirador', {id: asset.id}) }}"
-            uvUrl="{{ url('iiif_uv', {id: asset.id}) }}"
+            infoUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
+            manifestUrl="{{ path('iiif_manifest', {id: asset.id}) }}"
+            miradorUrl="{{ path('iiif_mirador', {id: asset.id}) }}"
+            uvUrl="{{ path('iiif_uv', {id: asset.id}) }}"
             meta="{{ meta }}"
           />
           #}
           <div id="openseadragon" style="width: 100%; min-height: 512px;"></div>
         </div>
         <div class="card-footer small text-muted">
-          {{ url('iiif_image_info', {id: asset.id}) }}
-          {{ url('iiif_manifest', {id: asset.id}) }}
+          {{ path('iiif_image_info', {id: asset.id}) }}
+          {{ path('iiif_manifest', {id: asset.id}) }}
           <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
         </div>
       </div>
@@ -343,18 +343,19 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
     });
     */
 
+    {# why are we doing this and not our stimulus controller? #}
     const osd = OpenSeadragon({
       id: 'openseadragon',
       prefixUrl: 'https://cdn.jsdelivr.net/npm/openseadragon@6.0.1/build/openseadragon/images/',
       crossOriginPolicy: false,
       tileSources: [{
-        manifest: '{{ url("iiif_manifest", {id: asset.id}) }}',
-        tileSource: '{{ url("iiif_image_info", {id: asset.id})|raw }}'
+        manifest: '{{ path("iiif_manifest", {id: asset.id}) }}',
+        tileSource: '{{ path("iiif_image_info", {id: asset.id})|raw }}'
       }],
     });
 
     osd.addHandler('open', async function() {
-  const manifestUrl = '{{ url("iiif_manifest", {id: asset.id})|raw }}';
+  const manifestUrl = '{{ path("iiif_manifest", {id: asset.id})|raw }}';
   const manifest = await fetch(manifestUrl).then(r => r.json());
 
   const annotationPages = manifest.items?.[0]?.annotations ?? [];

@@ -23,6 +23,7 @@ return [
     'MEILI_PREFIX' => null,
     'MEILI_SERVER' => null,
     'MESSENGER_TRANSPORT_DSN' => null,
+    'MISTRAL_API_KEY' => null,
     'MY_API_KEY' => null,
     'OPENAI_API_KEY' => null,
     'REDIS' => null,
