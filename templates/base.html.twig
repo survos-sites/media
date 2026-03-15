@@ -6,8 +6,6 @@
     {% block javascripts %}
         {{ parent() }}
         {{ importmap('app') }}
-        <script src="https://cdn.jsdelivr.net/npm/openseadragon@6.0.1/build/openseadragon/openseadragon.min.js"></script>
-        <script src="https://unpkg.com/mirador/dist/mirador.min.js"></script>
     {% endblock %}
 
     {% block stylesheets %}
@@ -15,5 +13,3 @@
         <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">
         {{ parent() }}
     {% endblock %}
-
-

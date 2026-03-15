@@ -52,6 +52,12 @@
                 "enabled": true,
                 "fetch": "lazy"
             }
+        },
+        "@survos/iiif-bundle": {
+            "iiif-viewer": {
+                "enabled": true,
+                "fetch": "lazy"
+            }
         }
     },
     "entrypoints": []

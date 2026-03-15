@@ -22,233 +22,263 @@
     {# ── LEFT: image + core metadata ────────────────────────────────────────── #}
     <div class="col-lg-5">
 
-      {#
-      <div class="card mb-3">
-        <div class="card-body">
-          <div id="mirador" style="width: 100%; min-height: 512px;"></div>
-        </div>
-      </div>
-      #}
-
       {# Image preview — IIIF viewer component #}
       {% set meta %}{{ asset.mime|default('unknown') }}{% if asset.width and asset.height %} · {{ asset.width }}×{{ asset.height }}{% endif %}{% if asset.size %} · {{ (asset.size / 1024)|round }}KB{% endif %}{% endset %}
       <div class="card mb-3">
-        <div class="card-body p-0">
-          {#
-          <twig:iiif:viewer
-            infoUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
-            manifestUrl="{{ path('iiif_manifest', {id: asset.id}) }}"
-            miradorUrl="{{ path('iiif_mirador', {id: asset.id}) }}"
-            uvUrl="{{ path('iiif_uv', {id: asset.id}) }}"
-            meta="{{ meta }}"
-          />
-          #}
-          {% if useIiif %}
-            <div id="openseadragon" style="width: 100%; min-height: 512px;"></div>
-          {% else %}
-            <div class="simple-zoom-wrap" id="simple-zoom-wrap">
-              <img
-                id="simple-zoom-image"
-                src="{{ zoomImageUrl }}"
-                {% if zoomFallbackUrl %}data-fallback-src="{{ zoomFallbackUrl }}"{% endif %}
-                alt="Asset preview"
-                class="simple-zoom-image"
-                loading="eager"
-              >
-            </div>
-          {% endif %}
+        <div class="card-header">
+          <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+            <li class="nav-item">
+              <a href="#tabs-image-iiif" class="nav-link active" data-bs-toggle="tab">
+                {% if useIiif %} IIIF {% else %} Image {% endif %}
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#tabs-ocr" class="nav-link" data-bs-toggle="tab">OCR</a>
+            </li>
+            <li class="nav-item">
+              <a href="#tabs-source-metadata" class="nav-link" data-bs-toggle="tab">Source Metadata</a>
+            </li>
+            <li class="nav-item">
+              <a href="#tabs-ai-metadata" class="nav-link" data-bs-toggle="tab">AI Metadata</a>
+            </li>
+          </ul>
         </div>
-        <div class="card-footer small text-muted">
-          {% if useIiif %}
-            {{ path('iiif_image_info', {id: asset.id}) }}
-            {{ path('iiif_manifest', {id: asset.id}) }}
-            <a href="{{ path('asset_show', {id: asset.id}) }}" class="btn btn-xs btn-outline-secondary ms-1">Simple zoom</a>
-          {% else %}
-            <span>Simple zoom mode</span>
-            <a href="{{ path('asset_show', {id: asset.id, iiif: 'true'}) }}" class="btn btn-xs btn-outline-secondary ms-1">Try IIIF mode</a>
-          {% endif %}
-          <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
-        </div>
-      </div>
-
-      {# ── Source metadata from DC / aggregator context ────────────────────── #}
-      {% set ctx = asset.sourceMeta %}
-      {% if ctx %}
-        <div class="card mb-3">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="card-title mb-0">Source Metadata</h4>
-            {% if ctx.aggregator is defined %}
-              <span class="badge bg-blue-lt">{{ ctx.aggregator }}</span>
-            {% endif %}
-          </div>
-          <div class="card-body small p-2">
-            <table class="table table-sm table-borderless mb-0">
-
-              {% macro row(label, value) %}
-                {% if value %}
-                  <tr>
-                    <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap;">{{ label }}</th>
-                    <td>{{ value }}</td>
-                  </tr>
-                {% endif %}
-              {% endmacro %}
-
-              {% macro rowBadges(label, values) %}
-                {% if values %}
-                  <tr>
-                    <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap;">{{ label }}</th>
-                    <td>
-                      {% for v in values %}<span class="badge bg-secondary-lt me-1">{{ v }}</span>{% endfor %}
-                    </td>
-                  </tr>
-                {% endif %}
-              {% endmacro %}
-
-              {{ _self.row('Title',       ctx['dcterms:title']|default(null)) }}
-              {{ _self.row('Date',        ctx['dcterms:date']|default(null)) }}
-              {{ _self.row('Type',        ctx['dcterms:type']|default(null)) }}
-              {{ _self.row('Institution', ctx['dcterms:publisher']|default(null)) }}
-              {{ _self.rowBadges('Creator',    ctx['dcterms:creator']|default([])) }}
-              {{ _self.rowBadges('Subject',    ctx['dcterms:subject']|default([])) }}
-              {{ _self.rowBadges('Collection', ctx['dcterms:isPartOf']|default([])) }}
-              {{ _self.row('Rights',      ctx.rights|default(null)) }}
-              {{ _self.row('License',     ctx.license_uri|default(null)) }}
-
-              {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
-                <tr>
-                  <th class="text-muted fw-normal pe-3">Source</th>
-                  <td><a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener">{{ ctx['dcterms:source']|slice(0,60) }}{% if ctx['dcterms:source']|length > 60 %}…{% endif %}</a></td>
-                </tr>
-              {% endif %}
-
-              {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
-                <tr>
-                  <th class="text-muted fw-normal pe-3">IIIF Manifest</th>
-                  <td>
-                    <a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">manifest ↗</a>
-                  </td>
-                </tr>
-              {% endif %}
-
-              {% if ctx.iiif_base is defined and ctx.iiif_base %}
-                <tr>
-                  <th class="text-muted fw-normal pe-3">Thumbnail</th>
-                  <td>
-                    <a href="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" target="_blank" rel="noopener">
-                      <img src="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg"
-                           alt="thumbnail"
-                           style="max-width:120px;max-height:120px;border-radius:4px;"
-                           loading="lazy">
-                    </a>
-                    <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ ctx.iiif_base }}</div>
-                  </td>
-                </tr>
-                <tr>
-                  <th class="text-muted fw-normal pe-3">IIIF sizes</th>
-                  <td class="d-flex gap-1 flex-wrap">
-                    {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'medium': '!800,800', 'max': 'max'} %}
-                      <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg"
-                         target="_blank" rel="noopener"
-                         class="btn btn-xs btn-ghost-secondary">{{ label }}</a>
-                    {% endfor %}
-                  </td>
-                </tr>
-              {% endif %}
-
-              {% if ctx.source_ark is defined and ctx.source_ark %}
-                <tr>
-                  <th class="text-muted fw-normal pe-3">ARK</th>
-                  <td><code>{{ ctx.source_ark }}</code></td>
-                </tr>
-              {% endif %}
-
-            </table>
-          </div>
-        </div>
-      {% endif %}
-
-      {# Core AI fields #}
-      <div class="card mb-3">
-        <div class="card-header"><h4 class="card-title">AI Metadata</h4></div>
         <div class="card-body">
+          <div class="tab-content">
 
-          {% if asset.aiTitle %}
-            <div class="mb-2">
-              <div class="small text-muted">Title</div>
-              <div class="fw-semibold">{{ asset.aiTitle }}</div>
+            <div id="tabs-image-iiif" class="tab-pane active show">
+              <div class="card">
+                <div class="card-body p-0">
+                  {% if useIiif %}
+                    <twig:iiif:viewer
+                      manifestUrl="{{ path('iiif_manifest', {id: asset.id}) }}"
+                      tileSourceUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
+                      options="{{ {
+
+                      } | json_encode(constant('JSON_FORCE_OBJECT')) }}"
+                      style="border-radius: var(--tblr-card-border-radius) var(--tblr-card-border-radius) 0 0;"
+                      meta="{{ meta }}"
+                      miradorUrl="{{ path('iiif_mirador', {id: asset.id}) }}"
+                      uvUrl="{{ path('iiif_uv', {id: asset.id}) }}"
+                      showLinks="{{ true }}"
+                    />
+                  {% else %}
+                    <div class="simple-zoom-wrap" id="simple-zoom-wrap">
+                      <img
+                        id="simple-zoom-image"
+                        src="{{ zoomImageUrl }}"
+                        {% if zoomFallbackUrl %}data-fallback-src="{{ zoomFallbackUrl }}"{% endif %}
+                        alt="Asset preview"
+                        class="simple-zoom-image"
+                        loading="eager"
+                      >
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="card-footer small text-muted">
+                  {% if useIiif %}
+                    {{ path('iiif_image_info', {id: asset.id}) }}
+                    {{ path('iiif_manifest', {id: asset.id}) }}
+                    <a href="{{ path('asset_show', {id: asset.id}) }}" class="btn btn-xs btn-outline-secondary ms-1">Simple zoom</a>
+                  {% else %}
+                    <span>Simple zoom mode</span>
+                    <a href="{{ path('asset_show', {id: asset.id, iiif: 'true'}) }}" class="btn btn-xs btn-outline-secondary ms-1">Try IIIF mode</a>
+                  {% endif %}
+                  <a href="{{ asset.originalUrl }}" target="_blank" class="btn btn-xs btn-ghost-secondary">Original ↗</a>
+                </div>
+              </div>
             </div>
-          {% endif %}
 
-          {% if asset.aiDocumentType %}
-            <div class="mb-2">
-              <div class="small text-muted">Type</div>
-              <span class="badge bg-blue">{{ asset.aiDocumentType }}</span>
-              {% if asset.aiDocumentSubtype %}
-                <span class="badge bg-blue-lt ms-1">{{ asset.aiDocumentSubtype }}</span>
+            <div id="tabs-ocr" class="tab-pane">
+              OCR
+            </div>
+
+            <div id="tabs-source-metadata" class="tab-pane">
+              {# ── Source metadata from DC / aggregator context ────────────────────── #}
+              {% set ctx = asset.sourceMeta %}
+              {% if ctx %}
+                <div class="card">
+                  <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">Source Metadata</h4>
+                    {% if ctx.aggregator is defined %}
+                      <span class="badge bg-blue-lt">{{ ctx.aggregator }}</span>
+                    {% endif %}
+                  </div>
+                  <div class="card-body small p-2">
+                    <table class="table table-sm table-borderless mb-0">
+
+                      {% macro row(label, value) %}
+                        {% if value %}
+                          <tr>
+                            <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap;">{{ label }}</th>
+                            <td>{{ value }}</td>
+                          </tr>
+                        {% endif %}
+                      {% endmacro %}
+
+                      {% macro rowBadges(label, values) %}
+                        {% if values %}
+                          <tr>
+                            <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap;">{{ label }}</th>
+                            <td>
+                              {% for v in values %}<span class="badge bg-secondary-lt me-1">{{ v }}</span>{% endfor %}
+                            </td>
+                          </tr>
+                        {% endif %}
+                      {% endmacro %}
+
+                      {{ _self.row('Title',       ctx['dcterms:title']|default(null)) }}
+                      {{ _self.row('Date',        ctx['dcterms:date']|default(null)) }}
+                      {{ _self.row('Type',        ctx['dcterms:type']|default(null)) }}
+                      {{ _self.row('Institution', ctx['dcterms:publisher']|default(null)) }}
+                      {{ _self.rowBadges('Creator',    ctx['dcterms:creator']|default([])) }}
+                      {{ _self.rowBadges('Subject',    ctx['dcterms:subject']|default([])) }}
+                      {{ _self.rowBadges('Collection', ctx['dcterms:isPartOf']|default([])) }}
+                      {{ _self.row('Rights',      ctx.rights|default(null)) }}
+                      {{ _self.row('License',     ctx.license_uri|default(null)) }}
+
+                      {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
+                        <tr>
+                          <th class="text-muted fw-normal pe-3">Source</th>
+                          <td><a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener">{{ ctx['dcterms:source']|slice(0,60) }}{% if ctx['dcterms:source']|length > 60 %}…{% endif %}</a></td>
+                        </tr>
+                      {% endif %}
+
+                      {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
+                        <tr>
+                          <th class="text-muted fw-normal pe-3">IIIF Manifest</th>
+                          <td>
+                            <a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">manifest ↗</a>
+                          </td>
+                        </tr>
+                      {% endif %}
+
+                      {% if ctx.iiif_base is defined and ctx.iiif_base %}
+                        <tr>
+                          <th class="text-muted fw-normal pe-3">Thumbnail</th>
+                          <td>
+                            <a href="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" target="_blank" rel="noopener">
+                              <img src="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg"
+                                  alt="thumbnail"
+                                  style="max-width:120px;max-height:120px;border-radius:4px;"
+                                  loading="lazy">
+                            </a>
+                            <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ ctx.iiif_base }}</div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <th class="text-muted fw-normal pe-3">IIIF sizes</th>
+                          <td class="d-flex gap-1 flex-wrap">
+                            {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'medium': '!800,800', 'max': 'max'} %}
+                              <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg"
+                                target="_blank" rel="noopener"
+                                class="btn btn-xs btn-ghost-secondary">{{ label }}</a>
+                            {% endfor %}
+                          </td>
+                        </tr>
+                      {% endif %}
+
+                      {% if ctx.source_ark is defined and ctx.source_ark %}
+                        <tr>
+                          <th class="text-muted fw-normal pe-3">ARK</th>
+                          <td><code>{{ ctx.source_ark }}</code></td>
+                        </tr>
+                      {% endif %}
+
+                    </table>
+                  </div>
+                </div>
               {% endif %}
             </div>
-          {% endif %}
 
-          {% if asset.aiDateRange %}
-            <div class="mb-2">
-              <div class="small text-muted">Date</div>
-              <div>{{ asset.aiDateRange }}</div>
+            <div id="tabs-ai-metadata" class="tab-pane">
+              {# Core AI fields #}
+              <div class="card">
+                <div class="card-header"><h4 class="card-title">AI Metadata</h4></div>
+                <div class="card-body">
+
+                  {% if asset.aiTitle %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Title</div>
+                      <div class="fw-semibold">{{ asset.aiTitle }}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiDocumentType %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Type</div>
+                      <span class="badge bg-blue">{{ asset.aiDocumentType }}</span>
+                      {% if asset.aiDocumentSubtype %}
+                        <span class="badge bg-blue-lt ms-1">{{ asset.aiDocumentSubtype }}</span>
+                      {% endif %}
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiDateRange %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Date</div>
+                      <div>{{ asset.aiDateRange }}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiDescription %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Description</div>
+                      <div class="small">{{ asset.aiDescription }}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiSummary %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Summary</div>
+                      <div class="small">{{ asset.aiSummary }}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiPeople|length > 0 %}
+                    <div class="mb-2">
+                      <div class="small text-muted">People</div>
+                      <div>{% for p in asset.aiPeople %}<span class="badge bg-cyan-lt me-1">{{ p }}</span>{% endfor %}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiPlaces|length > 0 %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Places</div>
+                      <div>{% for p in asset.aiPlaces %}<span class="badge bg-green-lt me-1">{{ p }}</span>{% endfor %}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiOrganisations|length > 0 %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Organisations</div>
+                      <div>{% for o in asset.aiOrganisations %}<span class="badge bg-purple-lt me-1">{{ o }}</span>{% endfor %}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiKeywords|length > 0 %}
+                    <div class="mb-2">
+                      <div class="small text-muted">Keywords</div>
+                      <div class="small">{% for k in asset.aiKeywords %}<span class="badge bg-secondary-lt me-1 mb-1">{{ k }}</span>{% endfor %}</div>
+                    </div>
+                  {% endif %}
+
+                  {% if asset.aiOcrText %}
+                    <div class="mb-2">
+                      <div class="small text-muted">OCR Text <span class="text-muted">(excerpt)</span></div>
+                      <pre class="small bg-light p-2 rounded" style="max-height:120px;overflow-y:auto;white-space:pre-wrap;">{{ asset.aiOcrText|slice(0,500) }}{% if asset.aiOcrText|length > 500 %}…{% endif %}</pre>
+                    </div>
+                  {% endif %}
+
+                  {% if not (asset.aiTitle or asset.aiDescription or asset.aiDocumentType) %}
+                    <div class="text-muted small">No AI metadata yet — run tasks below.</div>
+                  {% endif %}
+
+                </div>
+              </div>
             </div>
-          {% endif %}
 
-          {% if asset.aiDescription %}
-            <div class="mb-2">
-              <div class="small text-muted">Description</div>
-              <div class="small">{{ asset.aiDescription }}</div>
-            </div>
-          {% endif %}
-
-          {% if asset.aiSummary %}
-            <div class="mb-2">
-              <div class="small text-muted">Summary</div>
-              <div class="small">{{ asset.aiSummary }}</div>
-            </div>
-          {% endif %}
-
-          {% if asset.aiPeople|length > 0 %}
-            <div class="mb-2">
-              <div class="small text-muted">People</div>
-              <div>{% for p in asset.aiPeople %}<span class="badge bg-cyan-lt me-1">{{ p }}</span>{% endfor %}</div>
-            </div>
-          {% endif %}
-
-          {% if asset.aiPlaces|length > 0 %}
-            <div class="mb-2">
-              <div class="small text-muted">Places</div>
-              <div>{% for p in asset.aiPlaces %}<span class="badge bg-green-lt me-1">{{ p }}</span>{% endfor %}</div>
-            </div>
-          {% endif %}
-
-          {% if asset.aiOrganisations|length > 0 %}
-            <div class="mb-2">
-              <div class="small text-muted">Organisations</div>
-              <div>{% for o in asset.aiOrganisations %}<span class="badge bg-purple-lt me-1">{{ o }}</span>{% endfor %}</div>
-            </div>
-          {% endif %}
-
-          {% if asset.aiKeywords|length > 0 %}
-            <div class="mb-2">
-              <div class="small text-muted">Keywords</div>
-              <div class="small">{% for k in asset.aiKeywords %}<span class="badge bg-secondary-lt me-1 mb-1">{{ k }}</span>{% endfor %}</div>
-            </div>
-          {% endif %}
-
-          {% if asset.aiOcrText %}
-            <div class="mb-2">
-              <div class="small text-muted">OCR Text <span class="text-muted">(excerpt)</span></div>
-              <pre class="small bg-light p-2 rounded" style="max-height:120px;overflow-y:auto;white-space:pre-wrap;">{{ asset.aiOcrText|slice(0,500) }}{% if asset.aiOcrText|length > 500 %}…{% endif %}</pre>
-            </div>
-          {% endif %}
-
-          {% if not (asset.aiTitle or asset.aiDescription or asset.aiDocumentType) %}
-            <div class="text-muted small">No AI metadata yet — run tasks below.</div>
-          {% endif %}
-
+          </div>
         </div>
       </div>
 
@@ -437,10 +467,6 @@ prompt:
     }
     .popover { max-width: 380px; }
 
-    .openseadragon-container {
-      height: 512px !important;
-    }
-
     .simple-zoom-wrap {
       width: 100%;
       min-height: 512px;
@@ -461,14 +487,6 @@ prompt:
       user-select: none;
       -webkit-user-drag: none;
     }
-
-    .iiif-annotation {
-      box-sizing: border-box;
-      transition: background 0.15s;
-    }
-    .iiif-annotation:hover {
-      background: rgba(255, 100, 0, 0.25) !important;
-    }
   </style>
 {% endblock %}
 
@@ -482,75 +500,7 @@ prompt:
       new Popover(el, { html: false });
     });
 
-    /*
-    const miradorInstance = Mirador.viewer({
-      id: "mirador",
-      windows: [
-        {
-          loadedManifest: "https://api.digitale-sammlungen.de/iiif/presentation/v2/bsb12024369/manifest", // Example manifest
-        }
-      ],
-      window: {
-        defaultSideBarPanel: "info", // Shows metadata by default
-      },
-      workspace: {
-        showZoomControls: true
-      }
-    });
-    */
-
-    {% if useIiif %}
-    const osd = OpenSeadragon({
-      id: 'openseadragon',
-      prefixUrl: 'https://cdn.jsdelivr.net/npm/openseadragon@6.0.1/build/openseadragon/images/',
-      crossOriginPolicy: false,
-      tileSources: [{
-        manifest: '{{ path("iiif_manifest", {id: asset.id})|e('js') }}',
-        tileSource: '{{ path("iiif_image_info", {id: asset.id})|e('js') }}'
-      }],
-    });
-
-    osd.addHandler('open', async function() {
-      const manifestUrl = '{{ path("iiif_manifest", {id: asset.id})|raw }}';
-      const manifest = await fetch(manifestUrl).then(r => r.json());
-
-      const annotationPages = manifest.items?.[0]?.annotations ?? [];
-
-      for (const pageRef of annotationPages) {
-        const page = await fetch(pageRef.id).then(r => r.json());
-        console.log('annotations loaded:', page.items);
-
-        for (const annotation of page.items) {
-          const target = annotation.target;
-
-          const match = typeof target === 'string' && target.match(/#xywh=(\d+),(\d+),(\d+),(\d+)/);
-          if (match) {
-            const [, x, y, w, h] = match.map(Number);
-
-            const rect = osd.viewport.imageToViewportRectangle(x, y, w, h);
-
-            const el = document.createElement('div');
-            el.className = 'iiif-annotation';
-            el.title = annotation.body?.value ?? '';
-            el.style.cssText = 'border: 2px solid rgba(255,100,0,0.8); background: rgba(255,100,0,0.1); pointer-events: auto; cursor: pointer;';
-
-            el.addEventListener('click', () => {
-              console.log('annotation clicked:', annotation);
-            });
-
-            osd.addOverlay({ element: el, location: rect });
-          }
-        }
-      }
-
-    });
-
-    osd.addHandler('open-failed', function (event) {
-      console.error('OpenSeadragon open-failed message:', event.message);
-      console.error('OpenSeadragon open-failed source:', event.source);
-    });
-
-    {% else %}
+    {% if not useIiif %}
     const simpleWrap = document.getElementById('simple-zoom-wrap');
     const simpleImage = document.getElementById('simple-zoom-image');
 
