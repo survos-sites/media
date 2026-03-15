@@ -62,6 +62,12 @@
 
     <div class="flex-grow-1 min-width-0">
       <div class="fw-semibold small">{{ task }}</div>
+      <div class="text-muted" style="font-size:0.65rem;line-height:1.2;">
+        <span class="badge bg-secondary-lt">{{ meta.agent|default('?') }}</span>
+        {% if meta.model is defined and meta.model %}
+          <span class="badge bg-secondary-lt">{{ meta.model }}</span>
+        {% endif %}
+      </div>
       {% if resultSummary %}
         <div class="text-muted" style="font-size:0.7rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"
              title="{{ resultSummary }}">{{ resultSummary }}</div>
