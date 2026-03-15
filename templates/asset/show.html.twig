@@ -48,6 +48,102 @@
         </div>
       </div>
 
+      {# ── Source metadata from DC / aggregator context ────────────────────── #}
+      {% set ctx = asset.context %}
+      {% if ctx %}
+        <div class="card mb-3">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="card-title mb-0">Source Metadata</h4>
+            {% if ctx.aggregator is defined %}
+              <span class="badge bg-blue-lt">{{ ctx.aggregator }}</span>
+            {% endif %}
+          </div>
+          <div class="card-body small p-2">
+            <table class="table table-sm table-borderless mb-0">
+
+              {% macro row(label, value) %}
+                {% if value %}
+                  <tr>
+                    <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap;">{{ label }}</th>
+                    <td>{{ value }}</td>
+                  </tr>
+                {% endif %}
+              {% endmacro %}
+
+              {% macro rowBadges(label, values) %}
+                {% if values %}
+                  <tr>
+                    <th class="text-muted fw-normal pe-3" style="width:30%;white-space:nowrap;">{{ label }}</th>
+                    <td>
+                      {% for v in values %}<span class="badge bg-secondary-lt me-1">{{ v }}</span>{% endfor %}
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endmacro %}
+
+              {{ _self.row('Title',       ctx['dcterms:title']|default(null)) }}
+              {{ _self.row('Date',        ctx['dcterms:date']|default(null)) }}
+              {{ _self.row('Type',        ctx['dcterms:type']|default(null)) }}
+              {{ _self.row('Institution', ctx['dcterms:publisher']|default(null)) }}
+              {{ _self.rowBadges('Creator',    ctx['dcterms:creator']|default([])) }}
+              {{ _self.rowBadges('Subject',    ctx['dcterms:subject']|default([])) }}
+              {{ _self.rowBadges('Collection', ctx['dcterms:isPartOf']|default([])) }}
+              {{ _self.row('Rights',      ctx.rights|default(null)) }}
+              {{ _self.row('License',     ctx.license_uri|default(null)) }}
+
+              {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
+                <tr>
+                  <th class="text-muted fw-normal pe-3">Source</th>
+                  <td><a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener">{{ ctx['dcterms:source']|slice(0,60) }}{% if ctx['dcterms:source']|length > 60 %}…{% endif %}</a></td>
+                </tr>
+              {% endif %}
+
+              {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
+                <tr>
+                  <th class="text-muted fw-normal pe-3">IIIF Manifest</th>
+                  <td>
+                    <a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">manifest ↗</a>
+                  </td>
+                </tr>
+              {% endif %}
+
+              {% if ctx.iiif_base is defined and ctx.iiif_base %}
+                <tr>
+                  <th class="text-muted fw-normal pe-3">Thumbnail</th>
+                  <td>
+                    <a href="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" target="_blank" rel="noopener">
+                      <img src="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg"
+                           alt="thumbnail"
+                           style="max-width:120px;max-height:120px;border-radius:4px;"
+                           loading="lazy">
+                    </a>
+                    <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ ctx.iiif_base }}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <th class="text-muted fw-normal pe-3">IIIF sizes</th>
+                  <td class="d-flex gap-1 flex-wrap">
+                    {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'medium': '!800,800', 'max': 'max'} %}
+                      <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg"
+                         target="_blank" rel="noopener"
+                         class="btn btn-xs btn-ghost-secondary">{{ label }}</a>
+                    {% endfor %}
+                  </td>
+                </tr>
+              {% endif %}
+
+              {% if ctx.source_ark is defined and ctx.source_ark %}
+                <tr>
+                  <th class="text-muted fw-normal pe-3">ARK</th>
+                  <td><code>{{ ctx.source_ark }}</code></td>
+                </tr>
+              {% endif %}
+
+            </table>
+          </div>
+        </div>
+      {% endif %}
+
       {# Core AI fields #}
       <div class="card mb-3">
         <div class="card-header"><h4 class="card-title">AI Metadata</h4></div>
@@ -215,39 +311,16 @@ model: {{ meta.model|default('—') }}
 platform: {{ meta.platform|default('—') }}
 
 {{ meta.system_prompt|default('no prompt info')|slice(0, 400) }}{% if (meta.system_prompt|default(''))|length > 400 %}…{% endif %}{% endset %}
-              <div class="col-sm-6">
-                <div class="d-flex align-items-center gap-2 p-2 rounded border
-                            {{ isDone ? (hasFailed ? 'border-danger' : 'border-success') : 'border-secondary-subtle' }}"
-                     style="{{ isDone and not hasFailed ? 'background:#f6fdf6' : '' }}">
-                  <form method="post"
-action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
-                        hx-post="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
-                        hx-indicator="#spinner-{{ task }}">
-                    <button class="btn btn-sm {{ isDone ? (hasFailed ? 'btn-danger' : 'btn-success') : 'btn-primary' }}"
-                            title="{{ isDone ? 'Re-run' : 'Run' }} {{ task }}">
-                      <span id="spinner-{{ task }}" class="htmx-indicator spinner-border spinner-border-sm" role="status"></span>
-                      <span class="htmx-indicator-hide">{{ isDone ? '↺' : '▶' }}</span>
-                    </button>
-                  </form>
-                  <div class="flex-grow-1 min-width-0">
-                    <div class="fw-semibold small">{{ task }}</div>
-                    <div class="text-muted" style="font-size:0.7rem;">{{ task|lower|replace({'_': ' '}) }}</div>
-                  </div>
-                  {# Info icon — popover with agent/model/prompt on hover #}
-                  <span class="text-muted ms-auto flex-shrink-0"
-                        style="cursor:default;"
-                        data-bs-toggle="popover"
-                        data-bs-trigger="hover focus"
-                        data-bs-placement="left"
-                        data-bs-title="{{ task }}"
-                        data-bs-content="{{ popContent|e('html_attr') }}"
-                        data-bs-custom-class="task-popover">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                    </svg>
-                  </span>
-                </div>
+              <div class="col-sm-6" id="task-card-col-{{ task }}">
+                {{ include('asset/_task_card.html.twig', {
+                  task: task,
+                  isDone: isDone,
+                  hasFailed: hasFailed,
+                  entry: completedMap[task] ?? null,
+                  meta: meta,
+                  popContent: popContent,
+                  assetId: asset.id,
+                }, with_context: false) }}
               </div>
             {% endfor %}
           </div>
@@ -291,6 +364,9 @@ action="{{ path('asset_run_task', {id: asset.id, taskName: task}) }}"
     .htmx-request .htmx-indicator-hide,
     .htmx-request.htmx-indicator-hide        { display: none !important; }
     .htmx-request button                     { pointer-events: none; opacity: 0.75; }
+
+    /* Hide the "no tasks run yet" placeholder once real entries exist */
+    #task-log #log-empty:not(:only-child)    { display: none !important; }
 
     /* Task info popover — monospace prompt text, reasonable width */
     .task-popover .popover-body {

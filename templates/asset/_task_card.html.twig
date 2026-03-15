@@ -1,0 +1,90 @@
+{#
+  Single task card in the "Run Individual Task" grid.
+
+  Variables:
+    task       - task name string
+    isDone     - bool: has an aiCompleted entry for this task
+    hasFailed  - bool: most recent run was a failure
+    entry      - aiCompleted entry {task, at, result} or null
+    meta       - taskMeta entry (agent/model/system_prompt)
+    popContent - pre-rendered popover text
+    assetId    - asset.id (needed for the form action URL)
+#}
+{% set btnClass  = isDone ? (hasFailed ? 'btn-danger' : 'btn-success') : 'btn-primary' %}
+{% set borderCls = isDone ? (hasFailed ? 'border-danger' : 'border-success') : 'border-secondary-subtle' %}
+{% set bgStyle   = (isDone and not hasFailed) ? 'background:#f6fdf6' : '' %}
+
+{# Compact inline result summary shown inside the card when already done #}
+{% set resultSummary = '' %}
+{% if isDone and not hasFailed and entry is not null %}
+  {% set r = entry.result %}
+  {% if r.title is defined %}
+    {% set resultSummary = r.title %}
+  {% elseif r.description is defined %}
+    {% set resultSummary = r.description|slice(0, 80) ~ (r.description|length > 80 ? '…' : '') %}
+  {% elseif r.summary is defined %}
+    {% set resultSummary = r.summary|slice(0, 80) ~ (r.summary|length > 80 ? '…' : '') %}
+  {% elseif r.text is defined %}
+    {% set resultSummary = r.text|slice(0, 80) ~ (r.text|length > 80 ? '…' : '') %}
+  {% elseif r.type is defined %}
+    {% set resultSummary = r.type ~ (r.subtype is defined and r.subtype ? ' / ' ~ r.subtype : '') %}
+  {% elseif r.keywords is defined %}
+    {% set resultSummary = r.keywords|join(', ')|slice(0, 80) %}
+  {% elseif r.people is defined or r.places is defined %}
+    {% set parts = [] %}
+    {% for p in r.people|default([]) %}{% set parts = parts|merge([p]) %}{% endfor %}
+    {% for p in r.places|default([]) %}{% set parts = parts|merge([p]) %}{% endfor %}
+    {% set resultSummary = parts|join(', ')|slice(0, 80) %}
+  {% endif %}
+{% endif %}
+
+<div class="d-flex flex-column gap-1 p-2 rounded border {{ borderCls }}"
+     style="{{ bgStyle }}">
+  <div class="d-flex align-items-center gap-2">
+    {# Run / Re-run button. hx-target sends the result to the log; hx-swap afterbegin prepends it. #}
+    <form method="post"
+          action="{{ path('asset_run_task', {id: assetId, taskName: task}) }}"
+          hx-post="{{ path('asset_run_task', {id: assetId, taskName: task}) }}"
+          hx-target="#task-log"
+          hx-swap="afterbegin"
+          hx-indicator="#spinner-{{ task }}">
+      <button class="btn btn-sm {{ btnClass }}"
+              title="{{ isDone ? 'Re-run' : 'Run' }} {{ task }}"
+              {% if isDone %}disabled{% endif %}>
+        <span id="spinner-{{ task }}" class="htmx-indicator spinner-border spinner-border-sm" role="status"></span>
+        <span class="htmx-indicator-hide">
+          {%- if isDone -%}
+            {{ ux_icon('mdi:refresh', {'class': 'align-text-bottom'})|raw }}
+          {%- else -%}▶{%- endif -%}
+        </span>
+      </button>
+    </form>
+
+    <div class="flex-grow-1 min-width-0">
+      <div class="fw-semibold small">{{ task }}</div>
+      {% if resultSummary %}
+        <div class="text-muted" style="font-size:0.7rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"
+             title="{{ resultSummary }}">{{ resultSummary }}</div>
+      {% else %}
+        <div class="text-muted" style="font-size:0.7rem;">{{ task|lower|replace({'_': ' '}) }}</div>
+      {% endif %}
+    </div>
+
+    {# Info popover #}
+    <span class="text-muted ms-auto flex-shrink-0"
+          style="cursor:default;"
+          data-bs-toggle="popover"
+          data-bs-trigger="hover focus"
+          data-bs-placement="left"
+          data-bs-title="{{ task }}"
+          data-bs-content="{{ popContent|e('html_attr') }}"
+          data-bs-custom-class="task-popover">
+      {{ ux_icon('mdi:information-outline', {'class': 'align-text-bottom'})|raw }}
+    </span>
+  </div>
+
+  {# Timestamp on the card when done #}
+  {% if isDone and entry is not null %}
+    <div class="text-muted" style="font-size:0.65rem;">{{ hasFailed ? '✗ failed' : '✓ ran' }} {{ entry.at }}</div>
+  {% endif %}
+</div>
