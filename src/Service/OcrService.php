@@ -16,13 +16,11 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class OcrService
 {
-    private ?float $lastRequestAt = null;
-
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
         #[Autowire('%env(default::OCR_HOST)%')] private readonly ?string $ocrHost = null,
-        #[Autowire('%env(default:1000:OCR_MIN_INTERVAL_MS)%')] private readonly int $minIntervalMs = 1000,
+        #[Autowire('%env(int:SERVICE_HTTP_TIMEOUT_SECONDS)%')] private readonly int $httpTimeoutSeconds = 120,
     ) {}
 
     /**
@@ -55,8 +53,6 @@ final class OcrService
         try {
             $status = 0;
             for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-                $this->throttle();
-
                 $fileHandle = fopen($localPath, 'r');
                 if ($fileHandle === false) {
                     return null;
@@ -71,7 +67,7 @@ final class OcrService
                     $response = $this->httpClient->request('POST', $host, [
                         'headers' => $formData->getPreparedHeaders()->toArray(),
                         'body'    => $formData->bodyToIterable(),
-                        'timeout' => 120,
+                        'timeout' => $this->httpTimeoutSeconds,
                     ]);
 
                     $status = $response->getStatusCode();
@@ -118,21 +114,5 @@ final class OcrService
         }
 
         return null;
-    }
-
-    private function throttle(): void
-    {
-        if ($this->lastRequestAt === null || $this->minIntervalMs <= 0) {
-            $this->lastRequestAt = microtime(true);
-            return;
-        }
-
-        $elapsedMs = (microtime(true) - $this->lastRequestAt) * 1000;
-        $remainingMs = $this->minIntervalMs - $elapsedMs;
-        if ($remainingMs > 0) {
-            usleep((int) ($remainingMs * 1000));
-        }
-
-        $this->lastRequestAt = microtime(true);
     }
 }

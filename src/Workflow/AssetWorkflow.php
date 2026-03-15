@@ -56,6 +56,8 @@ use App\Workflow\VariantFlowDefinition as VWF;
 class AssetWorkflow
 {
     const THUMBHASH_PRESET = 'small';
+    private ?float $sourceCooldownUntil = null;
+
     public function __construct(
         private MediaUrlGenerator $mediaUrlGenerator,
         private readonly ArchiveService $archiveService,
@@ -77,6 +79,10 @@ class AssetWorkflow
         private NormalizerInterface                            $normalizer,
         #[Autowire('%env(SAIS_API_ENDPOINT)%')]
         private string                                         $apiEndpoint,
+        #[Autowire('%env(int:SERVICE_529_COOLDOWN_MS)%')]
+        private readonly int                                   $source529CooldownMs,
+        #[Autowire('%env(int:SERVICE_HTTP_TIMEOUT_SECONDS)%')]
+        private readonly int                                   $serviceHttpTimeoutSeconds,
         #[Autowire('%kernel.project_dir%/public/temp')]
         private string                                         $tempDir,
         private readonly EntityManagerInterface                $entityManager,
@@ -268,15 +274,6 @@ class AssetWorkflow
 
             // OCR — while the file is local, no second download needed
             if (str_starts_with((string) $asset->mime, 'image/')) {
-                if (in_array('ocr', $tasks, true)) {
-                    $ocrText = $this->ocrService->extractText($tmpFile, $asset->mime);
-                    if ($ocrText !== null) {
-                        $asset->context             ??= [];
-                        $asset->context['ocr']        = $ocrText;
-                        $asset->context['ocr_chars']  = mb_strlen($ocrText);
-                    }
-                }
-
                 // Thumbhash — resize to ≤100px before extracting pixels (thumbhash max is 192x192)
                 if (in_array('thumbhash', $tasks, true)) {
                     try {
@@ -384,6 +381,29 @@ class AssetWorkflow
         // Thumbhash and palette were computed in onDownload while the file was local.
         // Only fall back to the archive URL fetch if they're missing (e.g. older assets).
         $asset->context ??= [];
+        $tasks = $asset->context['tasks'] ?? ['thumbhash', 'palette'];
+
+        if (in_array('ocr', $tasks, true) && empty($asset->context['ocr'])) {
+            $ocrSourceUrl = $asset->smallUrl ?? $asset->archiveUrl ?? null;
+            if ($ocrSourceUrl) {
+                $ocrTmp = tempnam(sys_get_temp_dir(), 'asset_ocr_');
+                if ($ocrTmp !== false) {
+                    try {
+                        $this->downloadUrl($ocrSourceUrl, $ocrTmp);
+                        $ocrText = $this->ocrService->extractText($ocrTmp, $asset->mime);
+                        if ($ocrText !== null && $ocrText !== '') {
+                            $asset->context['ocr'] = $ocrText;
+                            $asset->context['ocr_chars'] = mb_strlen($ocrText);
+                        }
+                    } finally {
+                        if (is_file($ocrTmp)) {
+                            unlink($ocrTmp);
+                        }
+                    }
+                }
+            }
+        }
+
         if (empty($asset->context['thumbhash']) && $asset->archiveUrl) {
             $this->logger->info('onLocalAnalyze: thumbhash missing, fetching from archive URL (fallback)');
             [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
@@ -426,25 +446,66 @@ class AssetWorkflow
             );
         } else {
             $client = $this->httpClient;
-            $response = $client->request('GET', $url);
+            $maxAttempts = 4;
+            $retryableStatus = [429, 503, 529];
 
-// Responses are lazy: this code is executed as soon as headers are received
-            $code = $response->getStatusCode();
-            if (200 !== $code) {
-                throw new \Exception("Problem with $url " . $response->getStatusCode(), code: $code);
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                $this->waitForSourceCooldown();
+
+                $response = $client->request('GET', $url, [
+                    'timeout' => $this->serviceHttpTimeoutSeconds,
+                ]);
+                $code = $response->getStatusCode();
+                if ($code !== 200) {
+                    if (in_array($code, $retryableStatus, true) && $attempt < $maxAttempts) {
+                        if ($code === 529 && $this->source529CooldownMs > 0) {
+                            $this->sourceCooldownUntil = microtime(true) + ($this->source529CooldownMs / 1000);
+                        }
+
+                        $delaySeconds = (float) (2 ** ($attempt - 1));
+                        $jitterMicros = random_int(0, 250000);
+                        $this->logger->warning('Source fetch backoff for {url}: HTTP {status} (attempt {attempt}/{max})', [
+                            'url' => $url,
+                            'status' => $code,
+                            'attempt' => $attempt,
+                            'max' => $maxAttempts,
+                            'cooldown_ms' => $code === 529 ? $this->source529CooldownMs : 0,
+                        ]);
+                        usleep((int) ($delaySeconds * 1_000_000) + $jitterMicros);
+                        continue;
+                    }
+
+                    throw new \Exception("Problem with $url " . $code, code: $code);
+                }
+
+                $fileHandler = fopen($tempFile, 'w');
+                foreach ($client->stream($response) as $chunk) {
+                    fwrite($fileHandler, $chunk->getContent());
+                }
+                fclose($fileHandler);
+                break;
             }
-
-            $fileHandler = fopen($tempFile, 'w');
-            foreach ($client->stream($response) as $chunk) {
-                fwrite($fileHandler, $chunk->getContent());
-            }
-            fclose($fileHandler);
-
         }
 
         $this->logger->warning("Downloaded url: $url as $tempFile " . filesize($tempFile));
         return $tempFile;
 
+    }
+
+    private function waitForSourceCooldown(): void
+    {
+        if ($this->sourceCooldownUntil === null) {
+            return;
+        }
+
+        $remaining = $this->sourceCooldownUntil - microtime(true);
+        if ($remaining <= 0) {
+            $this->sourceCooldownUntil = null;
+            return;
+        }
+
+        usleep((int) ($remaining * 1_000_000));
+        $this->sourceCooldownUntil = null;
     }
 
     private function processLocalFile(string $localAbsoluteFilename, Asset $asset): array
