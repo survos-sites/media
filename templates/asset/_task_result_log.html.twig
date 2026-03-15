@@ -30,6 +30,10 @@
     </span>
   </div>
 
+  {% if result._debug is defined and result._debug.image_url is defined and result._debug.image_url %}
+    <div class="text-muted" style="font-size:0.68rem;word-break:break-all;">source: {{ result._debug.image_url }}</div>
+  {% endif %}
+
   {# Body — render according to result shape #}
   {% if failed %}
     <div class="small text-danger">{{ result.error|default('Unknown error') }}</div>

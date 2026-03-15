@@ -54,37 +54,34 @@ return [
         'version' => '2.0.0',
     ],
     'locutus/php/strings/sprintf' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/strings/vsprintf' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/math/round' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/math/max' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/math/min' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/strings/strip_tags' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/datetime/strtotime' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/datetime/date' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/var/boolval' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'axios' => [
         'version' => '1.13.6',
-    ],
-    'fos-routing' => [
-        'version' => '0.0.6',
     ],
     'perfect-scrollbar' => [
         'version' => '1.5.6',
@@ -510,31 +507,31 @@ return [
         'version' => '2.0.8',
     ],
     '@tacman1123/twig-browser' => [
-        'version' => '0.4.12',
+        'version' => '0.4.14',
     ],
     '@tacman1123/twig-browser/src/compat/compileTwigBlocks.js' => [
-        'version' => '0.4.12',
+        'version' => '0.4.14',
     ],
     'dexie' => [
         'version' => '4.3.0',
     ],
     '@tacman1123/twig-browser/adapters/symfony' => [
-        'version' => '0.4.12',
+        'version' => '0.4.14',
     ],
     'openseadragon' => [
-        'version' => '6.0.1',
+        'version' => '6.0.2',
     ],
     'locutus/php/strings/index' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/math/index' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/datetime/index' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     'locutus/php/var/index' => [
-        'version' => '3.0.11',
+        'version' => '3.0.19',
     ],
     '@swc/helpers/cjs/_sliced_to_array.cjs' => [
         'version' => '0.5.19',
@@ -616,5 +613,8 @@ return [
     ],
     'zod' => [
         'version' => '4.3.6',
+    ],
+    'fos-routing' => [
+        'version' => '0.0.6',
     ],
 ];

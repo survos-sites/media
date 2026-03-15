@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Service\AssetRegistry;
 use App\Workflow\AssetFlow;
+use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -13,7 +14,8 @@ use Symfony\Component\Routing\Attribute\Route;
 final class BatchController
 {
     public function __construct(
-        private readonly AssetRegistry $assetRegistry,
+        private readonly AssetRegistry       $assetRegistry,
+        private readonly AsyncQueueLocator   $asyncQueueLocator,
     ) {
     }
 
@@ -26,9 +28,13 @@ final class BatchController
         } else {
             $payload     = $request->toArray();
             $urls        = $payload['urls'] ?? [];
-            // Per-URL context hints: ['https://...jpg' => ['path' => 'Cabinet 1/Folder 2', 'tenant' => 'rhs']]
+            // Per-URL source metadata hints: ['https://...jpg' => ['dcterms:title' => '...', 'rights' => '...']]
             $contextMap  = is_array($payload['context'] ?? null) ? $payload['context'] : [];
             $callbackUrl = $payload['callback_url'] ?? null;
+            // sync=true: process download immediately in this request, skip async queue
+            if (!empty($payload['sync'])) {
+                $this->asyncQueueLocator->sync = true;
+            }
         }
 
         $media = [];

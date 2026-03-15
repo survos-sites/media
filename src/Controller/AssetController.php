@@ -8,6 +8,7 @@ use App\Ai\AssetAiTask;
 use App\Ai\AssetAiTaskRunner;
 use App\Entity\Asset;
 use App\Repository\AssetRepository;
+use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\AiPipelineBundle\Task\AiTaskRegistry;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,6 +23,7 @@ final class AssetController extends AbstractController
     public function __construct(
         private readonly AssetRepository $assetRepository,
         private readonly AssetAiTaskRunner $runner,
+        private readonly AssetRegistry $assetRegistry,
         private readonly EntityManagerInterface $em,
         private readonly AiTaskRegistry $taskRegistry,
     ) {
@@ -96,6 +98,8 @@ final class AssetController extends AbstractController
     #[Route('/{id}', name: 'show')]
     public function show(Asset $asset): Response
     {
+        $computedArchiveUrl = $asset->storageKey ? $this->assetRegistry->s3Url($asset) : null;
+
         // Index completed results for template convenience
         $completedMap = [];
         foreach ($asset->aiCompleted as $entry) {
@@ -107,6 +111,7 @@ final class AssetController extends AbstractController
             'tasks'        => array_keys($this->taskRegistry->getTaskMap()),
             'taskMeta'     => $this->taskMeta(),
             'completedMap' => $completedMap,
+            'computedArchiveUrl' => $computedArchiveUrl,
             'pipelines'    => [
                 'quick' => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::quickScanPipeline()),
                 'full'  => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::fullEnrichmentPipeline()),
@@ -152,15 +157,82 @@ final class AssetController extends AbstractController
             }
         }
 
-        // HTMX: return a log entry fragment to prepend into #task-log
+        // HTMX: return a log entry fragment (prepended into #task-log) plus an
+        // out-of-band swap that refreshes the task card button to its post-run state.
         if ($request->headers->get('HX-Request')) {
-            return $this->render('asset/_task_result_log.html.twig', [
-                'entry' => $result ?? ['task' => $taskName, 'at' => date('Y-m-d H:i:s'), 'result' => ['failed' => true, 'error' => 'No result recorded']],
+            $entry = $result ?? ['task' => $taskName, 'at' => date('Y-m-d H:i:s'), 'result' => ['failed' => true, 'error' => 'No result recorded']];
+            $isDone     = true;
+            $hasFailed  = isset($entry['result']['failed']);
+            $completedMap = [];
+            foreach ($asset->aiCompleted as $e) {
+                $completedMap[$e['task']] = $e;
+            }
+            $taskMeta   = $this->taskMeta();
+            $meta       = $taskMeta[$taskName] ?? [];
+            $popContent = $this->buildPopoverContent($meta, $entry);
+
+            // The log entry fragment goes to #task-log (hx-target on the form).
+            // The OOB fragment updates the card col so the button reflects the new state.
+            $logHtml  = $this->renderView('asset/_task_result_log.html.twig', ['entry' => $entry]);
+            $cardHtml = $this->renderView('asset/_task_card.html.twig', [
+                'task'       => $taskName,
+                'isDone'     => $isDone,
+                'hasFailed'  => $hasFailed,
+                'entry'      => $entry,
+                'meta'       => $meta,
+                'popContent' => $popContent,
+                'assetId'    => $asset->id,
             ]);
+
+            // Wrap card in an OOB swap targeting the stable col ID.
+            $oob = sprintf(
+                '<div id="task-card-col-%s" hx-swap-oob="innerHTML:#task-card-col-%s">%s</div>',
+                htmlspecialchars($taskName, ENT_QUOTES),
+                htmlspecialchars($taskName, ENT_QUOTES),
+                $cardHtml,
+            );
+
+            return new Response($logHtml . $oob, 200, ['Content-Type' => 'text/html']);
         }
 
         $this->addFlash('success', "Task {$taskName} completed.");
         return $this->redirectToRoute('asset_show', ['id' => $asset->id]);
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     * @param array<string,mixed>|null $entry
+     */
+    private function buildPopoverContent(array $meta, ?array $entry = null): string
+    {
+        $lines = [
+            'agent: ' . ($meta['agent'] ?? '?'),
+            'model: ' . ($meta['model'] ?? '—'),
+            'platform: ' . ($meta['platform'] ?? '—'),
+        ];
+
+        $debug = $entry['result']['_debug'] ?? null;
+        if (is_array($debug)) {
+            $imageUrl = $debug['image_url'] ?? null;
+            if (is_string($imageUrl) && $imageUrl !== '') {
+                $lines[] = '';
+                $lines[] = 'image_url: ' . $imageUrl;
+            }
+
+            $prompt = $debug['prompt']['combined'] ?? null;
+            if (is_string($prompt) && $prompt !== '') {
+                $lines[] = '';
+                $lines[] = 'prompt:';
+                $lines[] = $prompt;
+                return implode("\n", $lines);
+            }
+        }
+
+        $systemPrompt = $meta['system_prompt'] ?? 'no prompt info';
+        $lines[] = '';
+        $lines[] = mb_substr((string) $systemPrompt, 0, 600);
+
+        return implode("\n", $lines);
     }
 
     /**

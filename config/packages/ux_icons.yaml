@@ -34,6 +34,10 @@ ux_icons:
       # dots:                'clarity:ellipsis-horizontal-line'
     # privacy:             'bi:cookie'
 
+  aliases:
+    info:    'mdi:information-outline'
+    refresh: 'mdi:refresh'
+
     # Configuration for the remote icon service.
   iconify:
       enabled:              true

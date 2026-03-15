@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace App\Ai;
 
 use App\Entity\Asset;
+use App\Service\AssetRegistry;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Survos\AiPipelineBundle\Task\AiTaskInterface;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Workflow\WorkflowInterface;
+use Twig\Environment as TwigEnvironment;
 
 /**
  * Doctrine-aware runner: picks the next task off an Asset's aiQueue, runs it
@@ -31,6 +33,8 @@ final class AssetAiTaskRunner
         #[Target(WF::WORKFLOW_NAME)]
         private readonly WorkflowInterface $assetWorkflow,
         private readonly LoggerInterface $logger,
+        private readonly TwigEnvironment $twig,
+        private readonly AssetRegistry $assetRegistry,
         iterable $taskServices = [],
     ) {
         foreach ($taskServices as $task) {
@@ -91,6 +95,7 @@ final class AssetAiTaskRunner
 
         try {
             $result = $handler->run($inputs, $priorResults, $asset->context ?? []);
+            $result = $this->attachDebugContext($asset, $taskName, $handler, $inputs, $priorResults, $result);
             $this->recordCompleted($asset, $taskName, $result);
         } catch (\Throwable $e) {
             $this->logger->error(
@@ -160,8 +165,11 @@ final class AssetAiTaskRunner
      */
     private function buildInputs(Asset $asset): array
     {
+        $iiifFullUrl = $this->iiifFullUrl($asset);
+        $archiveUrl = $this->effectiveArchiveUrl($asset);
+
         return array_filter([
-            'image_url' => $asset->smallUrl ?? $asset->archiveUrl ?? $asset->originalUrl ?? null,
+            'image_url' => $iiifFullUrl ?? $archiveUrl ?? $asset->originalUrl ?? $asset->smallUrl ?? null,
             'mime'      => $asset->mime ?? null,
         ], fn($v) => $v !== null);
     }
@@ -209,5 +217,105 @@ final class AssetAiTaskRunner
             $result['text'] = mb_substr($result['text'], 0, 8000) . "\n[… truncated for context]";
         }
         return $result;
+    }
+
+    private function iiifFullUrl(Asset $asset): ?string
+    {
+        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        if (!is_string($iiifBase) || $iiifBase === '') {
+            return null;
+        }
+
+        return rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+    }
+
+    private function effectiveArchiveUrl(Asset $asset): ?string
+    {
+        if (!$asset->storageKey) {
+            return $asset->archiveUrl;
+        }
+
+        $computed = $this->assetRegistry->s3Url($asset);
+        if ($asset->archiveUrl !== $computed) {
+            $this->logger->warning('Asset {id} has stale archiveUrl; using computed URL.', [
+                'id' => $asset->id,
+                'stored_archive_url' => $asset->archiveUrl,
+                'computed_archive_url' => $computed,
+            ]);
+            $asset->archiveUrl = $computed;
+        }
+
+        return $computed;
+    }
+
+    private function attachDebugContext(
+        Asset $asset,
+        string $taskName,
+        AiTaskInterface $handler,
+        array $inputs,
+        array $priorResults,
+        array $result,
+    ): array {
+        $storedArchiveUrl = $asset->archiveUrl;
+        $archiveUrl = $this->effectiveArchiveUrl($asset);
+
+        $debug = [
+            'asset_id' => $asset->id,
+            'task' => $taskName,
+            'image_url' => $inputs['image_url'] ?? null,
+            'image_candidates' => [
+                'iiif_full_url' => $this->iiifFullUrl($asset),
+                'small_url' => $asset->smallUrl,
+                'archive_url' => $archiveUrl,
+                'stored_archive_url' => $storedArchiveUrl,
+                'original_url' => $asset->originalUrl,
+            ],
+            'iiif_manifest' => $asset->sourceMeta['iiif_manifest'] ?? null,
+            'iiif_base' => $asset->sourceMeta['iiif_base'] ?? null,
+            'meta' => $handler->getMeta(),
+        ];
+
+        $prompt = $this->renderPromptDebug($taskName, $inputs, $priorResults, $asset->context ?? []);
+        if ($prompt !== null) {
+            $debug['prompt'] = $prompt;
+        }
+
+        $result['_debug'] = $debug;
+
+        return $result;
+    }
+
+    /**
+     * @return array{system:string,user:string,combined:string}|null
+     */
+    private function renderPromptDebug(string $taskName, array $inputs, array $priorResults, array $context): ?array
+    {
+        $template = "@SurvosAiPipeline/prompt/{$taskName}";
+        $templateContext = [
+            'imageUrl' => $inputs['image_url'] ?? null,
+            'inputs' => $inputs,
+            'context' => $context,
+            'prior' => $priorResults,
+            'ocr_text' => $priorResults['ocr_mistral']['text'] ?? $priorResults['ocr']['text'] ?? null,
+            'type' => $priorResults['classify']['type'] ?? null,
+            'metadata' => $priorResults['extract_metadata'] ?? [],
+            'description' => $priorResults['context_description']['description']
+                ?? $priorResults['basic_description']['description']
+                ?? null,
+            'title' => $priorResults['generate_title']['title'] ?? null,
+        ];
+
+        try {
+            $systemPrompt = trim($this->twig->render("{$template}/system.html.twig", $templateContext));
+            $userPrompt = trim($this->twig->render("{$template}/user.html.twig", $templateContext));
+
+            return [
+                'system' => $systemPrompt,
+                'user' => $userPrompt,
+                'combined' => trim("[SYSTEM]\n{$systemPrompt}\n\n[USER]\n{$userPrompt}"),
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

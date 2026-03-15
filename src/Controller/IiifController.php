@@ -130,7 +130,7 @@ final class IiifController extends AbstractController
     */
 
     #[Route('/iiif/2/{id}/{region}/{size}/{rotation}/{quality}.{format}', name: 'iiif_image', methods: ['GET'])]
-    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): Response
+    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): RedirectResponse
     {
         $asset = $this->findAsset($id);
         [$fullWidth, $fullHeight] = $this->dimensions($asset);
@@ -178,7 +178,7 @@ final class IiifController extends AbstractController
             throw new BadRequestHttpException('Unsupported size: ' . $size);
         }
 
-        // ── Build imgproxy URL ────────────────────────────────────────────────
+        // ── Build imgproxy URL and redirect ────────────────────────────────────
         $url = $this->assetRegistry->imgProxyUrlWithCrop(
             $asset,
             $crop,
@@ -188,16 +188,7 @@ final class IiifController extends AbstractController
             $quality === 'gray' ? 'grayscale' : null
         );
 
-        $imageContents = file_get_contents($url);
-        if ($imageContents === false) {
-            throw $this->createNotFoundException('Failed to fetch tile from imgproxy');
-        }
-
-        return new Response($imageContents, 200, [
-            'Content-Type'                => 'image/jpeg',
-            'Cache-Control'               => 'public, max-age=86400',
-            'Access-Control-Allow-Origin' => '*',
-        ]);
+        return new RedirectResponse($url, 302);
     }
 
     #[Route('/iiif/3/{id}/mirador', name: 'iiif_mirador', methods: ['GET'])]
@@ -257,7 +248,10 @@ final class IiifController extends AbstractController
             UrlGeneratorInterface::ABSOLUTE_URL
         );
 
-        $label = $asset->context['title'] ?? ('Asset ' . $asset->id);
+        $label = $asset->sourceMeta['dcterms:title']
+            ?? $asset->sourceMeta['title']
+            ?? $asset->context['title']
+            ?? ('Asset ' . $asset->id);
 
         return $this->json([
             '@context' => 'http://iiif.io/api/presentation/3/context.json',

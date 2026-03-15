@@ -49,7 +49,7 @@
       </div>
 
       {# ── Source metadata from DC / aggregator context ────────────────────── #}
-      {% set ctx = asset.context %}
+      {% set ctx = asset.sourceMeta %}
       {% if ctx %}
         <div class="card mb-3">
           <div class="card-header d-flex justify-content-between align-items-center">
@@ -244,6 +244,30 @@
             <tr><th>ID</th><td><code>{{ asset.id }}</code></td></tr>
             <tr><th>MIME</th><td>{{ asset.mime|default('—') }}</td></tr>
             <tr><th>Created</th><td>{{ asset.createdAt|date('Y-m-d H:i') }}</td></tr>
+            {% if asset.storageKey %}
+            <tr><th>Storage Key</th><td><code class="small">{{ asset.storageKey }}</code></td></tr>
+            {% endif %}
+            {% if computedArchiveUrl %}
+            <tr>
+              <th>S3 URL (computed)</th>
+              <td>
+                <a href="{{ computedArchiveUrl }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">Open S3 ↗</a>
+                <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ computedArchiveUrl }}</div>
+              </td>
+            </tr>
+            {% endif %}
+            {% if asset.archiveUrl %}
+            <tr>
+              <th>S3 URL (stored)</th>
+              <td>
+                <a href="{{ asset.archiveUrl }}" target="_blank" rel="noopener" class="btn btn-xs btn-ghost-secondary">Open stored ↗</a>
+                {% if computedArchiveUrl and computedArchiveUrl != asset.archiveUrl %}
+                  <span class="badge bg-red-lt ms-2">stale</span>
+                {% endif %}
+                <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ asset.archiveUrl }}</div>
+              </td>
+            </tr>
+            {% endif %}
             {% if asset.clients %}
             <tr><th>Clients</th><td>{{ asset.clients|join(', ') }}</td></tr>
             {% endif %}
@@ -306,17 +330,29 @@
               {% set isDone = completedMap[task] is defined %}
               {% set hasFailed = isDone and (completedMap[task].result.failed is defined) %}
               {% set meta = taskMeta[task] ?? {} %}
+              {% set entry = completedMap[task]|default(null) %}
+              {% set debug = entry and entry.result._debug is defined ? entry.result._debug : null %}
+              {% set promptCombined = debug and debug.prompt is defined and debug.prompt.combined is defined ? debug.prompt.combined : null %}
+              {% set imageUrl = debug and debug.image_url is defined ? debug.image_url : null %}
               {% set popContent %}agent: {{ meta.agent|default('?') }}
 model: {{ meta.model|default('—') }}
-platform: {{ meta.platform|default('—') }}
+platform: {{ meta.platform|default('—') }}{% if imageUrl %}
 
-{{ meta.system_prompt|default('no prompt info')|slice(0, 400) }}{% if (meta.system_prompt|default(''))|length > 400 %}…{% endif %}{% endset %}
+image_url: {{ imageUrl }}{% endif %}
+{% if promptCombined %}
+
+prompt:
+{{ promptCombined }}
+{% else %}
+
+{{ meta.system_prompt|default('no prompt info')|slice(0, 600) }}{% if (meta.system_prompt|default(''))|length > 600 %}…{% endif %}
+{% endif %}{% endset %}
               <div class="col-sm-6" id="task-card-col-{{ task }}">
                 {{ include('asset/_task_card.html.twig', {
                   task: task,
                   isDone: isDone,
                   hasFailed: hasFailed,
-                  entry: completedMap[task] ?? null,
+                  entry: entry,
                   meta: meta,
                   popContent: popContent,
                   assetId: asset.id,

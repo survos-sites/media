@@ -58,12 +58,12 @@ final class AssetRegistry
             $asset->clients[] = $client;
         }
 
-        // Merge context hints from the caller (non-destructive: never overwrite existing keys)
+        // Merge source metadata from the caller into sourceMeta (non-destructive)
         if ($contextHints !== []) {
-            $asset->context ??= [];
+            $asset->sourceMeta ??= [];
             foreach ($contextHints as $key => $value) {
-                if (!isset($asset->context[$key])) {
-                    $asset->context[$key] = $value;
+                if (!isset($asset->sourceMeta[$key])) {
+                    $asset->sourceMeta[$key] = $value;
                 }
             }
         }

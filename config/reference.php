@@ -1696,6 +1696,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         serialize_payload_fields?: mixed, // Set to null to serialize all payload fields when a validation error is thrown, or set the fields you want to include explicitly. // Default: []
  *         query_parameter_validation?: bool|Param, // Deprecated: Will be removed in API Platform 5.0. // Default: true
  *     },
+ *     jsonapi?: array{
+ *         use_iri_as_id?: bool|Param, // Set to false to use entity identifiers instead of IRIs as the "id" field in JSON:API responses. // Default: true
+ *     },
  *     eager_loading?: bool|array{
  *         enabled?: bool|Param, // Default: true
  *         fetch_partial?: bool|Param, // Fetch only partial data according to serialization groups. If enabled, Doctrine ORM entities will not work as expected if any of the other fields are used. // Default: false
@@ -1707,11 +1710,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     enable_json_streamer?: bool|Param, // Enable json streamer. // Default: false
  *     enable_swagger_ui?: bool|Param, // Enable Swagger UI // Default: true
  *     enable_re_doc?: bool|Param, // Enable ReDoc // Default: true
+ *     enable_scalar?: bool|Param, // Enable Scalar API Reference // Default: true
  *     enable_entrypoint?: bool|Param, // Enable the entrypoint // Default: true
  *     enable_docs?: bool|Param, // Enable the docs // Default: true
  *     enable_profiler?: bool|Param, // Enable the data collector and the WebProfilerBundle integration. // Default: true
  *     enable_phpdoc_parser?: bool|Param, // Enable resource metadata collector using PHPStan PhpDocParser. // Default: true
- *     enable_link_security?: bool|Param, // Enable security for Links (sub resources) // Default: false
+ *     enable_link_security?: bool|Param, // Deprecated: This option is always enabled and will be removed in API Platform 5.0. // Enable security for Links (sub resources). // Default: true
  *     collection?: array{
  *         exists_parameter_name?: scalar|Param|null, // The name of the query parameter to filter on nullable field values. // Default: "exists"
  *         order?: scalar|Param|null, // The default order of results. // Default: "ASC"
@@ -1811,6 +1815,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     elasticsearch?: bool|array{
  *         enabled?: bool|Param, // Default: false
  *         hosts?: list<scalar|Param|null>,
+ *         ssl_ca_bundle?: scalar|Param|null, // Path to the SSL CA bundle file for Elasticsearch SSL verification. // Default: null
+ *         ssl_verification?: bool|Param, // Enable or disable SSL verification for Elasticsearch connections. // Default: true
+ *         client?: "elasticsearch"|"opensearch"|Param, // The search engine client to use: "elasticsearch" or "opensearch". // Default: "elasticsearch"
  *     },
  *     openapi?: array{
  *         contact?: array{
@@ -1829,12 +1836,18 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             identifier?: scalar|Param|null, // An SPDX license expression for the API. The identifier field is mutually exclusive of the url field. // Default: null
  *         },
  *         swagger_ui_extra_configuration?: mixed, // To pass extra configuration to Swagger UI, like docExpansion or filter. // Default: []
+ *         scalar_extra_configuration?: mixed, // To pass extra configuration to Scalar API Reference, like theme or darkMode. // Default: []
  *         overrideResponses?: bool|Param, // Whether API Platform adds automatic responses to the OpenAPI documentation. // Default: true
  *         error_resource_class?: scalar|Param|null, // The class used to represent errors in the OpenAPI documentation. // Default: null
  *         validation_error_resource_class?: scalar|Param|null, // The class used to represent validation errors in the OpenAPI documentation. // Default: null
  *     },
  *     maker?: bool|array{
  *         enabled?: bool|Param, // Default: true
+ *         namespace_prefix?: scalar|Param|null, // Add a prefix to all maker generated classes. e.g set it to "Api" to set the maker namespace to "App\Api\" (if the maker.root_namespace config is App). e.g. App\Api\State\MyStateProcessor // Default: ""
+ *     },
+ *     mcp?: bool|array{
+ *         enabled?: bool|Param, // Default: true
+ *         format?: scalar|Param|null, // The serialization format used for MCP tool input/output. Must be a format registered in api_platform.formats (e.g. "jsonld", "json", "jsonapi"). // Default: "jsonld"
  *     },
  *     exception_to_status?: array<string, int|Param>,
  *     formats?: array<string, array{ // Default: {"jsonld":{"mime_types":["application/ld+json"]}}
@@ -1919,12 +1932,37 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         rules?: mixed,
  *         policy?: mixed,
  *         middleware?: mixed,
- *         parameters?: mixed,
+ *         parameters?: array<string, array{ // Default: []
+ *             key?: mixed,
+ *             schema?: mixed,
+ *             open_api?: mixed,
+ *             provider?: mixed,
+ *             filter?: mixed,
+ *             property?: mixed,
+ *             description?: mixed,
+ *             properties?: mixed,
+ *             required?: mixed,
+ *             priority?: mixed,
+ *             hydra?: mixed,
+ *             constraints?: mixed,
+ *             security?: mixed,
+ *             security_message?: mixed,
+ *             extra_properties?: mixed,
+ *             filter_context?: mixed,
+ *             native_type?: mixed,
+ *             cast_to_array?: mixed,
+ *             cast_to_native_type?: mixed,
+ *             cast_fn?: mixed,
+ *             default?: mixed,
+ *             filter_class?: mixed,
+ *             ...<mixed>
+ *         }>,
  *         strict_query_parameter_validation?: mixed,
  *         hide_hydra_operation?: mixed,
  *         json_stream?: mixed,
  *         extra_properties?: mixed,
  *         map?: mixed,
+ *         mcp?: mixed,
  *         route_name?: mixed,
  *         errors?: mixed,
  *         read?: mixed,
@@ -1932,6 +1970,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         validate?: mixed,
  *         write?: mixed,
  *         serialize?: mixed,
+ *         content_negotiation?: mixed,
  *         priority?: mixed,
  *         name?: mixed,
  *         allow_create?: mixed,
@@ -2058,6 +2097,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         workspaces?: array<string, array{ // Default: []
  *             source?: scalar|Param|null, // LLM provider: openAi | azureOpenAi | mistral | gemini | vLlm // Default: "openAi"
  *             apiKey?: scalar|Param|null, // Provider API key (use %env(OPENAI_API_KEY)%) // Default: null
+ *             chatApiKey?: scalar|Param|null, // Scoped Meilisearch API key used as the Bearer when calling /chats/{workspace}/chat/completions. Use a key restricted to specific indexes to prevent OpenAI enum overflow when the instance has many indexes. // Default: null
  *             model?: scalar|Param|null, // Model sent in each completion request (not stored in workspace settings) // Default: "gpt-4o-mini"
  *             baseUrl?: scalar|Param|null, // Default: null
  *             orgId?: scalar|Param|null, // Default: null
@@ -2073,6 +2113,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 searchFilterParam?: scalar|Param|null, // Default: null
  *                 searchDescription?: scalar|Param|null, // Default: null
  *                 searchQParam?: scalar|Param|null, // Default: null
+ *                 searchIndexUidParam?: scalar|Param|null, // Pin the index UID — prevents Meilisearch generating a full enum of all indexes, which blows the OpenAI context limit. // Default: null
  *             },
  *             indexes?: list<scalar|Param|null>,
  *         }>,

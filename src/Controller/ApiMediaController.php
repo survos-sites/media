@@ -109,41 +109,42 @@ final class ApiMediaController extends AbstractController
         }
 
         $childRows = array_map(static fn (Asset $child): array => [
-            'id' => $child->id,
+            'id'         => $child->id,
             'pageNumber' => $child->pageNumber,
-            'marking' => $child->marking,
-            'mime' => $child->mime,
+            'marking'    => $child->marking,
+            'mime'       => $child->mime,
             'archiveUrl' => $child->archiveUrl,
-            'smallUrl' => $child->smallUrl,
-            'context' => $child->context,
+            'smallUrl'   => $child->smallUrl,
+            'context'    => $child->context,
+            'sourceMeta' => $child->sourceMeta,
         ], $children);
 
         $meta = [
-            'mimeType' => $asset->mime,
-            'width' => $asset->width,
-            'height' => $asset->height,
-            'size' => $asset->size,
-            'statusCode' => $asset->statusCode,
-            'storageKey' => $asset->storageKey,
-            'archiveUrl' => $asset->archiveUrl,
-            'smallUrl' => $asset->smallUrl,
+            'mimeType'    => $asset->mime,
+            'width'       => $asset->width,
+            'height'      => $asset->height,
+            'size'        => $asset->size,
+            'statusCode'  => $asset->statusCode,
+            'storageKey'  => $asset->storageKey,
+            'archiveUrl'  => $asset->archiveUrl,
+            'smallUrl'    => $asset->smallUrl,
             'contentHash' => $asset->contentHash,
-            'childCount' => $asset->childCount,
-            'hasOcr' => $asset->hasOcr,
+            'childCount'  => $asset->childCount,
+            'hasOcr'      => $asset->hasOcr,
         ];
 
         return [
-            'id'        => $asset->id,
-            'source'    => (string) $asset->originalUrl,
-            'marking'   => $asset->marking,
-            'thumbs'    => $thumbs,
-            'variants'  => $variants,
-            'context'   => $asset->context,
-            'meta'      => $meta,
-            'children'  => $childRows,
-            // Optional convenience mirrors for common AI/OCR keys in context.
-            'ocr'       => $asset->context['ocr'] ?? null,
-            'ai'        => $asset->context['ai'] ?? null,
+            'id'         => $asset->id,
+            'source'     => (string) $asset->originalUrl,
+            'marking'    => $asset->marking,
+            'thumbs'     => $thumbs,
+            'variants'   => $variants,
+            'context'    => $asset->context,    // image-derived: OCR, thumbhash, colors, hash
+            'sourceMeta' => $asset->sourceMeta, // client-provided: dcterms:*, rights, ARK, IIIF
+            'meta'       => $meta,
+            'children'   => $childRows,
+            'ocr'        => $asset->context['ocr'] ?? null,
+            'ai'         => $asset->context['ai'] ?? null,
         ];
     }
 }

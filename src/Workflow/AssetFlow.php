@@ -144,7 +144,7 @@ class AssetFlow
         to: self::PLACE_AI_READY,
         info: 'Queue AI tasks',
         description: 'Populate aiQueue and enter the AI task pipeline',
-        guard: "subject.aiQueue is not empty and not subject.aiLocked",
+        guard: "subject.aiQueue != [] and not subject.aiLocked",
     )]
     public const TRANSITION_QUEUE_AI = 'queue_ai';
 
@@ -162,7 +162,7 @@ class AssetFlow
         to: self::PLACE_AI_READY,
         info: 'Run next AI task',
         description: 'Execute the next task in aiQueue and record the result in aiCompleted',
-        guard: "subject.aiQueue is not empty and not subject.aiLocked",
+        guard: "subject.aiQueue != [] and not subject.aiLocked",
         async: true,
     )]
     public const TRANSITION_AI_TASK = 'ai_task';
@@ -176,7 +176,7 @@ class AssetFlow
         to: self::PLACE_COMPLETE,
         info: 'Finish AI pipeline',
         description: 'All aiQueue tasks done; return to complete',
-        guard: "subject.aiQueue is empty and not subject.aiLocked",
+        guard: "subject.aiQueue == [] and not subject.aiLocked",
     )]
     public const TRANSITION_AI_DONE = 'ai_done';
 }

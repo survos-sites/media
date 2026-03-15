@@ -108,10 +108,22 @@ class Asset implements MarkingInterface, \Stringable
         }
     }
 
-    /** Arbitrary filterable context (JSONB): aggregator/museum/dataset/etc. */
-      #[ORM\Column(type: Types::JSON, nullable: true)]
-      #[Groups(['asset.read'])]
-      public ?array $context = null;
+    /**
+     * Image-derived analysis data (OCR text, thumbhash, colors, phash, sha256).
+     * Written by AssetWorkflow after download. Never overwritten by client metadata.
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?array $context = null;
+
+    /**
+     * Source metadata from the originating aggregator — dcterms:* keyed JSONB.
+     * Written by BatchController from client context hints (DC fields, rights, ARK, IIIF URLs).
+     * Never overwritten by image analysis.
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?array $sourceMeta = null;
 
      /**
       * Immutable parent reference (xxh3 key of parent Asset).
