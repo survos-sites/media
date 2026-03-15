@@ -617,4 +617,7 @@ return [
     'fos-routing' => [
         'version' => '0.0.6',
     ],
+    'marked' => [
+        'version' => '17.0.4',
+    ],
 ];

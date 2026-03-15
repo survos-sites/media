@@ -475,6 +475,12 @@ class AssetWorkflow
                         continue;
                     }
 
+                    // 404/410 = permanent failure — don't retry, mark as dead
+                    if (in_array($code, [404, 410], true)) {
+                        throw new \Survos\StateBundle\Exception\UnrecoverableMessageException(
+                            "Permanent failure (HTTP {$code}) for {$url} — skipping retries"
+                        );
+                    }
                     throw new \Exception("Problem with $url " . $code, code: $code);
                 }
 
