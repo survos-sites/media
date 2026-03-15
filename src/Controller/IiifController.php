@@ -15,12 +15,14 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class IiifController extends AbstractController
 {
     public function __construct(
         private readonly AssetRepository $assetRepository,
         private readonly AssetRegistry $assetRegistry,
+        private readonly HttpClientInterface $httpClient,
     ) {
     }
 
@@ -105,7 +107,7 @@ final class IiifController extends AbstractController
 
     /*
     #[Route('/iiif/2/{id}/{region}/{size}/{rotation}/{quality}.{format}', name: 'iiif_image', methods: ['GET'])]
-    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): RedirectResponse
+    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): Response
     {
         $asset = $this->findAsset($id);
 
@@ -178,7 +180,7 @@ final class IiifController extends AbstractController
             throw new BadRequestHttpException('Unsupported size: ' . $size);
         }
 
-        // ── Build imgproxy URL and redirect ────────────────────────────────────
+        // ── Build imgproxy URL and proxy response ──────────────────────────────
         $url = $this->assetRegistry->imgProxyUrlWithCrop(
             $asset,
             $crop,
@@ -188,7 +190,23 @@ final class IiifController extends AbstractController
             $quality === 'gray' ? 'grayscale' : null
         );
 
-        return new RedirectResponse($url, 302);
+        $upstream = $this->httpClient->request('GET', $url);
+        $status = $upstream->getStatusCode();
+        if ($status >= 400) {
+            throw new NotFoundHttpException(sprintf('IIIF tile upstream failed (%d): %s', $status, $url));
+        }
+
+        $headers = $upstream->getHeaders(false);
+        $contentType = $headers['content-type'][0] ?? 'image/jpeg';
+
+        return new Response(
+            $upstream->getContent(),
+            200,
+            [
+                'Content-Type' => $contentType,
+                'Cache-Control' => 'public, max-age=86400',
+            ],
+        );
     }
 
     #[Route('/iiif/3/{id}/mirador', name: 'iiif_mirador', methods: ['GET'])]

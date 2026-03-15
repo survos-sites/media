@@ -2,12 +2,9 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
-    # Trust only the local reverse proxy by default.
-    # Do NOT trust REMOTE_ADDR here: it can allow client-supplied forwarded
-    # headers to influence scheme/host (http vs https) and redirect URLs.
-    # If the app is directly behind Cloudflare, replace this with the
-    # Cloudflare CIDR list (or inject via env at deploy time).
-    trusted_proxies: '127.0.0.1,::1'
+    # Trust chain is environment-driven so production can include Cloudflare
+    # and/or edge proxy CIDRs. Keep defaults strict in .env.
+    trusted_proxies: '%env(SYMFONY_TRUSTED_PROXIES)%'
     trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-prefix']
 
     # Note that the session will be started ONLY if you read or write from it.
