@@ -12,6 +12,7 @@ use League\ColorExtractor\Palette;
 use Psr\Log\LoggerInterface;
 use Survos\ThumbHashBundle\Service\ThumbHashService;
 use Survos\ThumbHashBundle\Service\Thumbhash;
+use RuntimeException;
 
 /**
  * Builds image variants (LiipImagine filters) and performs analysis (blurhash/thumbhash, palettes, pHash)
@@ -172,27 +173,35 @@ final class AssetPreviewService
     public function maybeComputePaletteAndPhash(Asset $asset, string $preset, string $cachedPath): void
     {
         $sourcePath = $cachedPath;
-        $tempPath = null;
+        $downloadTempPath = null;
+        $analysisTempPath = null;
+
         if (preg_match('#^https?://#', $cachedPath) === 1) {
-            $bytes = @file_get_contents($cachedPath);
-            if ($bytes !== false) {
-                $tempPath = tempnam(sys_get_temp_dir(), 'asset_preview_');
-                if ($tempPath !== false) {
-                    file_put_contents($tempPath, $bytes);
-                    $sourcePath = $tempPath;
+            try {
+                $bytes = file_get_contents($cachedPath);
+                if ($bytes !== false) {
+                    $downloadTempPath = tempnam(sys_get_temp_dir(), 'asset_preview_');
+                    if ($downloadTempPath !== false) {
+                        file_put_contents($downloadTempPath, $bytes);
+                        $sourcePath = $downloadTempPath;
+                    }
                 }
+            } catch (\Throwable) {
             }
         }
 
         try {
-            $palette   = Palette::fromFilename($sourcePath);
+            $analysisTempPath = $this->createAnalysisSizedImage($sourcePath, 512);
+            $palettePath = $analysisTempPath ?? $sourcePath;
+
+            $palette   = Palette::fromFilename($palettePath, -1, 500);
             $extractor = new ColorExtractor($palette);
             $colors    = $extractor->extract(5); // array of ints (0xRRGGBB)
             $asset->context ??= [];
             $asset->context['colors'] = $colors;
 
             // Richer analysis (bucketed hues, coverage, etc.)
-            $analysis = $this->colorAnalysisService->analyze($sourcePath, top: 5, hueBuckets: 36);
+            $analysis = $this->colorAnalysisService->analyze($palettePath, top: 5, hueBuckets: 36);
             $asset->context['color_analysis'] = $analysis;
         } catch (\Throwable $e) {
             // Non-fatal
@@ -200,15 +209,50 @@ final class AssetPreviewService
 
         try {
             $hasher = new ImageHash(new PerceptualHash()); // 64-bit pHash
-            $hash   = $hasher->hash($sourcePath);
+            $hash   = $hasher->hash($analysisTempPath ?? $sourcePath);
             $asset->context ??= [];
             $asset->context['phash'] = (string) $hash; // hex string
         } catch (\Throwable $e) {
             // Non-fatal
         }
 
-        if ($tempPath && is_file($tempPath)) {
-            @unlink($tempPath);
+        if ($analysisTempPath && is_file($analysisTempPath)) {
+            unlink($analysisTempPath);
+        }
+
+        if ($downloadTempPath && is_file($downloadTempPath)) {
+            unlink($downloadTempPath);
+        }
+    }
+
+    private function createAnalysisSizedImage(string $sourcePath, int $maxSide): ?string
+    {
+        if (!is_file($sourcePath) || $maxSide < 32) {
+            return null;
+        }
+
+        try {
+            $image = new \Imagick($sourcePath);
+            $width = $image->getImageWidth();
+            $height = $image->getImageHeight();
+
+            if ($width <= $maxSide && $height <= $maxSide) {
+                $image->clear();
+                return null;
+            }
+
+            $image->thumbnailImage($maxSide, $maxSide, true);
+            $tmpPath = tempnam(sys_get_temp_dir(), 'asset_palette_');
+            if ($tmpPath === false) {
+                throw new RuntimeException('Failed to create temp file for palette analysis');
+            }
+
+            $image->writeImage($tmpPath);
+            $image->clear();
+
+            return $tmpPath;
+        } catch (\Throwable) {
+            return null;
         }
     }
 }

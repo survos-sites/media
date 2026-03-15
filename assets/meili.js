@@ -1,9 +1,6 @@
-// meili.js on the meilisearch page
-import './stimulus_bootstrap.js';
-console.log('meili.js loads bootstrap and angolia css');
-// import 'bootstrap';
-// import 'bootstrap/dist/css/bootstrap.min.css';
+import '@symfony/stimulus-bundle';
+console.log('meili.js loads stimulus and algolia css');
 import '@tabler/core';
 import '@tabler/core/dist/css/tabler.min.css';
-// put andyjson viewer here too?  twigjs?
 import 'instantsearch.css/themes/algolia.min.css';
+import '@tacman1123/twig-browser';

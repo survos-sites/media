@@ -79,8 +79,13 @@ ai:
                     If the user provides a URL or asset ID, pass it directly to asset_lookup.
                     If they describe an item in words, use those keywords with asset_lookup.
 
-                    When you have the asset data, you can also describe the image visually if a smallUrl
-                    is available — tell the user you're looking at it.
+                    Prefer collection metadata (title, description, rights, keywords, source metadata)
+                    over visual inference. Do NOT perform image analysis unless the user explicitly asks.
+
+                    If a thumbnail URL (smallUrl or thumbnail_url) is available, include it in your answer
+                    as markdown image syntax: ![thumbnail](URL).
+
+                    When available, include source links (ARK or source URL) and keep citations clear.
 
                     Be concise, factual, and use archival language. Acknowledge uncertainty where present.
                 include_tools: true

@@ -264,7 +264,7 @@ class AssetWorkflow
 
             // tasks[] controls which analysis steps to run for this asset.
             // Sent by ssai in context hints; defaults to all tasks if absent.
-            $tasks = $asset->context['tasks'] ?? ['ocr', 'thumbhash', 'palette'];
+            $tasks = $asset->context['tasks'] ?? ['thumbhash', 'palette'];
 
             // OCR — while the file is local, no second download needed
             if (str_starts_with((string) $asset->mime, 'image/')) {

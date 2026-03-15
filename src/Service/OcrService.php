@@ -16,10 +16,13 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class OcrService
 {
+    private ?float $lastRequestAt = null;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
         #[Autowire('%env(default::OCR_HOST)%')] private readonly ?string $ocrHost = null,
+        #[Autowire('%env(default:1000:OCR_MIN_INTERVAL_MS)%')] private readonly int $minIntervalMs = 1000,
     ) {}
 
     /**
@@ -46,43 +49,90 @@ final class OcrService
         }
 
         $options = ['languages' => ['eng'], 'dpi' => 300];
-
-        $formData = new FormDataPart([
-            'options' => json_encode($options),
-            'file'    => new DataPart(fopen($localPath, 'r'), basename($localPath)),
-        ]);
+        $maxAttempts = 3;
+        $retryableStatus = [429, 503, 529];
 
         try {
-            $response = $this->httpClient->request('POST', $host, [
-                'headers' => $formData->getPreparedHeaders()->toArray(),
-                'body'    => $formData->bodyToIterable(),
-                'timeout' => 120,
-            ]);
+            $status = 0;
+            for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+                $this->throttle();
 
-            $status = $response->getStatusCode();
-            if ($status < 200 || $status >= 300) {
-                $this->logger->error('OcrService: HTTP {status} from {host}', ['status' => $status, 'host' => $host]);
-                return null;
+                $fileHandle = fopen($localPath, 'r');
+                if ($fileHandle === false) {
+                    return null;
+                }
+
+                try {
+                    $formData = new FormDataPart([
+                        'options' => json_encode($options),
+                        'file'    => new DataPart($fileHandle, basename($localPath)),
+                    ]);
+
+                    $response = $this->httpClient->request('POST', $host, [
+                        'headers' => $formData->getPreparedHeaders()->toArray(),
+                        'body'    => $formData->bodyToIterable(),
+                        'timeout' => 120,
+                    ]);
+
+                    $status = $response->getStatusCode();
+                } finally {
+                    fclose($fileHandle);
+                }
+
+                if ($status >= 200 && $status < 300) {
+                    $payload = $response->toArray(false);
+                    $text    = $payload['data']['stdout'] ?? null;
+
+                    if (!is_string($text)) {
+                        $this->logger->error('OcrService: unexpected response shape');
+                        return null;
+                    }
+
+                    $trimmed = trim($text);
+                    $this->logger->warning('OcrService: extracted {len} chars from {path}', [
+                        'len'  => strlen($trimmed),
+                        'path' => basename($localPath),
+                    ]);
+
+                    return $trimmed;
+                }
+
+                if (!in_array($status, $retryableStatus, true) || $attempt === $maxAttempts) {
+                    $this->logger->error('OcrService: HTTP {status} from {host}', ['status' => $status, 'host' => $host]);
+                    return null;
+                }
+
+                $delaySeconds = (float) (2 ** ($attempt - 1));
+                $jitterMicros = random_int(0, 250000);
+                $this->logger->warning('OcrService: backing off after HTTP {status} (attempt {attempt}/{max}) for {delay}s', [
+                    'status' => $status,
+                    'attempt' => $attempt,
+                    'max' => $maxAttempts,
+                    'delay' => $delaySeconds,
+                ]);
+                usleep((int) ($delaySeconds * 1_000_000) + $jitterMicros);
             }
-
-            $payload = $response->toArray(false);
-            $text    = $payload['data']['stdout'] ?? null;
-
-            if (!is_string($text)) {
-                $this->logger->error('OcrService: unexpected response shape');
-                return null;
-            }
-
-            $trimmed = trim($text);
-            $this->logger->warning('OcrService: extracted {len} chars from {path}', [
-                'len'  => strlen($trimmed),
-                'path' => basename($localPath),
-            ]);
-
-            return $trimmed;
         } catch (\Throwable $e) {
             $this->logger->error('OcrService: {error}', ['error' => $e->getMessage()]);
             return null;
         }
+
+        return null;
+    }
+
+    private function throttle(): void
+    {
+        if ($this->lastRequestAt === null || $this->minIntervalMs <= 0) {
+            $this->lastRequestAt = microtime(true);
+            return;
+        }
+
+        $elapsedMs = (microtime(true) - $this->lastRequestAt) * 1000;
+        $remainingMs = $this->minIntervalMs - $elapsedMs;
+        if ($remainingMs > 0) {
+            usleep((int) ($remainingMs * 1000));
+        }
+
+        $this->lastRequestAt = microtime(true);
     }
 }
