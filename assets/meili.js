@@ -1,5 +1,5 @@
-import '@symfony/stimulus-bundle';
-console.log('meili.js loads stimulus and algolia css');
+import './stimulus_bootstrap.js';
+console.log('meili.js loads stimulus bootstrap and algolia css');
 import '@tabler/core';
 import '@tabler/core/dist/css/tabler.min.css';
 import 'instantsearch.css/themes/algolia.min.css';
