@@ -66,7 +66,7 @@ final class IiifController extends AbstractController
 
         return $this->json([
             '@context' => 'http://iiif.io/api/image/2/context.json',
-            '@id'      => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL),
+            '@id'      => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_PATH),
             'protocol' => 'http://iiif.io/api/image',
             'width'    => (int) $width,
             'height'   => (int) $height,
@@ -217,7 +217,7 @@ final class IiifController extends AbstractController
         $asset = $this->findAsset($id);
         [$width, $height] = $this->dimensions($asset);
 
-        $manifestId = $this->generateUrl('iiif_manifest', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL);
+        $manifestId = $this->generateUrl('iiif_manifest', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_PATH);
         $canvasId = $manifestId . '/canvas/p1';
         $annotationPageId = $manifestId . '/page/p1';
         $annotationId = $manifestId . '/annotation/p1-image';
@@ -232,7 +232,7 @@ final class IiifController extends AbstractController
                 'quality' => 'default',
                 'format' => 'jpg',
             ],
-            UrlGeneratorInterface::ABSOLUTE_URL
+            UrlGeneratorInterface::ABSOLUTE_PATH
         );
 
         $thumbId = $this->generateUrl(
@@ -245,7 +245,7 @@ final class IiifController extends AbstractController
                 'quality' => 'default',
                 'format' => 'jpg',
             ],
-            UrlGeneratorInterface::ABSOLUTE_URL
+            UrlGeneratorInterface::ABSOLUTE_PATH
         );
 
         $label = $asset->sourceMeta['dcterms:title']
@@ -285,7 +285,7 @@ final class IiifController extends AbstractController
                             'width' => $width,
                             'height' => $height,
                             'service' => [[
-                                'id' => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL),
+                                'id' => $this->generateUrl('iiif_image_base', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_PATH),
                                 'type' => 'ImageService2',
                                 'profile' => 'level0',
                             ]],

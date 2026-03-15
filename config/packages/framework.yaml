@@ -2,10 +2,12 @@
 framework:
     secret: '%env(APP_SECRET)%'
 
-    # Trust the reverse proxy (nginx/caddy) that terminates TLS.
-    # REMOTE_ADDR trusts whatever IP directly connects — safe when the proxy
-    # is on the same host or a known internal network.
-    trusted_proxies: '127.0.0.1,REMOTE_ADDR'
+    # Trust only the local reverse proxy by default.
+    # Do NOT trust REMOTE_ADDR here: it can allow client-supplied forwarded
+    # headers to influence scheme/host (http vs https) and redirect URLs.
+    # If the app is directly behind Cloudflare, replace this with the
+    # Cloudflare CIDR list (or inject via env at deploy time).
+    trusted_proxies: '127.0.0.1,::1'
     trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-prefix']
 
     # Note that the session will be started ONLY if you read or write from it.
@@ -33,4 +35,3 @@ when@dev:
     framework:
         router:
             default_uri: 'https://media.wip'
-
