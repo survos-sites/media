@@ -2097,7 +2097,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         workspaces?: array<string, array{ // Default: []
  *             source?: scalar|Param|null, // LLM provider: openAi | azureOpenAi | mistral | gemini | vLlm // Default: "openAi"
  *             apiKey?: scalar|Param|null, // Provider API key (use %env(OPENAI_API_KEY)%) // Default: null
- *             chatApiKey?: scalar|Param|null, // Scoped Meilisearch API key used as the Bearer when calling /chats/{workspace}/chat/completions. Use a key restricted to specific indexes to prevent OpenAI enum overflow when the instance has many indexes. // Default: null
  *             model?: scalar|Param|null, // Model sent in each completion request (not stored in workspace settings) // Default: "gpt-4o-mini"
  *             baseUrl?: scalar|Param|null, // Default: null
  *             orgId?: scalar|Param|null, // Default: null

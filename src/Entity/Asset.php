@@ -24,14 +24,15 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
 #[MeiliIndex(
+    chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal'],
-    filterable: ['mime', 'clients', 'marking', 'aiDocumentType', 'aiDocumentSubtype',
+    filterable: ['mime', 'clients', 'marking', 'aiDocumentType', 'aiDocumentSubtype', 'subjects',
                  'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'],
-    searchable: ['aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
+    searchable: ['title', 'description', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
                  'aiPeople', 'aiPlaces', 'aiSubjects', 'originalUrl'],
     persisted: new Fields(
         groups: ['asset.read'],
-        fields: ['id', 'mime', 'width', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
+        fields: ['id', 'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
                  'aiDocumentType'],
     ),
     ui: ['columns' => 4, 'cardClass' => 'asset-card'],
@@ -51,6 +52,13 @@ class Asset implements MarkingInterface, \Stringable
             $this->id = $value;
         }
     }
+
+    #[Groups(['asset.read'])]
+    public ?string $title { get => $this->sourceMeta['dcterms:title'] ?? null; }
+    #[Groups(['asset.read'])]
+    public ?string $description { get => $this->sourceMeta['dcterms:description'] ?? null; }
+    #[Groups(['asset.read'])]
+    public ?string $subjects { get => $this->sourceMeta['dcterms:subjects'] ?? null; }
 
     /** Fast non-cryptographic content hash (xxh3 of bytes). */
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]

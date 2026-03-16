@@ -22,7 +22,7 @@ use ApiPlatform\Metadata\GetCollection;
         new GetCollection(),
     ]
 )]
-#[MeiliIndex()]
+#[MeiliIndex(chats: ['meili_assistant'])]
 class Storage implements \Stringable
 {
     #[ORM\Column(length: 255, nullable: true)]

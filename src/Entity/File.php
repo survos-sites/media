@@ -35,6 +35,7 @@ use ApiPlatform\Serializer\Filter\PropertyFilter;
 #[ORM\Entity(repositoryClass: FileRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_STORAGE_PATH', fields: ['storage', 'path'])]
 #[MeiliIndex(
+    chats: ['meili_assistant'],
     persisted: new Fields(
         fields: ['id','fileSize', 'listingCount', 'dirCount', 'fileCount', 'type'],
         groups: ['file.read','minimum','search']
