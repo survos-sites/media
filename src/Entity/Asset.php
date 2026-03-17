@@ -35,6 +35,9 @@ use Symfony\Component\Serializer\Attribute\Groups;
         fields: ['id', 'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
                  'aiDocumentType'],
     ),
+    prompts: [
+        'system' => 'You are assisting with media assets. Always use tool-backed search results from this index and always include [id:{value}] where {value} is the Asset primary key field {{ primaryKey }}.',
+    ],
     ui: ['columns' => 4, 'cardClass' => 'asset-card'],
 )]
 class Asset implements MarkingInterface, \Stringable
