@@ -8,10 +8,10 @@ use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+use Survos\MeiliBundle\Metadata\Facet;
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\MediaBundle\Util\MediaIdentity;
-use Survos\SaisBundle\Service\SaisClientService;
 use Survos\StateBundle\Traits\MarkingInterface;
 use Survos\StateBundle\Traits\MarkingTrait;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -26,13 +26,18 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[MeiliIndex(
     chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal'],
-    filterable: ['mime', 'clients', 'marking', 'aiDocumentType', 'aiDocumentSubtype', 'subjects',
-                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'],
+    filterable: ['mime', 'clients', 'marking',
+//        'aiDocumentType', 'aiDocumentSubtype',
+        'subjects',
+//                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
+    ],
     searchable: ['title', 'description', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
-                 'aiPeople', 'aiPlaces', 'aiSubjects', 'originalUrl'],
+                 'aiPeople', 'aiPlaces', 'aiSubjects'],
     persisted: new Fields(
         groups: ['asset.read'],
-        fields: ['id', 'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
+        fields: ['id',
+            'originalUrl',
+            'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
                  'aiDocumentType'],
     ),
     prompts: [
@@ -61,7 +66,21 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?string $description { get => $this->sourceMeta['dcterms:description'] ?? null; }
     #[Groups(['asset.read'])]
-    public ?string $subjects { get => $this->sourceMeta['dcterms:subjects'] ?? null; }
+    public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? null; }
+
+    #[Groups(['asset.read'])]
+    public ?string $type { get => $this->sourceMeta['dcterms:type'] ?? null; }
+
+    #[Groups(['asset.read'])]
+    #[Facet()]
+    public ?string $reuse { get => $this->sourceMeta['reuse_allowed'] ?? null; }
+
+    #[Groups(['asset.read'])]
+    public ?string $thumb { get => $this->sourceMeta['thumbnail_url'] ?? null; }
+
+    #[Groups(['asset.read'])]
+    #[Facet()]
+    public ?string $publisher { get => $this->sourceMeta['dcterms:publisher'] ?? null; }
 
     /** Fast non-cryptographic content hash (xxh3 of bytes). */
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]

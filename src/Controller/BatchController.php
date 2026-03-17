@@ -5,17 +5,21 @@ namespace App\Controller;
 
 use App\Service\AssetRegistry;
 use App\Workflow\AssetFlow;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/{client}/batch', methods: ['POST', 'GET'])]
-final class BatchController
+final class BatchController implements LoggerAwareInterface
 {
+    use LoggerAwareTrait;
     public function __construct(
-        private readonly AssetRegistry       $assetRegistry,
-        private readonly AsyncQueueLocator   $asyncQueueLocator,
+        private readonly AssetRegistry     $assetRegistry,
+        private readonly AsyncQueueLocator $asyncQueueLocator,
     ) {
     }
 
@@ -36,6 +40,8 @@ final class BatchController
                 $this->asyncQueueLocator->sync = true;
             }
         }
+        file_put_contents('/tmp/payload.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $this->logger->warning(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
         $media = [];
         $urls  = array_unique(array_filter($urls));
@@ -48,6 +54,9 @@ final class BatchController
                 $contextHints['callback_url'] = $callbackUrl;
             }
             $asset = $this->assetRegistry->ensureAsset($url, $client, contextHints: $contextHints);
+            if (!in_array($client = $payload['client'], $asset->clients, true)) {
+                $asset->clients[] = $client;
+            }
             if ($asset->marking === AssetFlow::PLACE_NEW) {
                 $queue[$asset->originalUrl] = $asset;
             }
@@ -64,8 +73,9 @@ final class BatchController
         }
         $this->assetRegistry->flush();
 
+        // dispatch auto-download for the moment, let's focus on metadata
         foreach ($queue as $url => $asset) {
-            $this->assetRegistry->dispatch($asset);
+//            $this->assetRegistry->dispatch($asset);
         }
         $this->assetRegistry->flush();
 
