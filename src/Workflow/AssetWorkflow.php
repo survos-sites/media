@@ -95,9 +95,9 @@ class AssetWorkflow
         private readonly StorageService $storageService,
         private readonly AssetRegistry $assetRegistry,
         private readonly OcrService $ocrService,
+        private readonly TwigEnvironment $twig,
         private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
-        private readonly TwigEnvironment $twig,
         iterable $taskServices = [],
     ) {
         foreach ($taskServices as $task) {

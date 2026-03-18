@@ -592,7 +592,9 @@ prompt:
               <div id="tabs-dev-dump" class="tab-pane">
                 <details open>
                   <summary class="small text-muted mb-2">asset dump (dev only)</summary>
-                  {{ dump(asset) }}
+                    {% guard function dump %}
+                          {{ dump(asset) }}
+                    {% endguard %}
                 </details>
               </div>
               {% endif %}
