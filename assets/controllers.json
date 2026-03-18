@@ -1,5 +1,12 @@
 {
     "controllers": {
+        "@survos/bootstrap-bundle": {
+            "search": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            }
+        },
         "@survos/js-twig-bundle": {
             "dexie": {
                 "enabled": true,

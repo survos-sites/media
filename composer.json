@@ -102,7 +102,7 @@
         "symfony/yaml": "^8.0.6",
         "symfonycasts/verify-email-bundle": "^1.18.0",
         "twig/extra-bundle": "^3.24.0",
-        "twig/twig": "^3.24.0",
+        "twig/twig": "^3.24",
         "zenstruck/bytes": "^1.1",
         "zenstruck/class-metadata": "^1.1.1",
         "zenstruck/messenger-monitor-bundle": "^0.6.0"
