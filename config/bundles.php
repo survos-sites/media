@@ -51,4 +51,5 @@ return [
     Survos\JsTwigBundle\SurvosJsTwigBundle::class => ['all' => true],
     Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
     Survos\DataBundle\SurvosDataBundle::class => ['all' => true],
+    Survos\ImportBundle\SurvosImportBundle::class => ['all' => true],
 ];

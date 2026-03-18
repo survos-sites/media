@@ -274,6 +274,9 @@
     "survos/iiif-bundle": {
         "version": "1.0.0"
     },
+    "survos/import-bundle": {
+        "version": "2.0.142"
+    },
     "survos/js-twig-bundle": {
         "version": "2.0.125"
     },
