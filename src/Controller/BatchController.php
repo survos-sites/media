@@ -40,7 +40,7 @@ final class BatchController implements LoggerAwareInterface
                 $this->asyncQueueLocator->sync = true;
             }
         }
-        file_put_contents('/tmp/payload.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+//        file_put_contents('/tmp/payload.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         $this->logger->warning(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
         $media = [];

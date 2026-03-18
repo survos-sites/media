@@ -48,10 +48,38 @@ final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInter
 
         // Expand aiCompleted into clean keys — most recent run of each task wins.
         $ai = $this->expandAiCompleted($object->aiCompleted ?? []);
+        $enrichment = $this->expandMediaEnrichment($object->mediaEnrichment ?? null);
 
         // Merge: computed AI fields go in as top-level keys.
         // They will not collide with real columns because we've dropped the flat ones.
-        return array_merge($data, $ai);
+        return array_merge($data, $ai, $enrichment);
+    }
+
+    /**
+     * @param array<string,mixed>|null $mediaEnrichment
+     * @return array<string,mixed>
+     */
+    private function expandMediaEnrichment(?array $mediaEnrichment): array
+    {
+        if (!is_array($mediaEnrichment) || $mediaEnrichment === []) {
+            return [];
+        }
+
+        return array_filter([
+            'mediaEnrichment' => $mediaEnrichment,
+            'aiTitle' => $mediaEnrichment['title'] ?? null,
+            'aiDescription' => $mediaEnrichment['description'] ?? null,
+            'aiOcrText' => $mediaEnrichment['ocrText'] ?? null,
+            'aiDocumentType' => $mediaEnrichment['documentType'] ?? null,
+            'aiDocumentSubtype' => $mediaEnrichment['documentSubtype'] ?? null,
+            'aiPeople' => $mediaEnrichment['people'] ?? [],
+            'aiPlaces' => $mediaEnrichment['places'] ?? [],
+            'aiOrganisations' => $mediaEnrichment['organisations'] ?? [],
+            'aiKeywords' => $mediaEnrichment['keywords'] ?? [],
+            'aiSubjects' => $mediaEnrichment['subjects'] ?? [],
+            'aiDateRange' => $mediaEnrichment['dateRange'] ?? null,
+            'aiSummary' => $mediaEnrichment['summary'] ?? ($mediaEnrichment['denseSummary'] ?? null),
+        ], static fn ($value): bool => $value !== null && $value !== [] && $value !== '');
     }
 
     /**

@@ -212,18 +212,11 @@ final class MediaTaskCommand
             return Command::FAILURE;
         }
 
-        // Temporarily inject this task at the front of the queue so the runner handles
-        // all the support-check, error-recording, and workflow-advance logic.
-        $originalQueue = $asset->aiQueue;
-        $asset->aiQueue = [$taskName, ...$originalQueue];
-
         $io->text("Running task <info>{$taskName}</info>…");
-        $ran = $this->runner->runNext($asset);
+        $ran = $this->runner->runNamed($asset, $taskName);
 
         if ($ran === null) {
             $io->warning('Task was not run (asset locked or queue error).');
-            $asset->aiQueue = $originalQueue; // restore
-            $this->entityManager->flush();
             return Command::FAILURE;
         }
 

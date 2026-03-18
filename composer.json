@@ -49,6 +49,7 @@
         "survos/bootstrap-bundle": "^2.0.142",
         "survos/command-bundle": "^2.0.141",
         "survos/crawler-bundle": "^2.0.142",
+        "survos/data-bundle": "*",
         "survos/doc-bundle": "^2.0.141",
         "survos/ez-bundle": "^2.0.142",
         "survos/google-sheets-bundle": "^2.0.83",

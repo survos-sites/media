@@ -11,6 +11,7 @@ use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\AiPipelineBundle\Task\AiTaskRegistry;
+use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,12 +21,17 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/media', name: 'asset_')]
 final class AssetController extends AbstractController
 {
+    /** Vision tasks that should always run async — they take 30-60s */
+    private const ASYNC_TASKS = ['enrich_from_thumbnail', 'context_description', 'extract_metadata'];
+
     public function __construct(
         private readonly AssetRepository $assetRepository,
         private readonly AssetAiTaskRunner $runner,
         private readonly AssetRegistry $assetRegistry,
         private readonly EntityManagerInterface $em,
         private readonly AiTaskRegistry $taskRegistry,
+        private readonly AsyncQueueLocator $asyncQueueLocator,
+        private readonly \Symfony\Component\Messenger\MessageBusInterface $bus,
     ) {
     }
 
@@ -123,7 +129,7 @@ final class AssetController extends AbstractController
      * HTMX/JSON endpoint: run a single named task and return a result fragment.
      * POST /assets/{id}/task/{taskName}
      */
-    #[Route('/{id}/task/{taskName}', name: 'run_task', methods: ['POST'])]
+    #[Route('/{id}/task/{taskName}', name: 'run_task', methods: ['POST', 'GET'])]
     public function runTask(Asset $asset, string $taskName, Request $request): Response
     {
         if (!$this->taskRegistry->has($taskName)) {
@@ -134,12 +140,31 @@ final class AssetController extends AbstractController
             return $this->redirectToRoute('asset_show', ['id' => $asset->id]);
         }
 
-        // Inject at front of queue and run
-        $originalQueue  = $asset->aiQueue;
-        $asset->aiQueue = [$taskName, ...$originalQueue];
+        $this->applyTaskOverrideFromRequest($asset, $taskName, $request);
+
+        // Slow vision tasks → dispatch async so HTTP doesn't idle-timeout
+        $forceAsync = $request->query->getBoolean('async', false);
+        $isSlowTask = in_array($taskName, self::ASYNC_TASKS, true);
+
+        if ($forceAsync || $isSlowTask) {
+            // Dispatch via workflow transition — picked up by Messenger worker
+            $this->runner->enqueue($asset, [$taskName]);
+            $this->em->flush();
+
+            if ($request->headers->get('HX-Request')) {
+                // Return a "queued" log entry — HTMX will poll for the real result
+                $entry = ['task' => $taskName, 'at' => date('c'), 'result' => ['queued' => true, 'reason' => 'Running async — refresh in a few seconds']];
+                $html  = $this->renderView('asset/_task_result_log.html.twig', ['entry' => $entry]);
+                return new Response($html, 202, [
+                    'HX-Trigger' => json_encode(['taskQueued' => $taskName]),
+                ]);
+            }
+            $this->addFlash('info', "Task {$taskName} queued — check back in a few seconds.");
+            return $this->redirectToRoute('asset_show', ['id' => $asset->id]);
+        }
 
         try {
-            $ran = $this->runner->runNext($asset);
+            $ran = $this->runner->runNamed($asset, $taskName);
         } catch (\Throwable $e) {
             if ($request->isXmlHttpRequest() || $request->headers->get('HX-Request')) {
                 return new JsonResponse(['error' => $e->getMessage()], 500);
@@ -199,6 +224,36 @@ final class AssetController extends AbstractController
         return $this->redirectToRoute('asset_show', ['id' => $asset->id]);
     }
 
+    private function applyTaskOverrideFromRequest(Asset $asset, string $taskName, Request $request): void
+    {
+        $image = strtolower((string) $request->query->get('image', ''));
+        $model = trim((string) $request->query->get('model', ''));
+
+        $override = [];
+        if (in_array($image, ['full', 'thumbnail', 'thumb', 'small'], true)) {
+            $override['image_source_preference'] = $image === 'full' ? 'full' : 'thumbnail';
+        }
+        if ($model !== '') {
+            $override['model'] = $model;
+        }
+
+        if ($override === []) {
+            return;
+        }
+
+        $asset->context ??= [];
+        $asset->context['ai_task_overrides'] ??= [];
+        if (!is_array($asset->context['ai_task_overrides'])) {
+            $asset->context['ai_task_overrides'] = [];
+        }
+
+        $asset->context['ai_task_overrides'][$taskName] = array_merge(
+            $override,
+            ['requested_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM)]
+        );
+        $this->em->flush();
+    }
+
     /**
      * @param array<string,mixed> $meta
      * @param array<string,mixed>|null $entry
@@ -214,8 +269,12 @@ final class AssetController extends AbstractController
         $debug = $entry['result']['_debug'] ?? null;
         if (is_array($debug)) {
             $imageUrl = $debug['image_url'] ?? null;
+            $imageSource = $debug['image_source'] ?? null;
             if (is_string($imageUrl) && $imageUrl !== '') {
                 $lines[] = '';
+                if (is_string($imageSource) && $imageSource !== '') {
+                    $lines[] = 'image_source: ' . $imageSource;
+                }
                 $lines[] = 'image_url: ' . $imageUrl;
             }
 
@@ -239,7 +298,7 @@ final class AssetController extends AbstractController
      * Enqueue a pipeline and redirect back.
      * POST /assets/{id}/pipeline/{name}
      */
-    #[Route('/{id}/pipeline/{name}', name: 'enqueue_pipeline', methods: ['POST'])]
+    #[Route('/{id}/pipeline/{name}', name: 'enqueue_pipeline', methods: ['GET', 'POST'])]
     public function enqueuePipeline(Asset $asset, string $name): Response
     {
         $tasks = match ($name) {

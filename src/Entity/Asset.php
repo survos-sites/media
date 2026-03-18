@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Ai\Result\MediaEnrichment;
 use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;
@@ -23,8 +24,9 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
+#[ORM\HasLifecycleCallbacks]
 #[MeiliIndex(
-    chats: ['meili_assistant'],
+//    chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal'],
     filterable: ['mime', 'clients', 'marking',
 //        'aiDocumentType', 'aiDocumentSubtype',
@@ -69,6 +71,7 @@ class Asset implements MarkingInterface, \Stringable
     public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? null; }
 
     #[Groups(['asset.read'])]
+    #[Facet()]
     public ?string $type { get => $this->sourceMeta['dcterms:type'] ?? null; }
 
     #[Groups(['asset.read'])]
@@ -201,6 +204,16 @@ class Asset implements MarkingInterface, \Stringable
      public array $aiCompleted = [];
 
      /**
+      * Normalized aggregate built from aiCompleted for display/indexing.
+      */
+     #[ORM\Column(type: Types::JSON, nullable: true)]
+     #[Groups(['asset.read'])]
+     public ?array $mediaEnrichment = null;
+
+     /** Cached DTO view of mediaEnrichment (not persisted). */
+     public ?MediaEnrichment $enriched = null;
+
+     /**
       * When true the AI worker skips this asset entirely.
       * Lets an operator pause processing (e.g. while reviewing results).
       */
@@ -322,24 +335,87 @@ class Asset implements MarkingInterface, \Stringable
     /** @return array<string, mixed>  last successful result per task, keyed by task name */
     public function aiResults(): array
     {
+        $completed = $this->aiCompleted;
+        if ($completed === []
+            && isset($this->context['aiTaskResults'])
+            && is_array($this->context['aiTaskResults'])
+        ) {
+            $completed = $this->context['aiTaskResults'];
+        }
+
         $byTask = [];
-        foreach ($this->aiCompleted as $entry) {
+        foreach ($completed as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
             $task = $entry['task'] ?? null;
-            if ($task && empty($entry['result']['failed']) && empty($entry['result']['skipped'])) {
-                $byTask[$task] = $entry['result'];
+            $result = $entry['result'] ?? null;
+            if (!is_string($task) || !is_array($result)) {
+                continue;
+            }
+
+            if (empty($result['failed']) && empty($result['skipped'])) {
+                $byTask[$task] = $this->normalizeTaskResult($task, $result);
             }
         }
+
         return $byTask;
+    }
+
+    /** @param array<string,mixed> $result @return array<string,mixed> */
+    private function normalizeTaskResult(string $task, array $result): array
+    {
+        if ($task !== 'enrich_from_thumbnail') {
+            return $result;
+        }
+
+        $speculations = $result['speculations'] ?? null;
+        if (!is_array($speculations)) {
+            return $result;
+        }
+
+        $normalized = [];
+        foreach ($speculations as $speculation) {
+            if (is_array($speculation)) {
+                $normalized[] = $speculation;
+                continue;
+            }
+
+            if (!is_string($speculation) || trim($speculation) === '') {
+                continue;
+            }
+
+            $decoded = json_decode($speculation, true);
+            if (is_array($decoded)) {
+                $normalized[] = $decoded;
+                continue;
+            }
+
+            $normalized[] = ['claim' => $speculation];
+        }
+
+        $result['speculations'] = $normalized;
+
+        return $result;
     }
 
     public function getAiTitle(): ?string
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['title'])) {
+            return is_string($this->mediaEnrichment['title']) ? $this->mediaEnrichment['title'] : null;
+        }
+
         $r = $this->aiResults();
         return $r['generate_title']['title'] ?? null;
     }
 
     public function getAiDescription(): ?string
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['description'])) {
+            return is_string($this->mediaEnrichment['description']) ? $this->mediaEnrichment['description'] : null;
+        }
+
         $r = $this->aiResults();
         return $r['context_description']['description']
             ?? $r['basic_description']['description']
@@ -348,6 +424,10 @@ class Asset implements MarkingInterface, \Stringable
 
     public function getAiOcrText(): ?string
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['ocrText'])) {
+            return is_string($this->mediaEnrichment['ocrText']) ? $this->mediaEnrichment['ocrText'] : null;
+        }
+
         $r = $this->aiResults();
         return $r['ocr_mistral']['text'] ?? $r['ocr']['text'] ?? $r['transcribe_handwriting']['text'] ?? null;
     }
@@ -355,12 +435,20 @@ class Asset implements MarkingInterface, \Stringable
     /** @return string[] */
     public function getAiKeywords(): array
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['keywords']) && is_array($this->mediaEnrichment['keywords'])) {
+            return array_values(array_filter($this->mediaEnrichment['keywords'], static fn ($v): bool => is_string($v) && $v !== ''));
+        }
+
         return $this->aiResults()['keywords']['keywords'] ?? [];
     }
 
     /** @return string[] */
     public function getAiPeople(): array
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['people']) && is_array($this->mediaEnrichment['people'])) {
+            return array_values(array_filter($this->mediaEnrichment['people'], static fn ($v): bool => is_string($v) && $v !== ''));
+        }
+
         $r = $this->aiResults();
         return $r['people_and_places']['people'] ?? $r['extract_metadata']['people'] ?? [];
     }
@@ -368,6 +456,10 @@ class Asset implements MarkingInterface, \Stringable
     /** @return string[] */
     public function getAiPlaces(): array
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['places']) && is_array($this->mediaEnrichment['places'])) {
+            return array_values(array_filter($this->mediaEnrichment['places'], static fn ($v): bool => is_string($v) && $v !== ''));
+        }
+
         $r = $this->aiResults();
         return $r['people_and_places']['places'] ?? $r['extract_metadata']['places'] ?? [];
     }
@@ -375,6 +467,10 @@ class Asset implements MarkingInterface, \Stringable
     /** @return string[] */
     public function getAiOrganisations(): array
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['organisations']) && is_array($this->mediaEnrichment['organisations'])) {
+            return array_values(array_filter($this->mediaEnrichment['organisations'], static fn ($v): bool => is_string($v) && $v !== ''));
+        }
+
         $r = $this->aiResults();
         return array_values(array_unique(array_merge(
             $r['people_and_places']['organisations'] ?? [],
@@ -384,17 +480,96 @@ class Asset implements MarkingInterface, \Stringable
 
     public function getAiDateRange(): ?string
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['dateRange'])) {
+            return is_string($this->mediaEnrichment['dateRange']) ? $this->mediaEnrichment['dateRange'] : null;
+        }
+
         return $this->aiResults()['extract_metadata']['dateRange'] ?? null;
     }
 
     public function getAiSummary(): ?string
     {
+        if (is_array($this->mediaEnrichment)) {
+            if (isset($this->mediaEnrichment['summary']) && is_string($this->mediaEnrichment['summary'])) {
+                return $this->mediaEnrichment['summary'];
+            }
+
+            if (isset($this->mediaEnrichment['denseSummary']) && is_string($this->mediaEnrichment['denseSummary'])) {
+                return $this->mediaEnrichment['denseSummary'];
+            }
+        }
+
         return $this->aiResults()['summarize']['summary'] ?? null;
     }
 
     public function getAiDocumentSubtype(): ?string
     {
+        if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['documentSubtype'])) {
+            return is_string($this->mediaEnrichment['documentSubtype']) ? $this->mediaEnrichment['documentSubtype'] : null;
+        }
+
         return $this->aiResults()['classify']['subtype'] ?? null;
+    }
+
+    public function getMediaEnrichmentDto(): ?MediaEnrichment
+    {
+        if ($this->enriched instanceof MediaEnrichment) {
+            return $this->enriched;
+        }
+
+        if (!is_array($this->mediaEnrichment)) {
+            return null;
+        }
+
+        $this->enriched = MediaEnrichment::fromArray($this->mediaEnrichment);
+        return $this->enriched;
+    }
+
+    #[ORM\PostLoad]
+    public function hydrateEnriched(): void
+    {
+        $this->enriched = is_array($this->mediaEnrichment)
+            ? MediaEnrichment::fromArray($this->mediaEnrichment)
+            : null;
+    }
+
+    /**
+     * Get the enrich_from_thumbnail result as a typed DTO.
+     * Returns null if that task hasn't run yet.
+     */
+    public function getEnrichFromThumbnail(): ?\Survos\AiPipelineBundle\Result\EnrichFromThumbnailResult
+    {
+        $data = $this->aiResults()['enrich_from_thumbnail'] ?? null;
+        if (!is_array($data)) return null;
+
+        return new \Survos\AiPipelineBundle\Result\EnrichFromThumbnailResult(
+            title:           $data['title']         ?? null,
+            description:     $data['description']   ?? null,
+            keywords:        $data['keywords']       ?? [],
+            people:          $data['people']         ?? [],
+            places:          $data['places']         ?? [],
+            contentType:     $data['content_type']   ?? null,
+            dateHint:        $data['date_hint']      ?? null,
+            hasText:         (bool)($data['has_text'] ?? false),
+            denseSummary:    $data['dense_summary']  ?? null,
+            confidence:      (float)($data['confidence'] ?? 1.0),
+            speculations:    $data['speculations']   ?? [],
+        );
+    }
+
+    /**
+     * Task classification for display grouping:
+     *   ocr   → OCR tab (view image + text together)
+     *   image → AI Metadata tab (visual analysis)
+     */
+    public static function taskGroup(string $taskName): string
+    {
+        return match($taskName) {
+            'ocr', 'ocr_mistral', 'transcribe_handwriting', 'annotate_handwriting', 'layout'
+                => 'ocr',
+            default
+                => 'image',
+        };
     }
 
     /** Total tokens spent across all completed tasks. */

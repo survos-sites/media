@@ -50,4 +50,5 @@ return [
     Survos\IiifBundle\SurvosIiifBundle::class => ['all' => true],
     Survos\JsTwigBundle\SurvosJsTwigBundle::class => ['all' => true],
     Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
+    Survos\DataBundle\SurvosDataBundle::class => ['all' => true],
 ];

@@ -8,6 +8,7 @@
 {% set result = entry.result %}
 {% set failed  = result.failed  is defined %}
 {% set skipped = result.skipped is defined %}
+{% set queued  = result.queued  is defined %}
 
 <div class="p-2 mb-1 rounded border {{ failed ? 'border-danger' : (skipped ? 'border-secondary' : 'border-success') }}"
      style="{{ failed ? 'border-left:3px solid var(--tblr-danger)' : (skipped ? '' : 'border-left:3px solid var(--tblr-success)') }};background:#fff;color:inherit;"
@@ -22,7 +23,7 @@
     <span class="d-flex align-items-center gap-2">
       {% if result._tokens is defined and result._tokens.total %}
         <span class="text-muted" style="font-size:0.7rem;"
-              title="prompt: {{ result._tokens.prompt }} / completion: {{ result._tokens.completion }}{% if result._tokens.cached %} / cached: {{ result._tokens.cached }}{% endif %}">
+              title="prompt: {{ result._tokens.prompt }} / completion: {{ result._tokens.completion }}{% if result._tokens.cached ?? false %} / cached: {{ result._tokens.cached }}{% endif %}">
           {{ result._tokens.total }} tok
         </span>
       {% endif %}
@@ -35,7 +36,14 @@
   {% endif %}
 
   {# Body — render according to result shape #}
-  {% if failed %}
+  {% if queued %}
+    {# Task dispatched async — running in background worker #}
+    <div class="small text-info d-flex align-items-center gap-2">
+      <span class="spinner-border spinner-border-sm text-primary" role="status"></span>
+      Running async — refresh in a few seconds.
+    </div>
+
+  {% elseif failed %}
     <div class="small text-danger">{{ result.error|default('Unknown error') }}</div>
 
   {% elseif skipped %}
@@ -70,6 +78,64 @@
     {% endif %}
     {% if result.reasoning is defined and result.reasoning %}
       <div class="small text-muted mt-1">{{ result.reasoning }}</div>
+    {% endif %}
+
+  {% elseif result.dense_summary is defined or (result.description is defined and result.keywords is defined) %}
+    {# enrich_from_thumbnail — rich structured result #}
+    {% if result.dense_summary is defined and result.dense_summary %}
+      <div class="mt-1 p-2 rounded bg-blue-lt small">{{ result.dense_summary }}</div>
+    {% endif %}
+    {% if result.title is defined and result.title %}
+      <div class="small mt-1">
+        <span class="text-muted me-1">Title:</span><strong>{{ result.title }}</strong>
+        {% if result.title_confidence is defined and result.title_confidence != 'high' %}
+          <span class="badge bg-warning-lt ms-1">{{ result.title_confidence }}</span>
+        {% endif %}
+      </div>
+    {% endif %}
+    {% if result.description is defined and result.description %}
+      <div class="small mt-1 text-muted">{{ result.description }}</div>
+    {% endif %}
+    {% if result.content_type is defined and result.content_type %}
+      <div class="small mt-1">
+        <span class="badge bg-azure-lt">{{ result.content_type }}</span>
+        {% if result.date_hint is defined and result.date_hint %}
+          <span class="badge bg-secondary-lt ms-1">{{ result.date_hint }}</span>
+          {% if result.date_confidence is defined and result.date_confidence != 'high' %}
+            <span class="badge bg-warning-lt ms-1">{{ result.date_confidence }}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endif %}
+    {% set kwHigh = result.keywords_high ?? [] %}
+    {% set kwMid  = result.keywords_medium ?? [] %}
+    {% set kwLow  = result.keywords_low ?? [] %}
+    {% if kwHigh or kwMid or kwLow %}
+      <div class="mt-1">
+        {% for k in kwHigh %}<span class="badge bg-secondary me-1 mb-1">{{ k }}</span>{% endfor %}
+        {% for k in kwMid  %}<span class="badge bg-secondary-lt me-1 mb-1" title="medium confidence">{{ k }}</span>{% endfor %}
+        {% for k in kwLow  %}<span class="badge border text-muted me-1 mb-1" style="background:#f8f9fa" title="low confidence">{{ k }}</span>{% endfor %}
+      </div>
+    {% endif %}
+    {% if result.people|default([])|length > 0 %}
+      <div class="small mt-1"><span class="text-muted me-1">People:</span>
+        {% for p in result.people %}<span class="badge bg-cyan-lt me-1">{{ p }}</span>{% endfor %}
+      </div>
+    {% endif %}
+    {% if result.places|default([])|length > 0 %}
+      <div class="small mt-1"><span class="text-muted me-1">Places:</span>
+        {% for p in result.places %}<span class="badge bg-green-lt me-1">{{ p }}</span>{% endfor %}
+      </div>
+    {% endif %}
+    {% if result.speculations|default([])|length > 0 %}
+      <div class="mt-1">
+        {% for s in result.speculations %}
+          <div class="small border rounded p-1 mt-1 bg-orange-lt">
+            <span class="badge bg-orange-lt me-1">speculative</span><strong>{{ s.claim }}</strong>
+            {% if s.basis is defined and s.basis %}<span class="text-muted ms-1">— {{ s.basis }}</span>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
     {% endif %}
 
   {% elseif result.description is defined %}

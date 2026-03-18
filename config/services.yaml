@@ -22,7 +22,7 @@ services:
         Survos\AiPipelineBundle\Task\AiTaskInterface:
             tags: ['ai_pipeline.task']
 
-    App\Ai\AssetAiTaskRunner:
+    App\Workflow\AssetWorkflow:
         arguments:
             $taskServices: !tagged_iterator ai_pipeline.task
 

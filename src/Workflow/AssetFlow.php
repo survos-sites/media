@@ -140,7 +140,7 @@ class AssetFlow
      * Allowed from complete or analyzed so tasks can be added/re-added at any time.
      */
     #[Transition(
-        from: [self::PLACE_COMPLETE, self::PLACE_ANALYZED, self::PLACE_AI_READY],
+        from: [self::PLACE_COMPLETE, self::PLACE_ANALYZED, self::PLACE_AI_READY, self::PLACE_NEW],
         to: self::PLACE_AI_READY,
         info: 'Queue AI tasks',
         description: 'Populate aiQueue and enter the AI task pipeline',

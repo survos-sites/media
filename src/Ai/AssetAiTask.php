@@ -88,30 +88,47 @@ enum AssetAiTask: string
      */
     case SUMMARIZE = 'summarize';
 
+    /**
+     * Single-pass thumbnail enrichment: title + description + keywords +
+     * people + places + content_type + has_text + dense_summary.
+     *
+     * Replaces running BasicDescription + Keywords + GenerateTitle +
+     * PeopleAndPlaces + Classify separately — ~80% cheaper.
+     * Runs sync (a few seconds). Supports confidence levels and basis
+     * for uncertain inferences.
+     */
+    case ENRICH_FROM_THUMBNAIL = 'enrich_from_thumbnail';
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /** Return the tasks that are suitable for a "quick scan" pipeline. */
+    /**
+     * Quick pipeline: single-pass enrichment + OCR if text is detected.
+     * Runs sync — a few seconds per image.
+     */
     public static function quickScanPipeline(): array
     {
         return [
+            self::ENRICH_FROM_THUMBNAIL,
             self::OCR,
-            self::BASIC_DESCRIPTION,
-            self::CLASSIFY,
         ];
     }
 
-    /** Return the full instance-level enrichment pipeline. */
+    /**
+     * Full pipeline: single-pass enrichment + OCR + translate + summarize.
+     * ENRICH_FROM_THUMBNAIL replaces the old 5-task approach.
+     */
     public static function fullEnrichmentPipeline(): array
     {
         return [
+            self::ENRICH_FROM_THUMBNAIL,
             self::OCR,
-            self::CLASSIFY,
+            self::TRANSLATE,
+            self::SUMMARIZE,
+            // Legacy tasks kept for backward compat / comparison
             self::CONTEXT_DESCRIPTION,
             self::EXTRACT_METADATA,
-            self::GENERATE_TITLE,
             self::PEOPLE_AND_PLACES,
             self::KEYWORDS,
-            self::SUMMARIZE,
         ];
     }
 }

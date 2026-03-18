@@ -18,6 +18,9 @@ framework:
         default_options:
             max_redirects: 8
             timeout: 30
+            # idle_timeout: how long to wait with no data received.
+            # Vision tasks (enrich_from_thumbnail) can take 45-60s for OpenAI to process.
+            # The default (60s) is too low — raise it.
             proxy: '%env(HTTP_PROXY)%'
 
 #    error_controller: App\Controller\ErrorController::show

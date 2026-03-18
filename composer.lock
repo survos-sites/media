@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "82eafc5611023d08ac9dc4c9980bb0f1",
+    "content-hash": "cba5169cc8d776cf146b8bd0849d4b8f",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -7164,6 +7164,58 @@
                 }
             ],
             "time": "2025-11-23T13:12:14+00:00"
+        },
+        {
+            "name": "survos/data-bundle",
+            "version": "2.0.142",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/survos/data-bundle.git",
+                "reference": "f9dc411770d56c0bc993d4f7b788d7e9db93f326"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/survos/data-bundle/zipball/f9dc411770d56c0bc993d4f7b788d7e9db93f326",
+                "reference": "f9dc411770d56c0bc993d4f7b788d7e9db93f326",
+                "shasum": ""
+            },
+            "require": {
+                "doctrine/dbal": "^3.9 || ^4.2",
+                "php": "^8.4",
+                "symfony/config": "^7.4 || ^8.0",
+                "symfony/console": "^7.4 || ^8.0",
+                "symfony/dependency-injection": "^7.4 || ^8.0",
+                "symfony/filesystem": "^7.4 || ^8.0",
+                "symfony/framework-bundle": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0",
+                "roave/security-advisories": "dev-latest",
+                "survos/import-bundle": "^2.0",
+                "symfony/yaml": "^7.4 || ^8.0"
+            },
+            "type": "symfony-bundle",
+            "autoload": {
+                "psr-4": {
+                    "Survos\\DataBundle\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Shared data directory conventions and path utilities for dataset-driven apps (APP_DATA_DIR).",
+            "support": {
+                "issues": "https://github.com/survos/data-bundle/issues",
+                "source": "https://github.com/survos/data-bundle/tree/2.0.142"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/kbond",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-03-17T13:35:45+00:00"
         },
         {
             "name": "survos/doc-bundle",

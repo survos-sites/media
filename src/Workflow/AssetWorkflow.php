@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Workflow;
 
+use App\Ai\AssetAiTask;
+use App\Ai\Result\MediaEnrichment;
 use App\Service\AssetRegistry;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
@@ -11,7 +13,6 @@ use App\Entity\Variant;
 use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\UserRepository;
-use App\Service\ApiService;
 use App\Service\ArchiveService;
 use App\Service\AtomicFileWriter;
 use App\Service\AssetPreviewService;
@@ -23,6 +24,7 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\UnableToWriteFile;
 use League\Flysystem\Visibility;
 use Psr\Log\LoggerInterface;
+use Survos\AiPipelineBundle\Task\AiTaskInterface;
 use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use App\Util\ImageProbe;
@@ -36,7 +38,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
-use Symfony\Component\Messenger\Stamp\TransportNamesStamp;
 use Symfony\Component\Mime\MimeTypes;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -47,6 +48,7 @@ use Symfony\Component\Workflow\Event\TransitionEvent;
 use Symfony\Component\Workflow\WorkflowInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Twig\Environment as TwigEnvironment;
 use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
 use App\Service\OcrService;
 use App\Workflow\AssetFlow as WF;
@@ -57,6 +59,8 @@ class AssetWorkflow
 {
     const THUMBHASH_PRESET = 'small';
     private ?float $sourceCooldownUntil = null;
+    /** @var array<string, AiTaskInterface> */
+    private array $aiTaskHandlers = [];
 
     public function __construct(
         private MediaUrlGenerator $mediaUrlGenerator,
@@ -93,7 +97,14 @@ class AssetWorkflow
         private readonly OcrService $ocrService,
         private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
+        private readonly TwigEnvironment $twig,
+        iterable $taskServices = [],
     ) {
+        foreach ($taskServices as $task) {
+            if ($task instanceof AiTaskInterface) {
+                $this->aiTaskHandlers[$task->getTask()] = $task;
+            }
+        }
     }
 
     /** @return Asset */
@@ -211,6 +222,14 @@ class AssetWorkflow
 //         $this->em->detach($asset);
          gc_collect_cycles();
 
+    }
+
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_AI_TASK)]
+    public function onAiTask(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        $this->runNextAiTask($asset);
+        $this->em->flush();
     }
 
         /**
@@ -331,6 +350,15 @@ class AssetWorkflow
         $asset = $this->getAsset($event);
         $this->em->flush();
 
+        $transitionName = $event->getTransition()->getName();
+        if (in_array($transitionName, [WF::TRANSITION_QUEUE_AI, WF::TRANSITION_AI_TASK], true) && !$asset->aiLocked) {
+            if (!empty($asset->aiQueue) && $this->assetWorkflow->can($asset, WF::TRANSITION_AI_TASK)) {
+                $this->dispatchTransition($asset, WF::TRANSITION_AI_TASK);
+            } elseif (empty($asset->aiQueue) && $this->assetWorkflow->can($asset, WF::TRANSITION_AI_DONE)) {
+                $this->dispatchTransition($asset, WF::TRANSITION_AI_DONE);
+            }
+        }
+
         // Fire webhook back to any registered callback URL once analysis is done
         $callbackUrl = $asset->context['callback_url'] ?? null;
         if ($callbackUrl && $asset->marking === WF::PLACE_ANALYZED) {
@@ -339,32 +367,6 @@ class AssetWorkflow
 
         // don't detach until AFTER completed is called, or we won't save the marking.
         $this->em->detach($asset);
-        return;
-        $asset = $this->getAsset($event);
-
-        if (!$asset->originalUrl || !$asset->tempFilename) {
-            $this->logger->warning('Archive transition missing source data.', [
-                'assetId' => $asset->id,
-            ]);
-            return;
-        }
-
-        $key = $this->archiveService->keyForUrl($asset->originalUrl);
-        $payloadPath = $this->archiveService->payloadPath($key, $asset->ext);
-
-        $contents = file_get_contents($asset->tempFilename);
-        if ($contents === false) {
-            throw new RuntimeException(sprintf(
-                'Failed reading temp file "%s".',
-                $asset->tempFilename
-            ));
-        }
-
-        $this->atomicFileWriter->write(
-            $payloadPath,
-            $contents,
-            ensureDir: true
-        );
     }
 
     #[AsTransitionListener(WF::WORKFLOW_NAME, WF::TRANSITION_ANALYZE)]
@@ -422,6 +424,415 @@ class AssetWorkflow
 
         $this->em->flush();
 //        $this->em->detach($asset);
+    }
+
+    /**
+     * Runs exactly one pending AI task from aiQueue.
+     *
+     * @return string|null Task name that ran, or null when skipped.
+     */
+    public function runNextAiTask(Asset $asset, bool $completeWhenQueueEmpty = false): ?string
+    {
+        if ($asset->aiLocked) {
+            $this->logger->info('Asset AI pipeline locked for {id}; skipping.', ['id' => $asset->id]);
+            return null;
+        }
+
+        if (empty($asset->aiQueue)) {
+            if ($completeWhenQueueEmpty) {
+                $this->finishAiPipeline($asset);
+            }
+            return null;
+        }
+
+        $taskName = (string) array_shift($asset->aiQueue);
+        $handler = $this->aiTaskHandlers[$taskName] ?? null;
+
+        if (!$handler instanceof AiTaskInterface) {
+            $this->logger->warning(
+                'Unknown AI task "{task}" on asset {id}; skipping.',
+                ['task' => $taskName, 'id' => $asset->id],
+            );
+            $this->recordCompletedTask($asset, $taskName, ['skipped' => true, 'reason' => 'task handler not found']);
+            if ($completeWhenQueueEmpty && empty($asset->aiQueue)) {
+                $this->finishAiPipeline($asset);
+            }
+            return $taskName;
+        }
+
+        $taskOverride = $this->consumeTaskOverride($asset, $taskName);
+        ['inputs' => $inputs, 'imageSource' => $imageSource] = $this->buildAiInputs($asset, $taskName, $taskOverride);
+        if (isset($taskOverride['model']) && is_string($taskOverride['model']) && $taskOverride['model'] !== '') {
+            $inputs['model_hint'] = $taskOverride['model'];
+        }
+        if (!$handler->supports($inputs, $asset->context ?? [])) {
+            $this->recordCompletedTask($asset, $taskName, ['skipped' => true, 'reason' => 'not supported for this asset']);
+            if ($completeWhenQueueEmpty && empty($asset->aiQueue)) {
+                $this->finishAiPipeline($asset);
+            }
+            return $taskName;
+        }
+
+        $priorResults = $this->indexedPriorResults($asset);
+
+        try {
+            $result = $handler->run($inputs, $priorResults, $asset->context ?? []);
+            $result = $this->attachDebugContext($asset, $taskName, $handler, $inputs, $priorResults, $result, $imageSource, $taskOverride);
+            $this->recordCompletedTask($asset, $taskName, $result);
+        } catch (\Throwable $e) {
+            $this->logger->error(
+                'AI task "{task}" failed on asset {id}: {error}',
+                ['task' => $taskName, 'id' => $asset->id, 'error' => $e->getMessage()],
+            );
+            $this->recordCompletedTask($asset, $taskName, ['failed' => true, 'error' => $e->getMessage()]);
+        }
+
+        if ($completeWhenQueueEmpty && empty($asset->aiQueue)) {
+            $this->finishAiPipeline($asset);
+        }
+
+        return $taskName;
+    }
+
+    private function dispatchTransition(Asset $asset, string $transition): void
+    {
+        $msg = new TransitionMessage($asset->id, Asset::class, $transition, WF::WORKFLOW_NAME);
+        $this->messageBus->dispatch($msg, $this->asyncQueueLocator->stamps($msg));
+    }
+
+    /** @return array<string, mixed> */
+    /**
+     * @return array{inputs: array<string,mixed>, imageSource: string}
+     */
+    private function buildAiInputs(Asset $asset, string $taskName, array $taskOverride = []): array
+    {
+        ['url' => $imageUrl, 'source' => $imageSource] = $this->selectTaskImageUrl($asset, $taskName, $taskOverride);
+
+        $inputs = array_filter([
+            'image_url' => $imageUrl,
+            'mime' => $asset->mime ?? null,
+        ], static fn ($value) => $value !== null);
+
+        return [
+            'inputs' => $inputs,
+            'imageSource' => $imageSource,
+        ];
+    }
+
+    /** @return array{url: ?string, source: string} */
+    private function selectTaskImageUrl(Asset $asset, string $taskName, array $taskOverride = []): array
+    {
+        $imagePreference = $taskOverride['image_source_preference'] ?? null;
+        if (is_string($imagePreference)) {
+            if ($imagePreference === 'full') {
+                return $this->preferredFullImageUrl($asset);
+            }
+
+            if (in_array($imagePreference, ['thumb', 'thumbnail', 'small'], true)) {
+                $thumb = $this->preferredThumbnailUrl($asset);
+                return $thumb['url'] !== null ? $thumb : $this->preferredFullImageUrl($asset);
+            }
+        }
+
+        if ($taskName === AssetAiTask::TRANSCRIBE_HANDWRITING->value) {
+            return $this->preferredFullImageUrl($asset);
+        }
+
+        if ($taskName === AssetAiTask::ENRICH_FROM_THUMBNAIL->value) {
+            $thumb = $this->preferredThumbnailUrl($asset);
+            if ($thumb['url'] !== null) {
+                return $thumb;
+            }
+
+            return $this->preferredFullImageUrl($asset);
+        }
+
+        return $this->preferredFullImageUrl($asset);
+    }
+
+    /** @return array{url: ?string, source: string} */
+    private function preferredFullImageUrl(Asset $asset): array
+    {
+        $iiifFullUrl = $this->iiifFullUrl($asset);
+        if ($iiifFullUrl !== null) {
+            return ['url' => $iiifFullUrl, 'source' => 'iiif_full'];
+        }
+
+        $archiveUrl = $this->effectiveArchiveUrl($asset);
+        if ($archiveUrl !== null) {
+            return ['url' => $archiveUrl, 'source' => 'archive_url'];
+        }
+
+        if ($asset->originalUrl !== '') {
+            return ['url' => $asset->originalUrl, 'source' => 'original_url'];
+        }
+
+        if ($asset->smallUrl !== null && $asset->smallUrl !== '') {
+            return ['url' => $asset->smallUrl, 'source' => 'small_url'];
+        }
+
+        return ['url' => null, 'source' => 'none'];
+    }
+
+    /** @return array{url: ?string, source: string} */
+    private function preferredThumbnailUrl(Asset $asset): array
+    {
+        $sourceMeta = $asset->sourceMeta ?? [];
+
+        $candidates = [
+            'source_meta.thumbnail_url' => $sourceMeta['thumbnail_url'] ?? null,
+            'source_meta.thumb_url' => $sourceMeta['thumb_url'] ?? null,
+            'source_meta.iiif_thumbnail_url' => $sourceMeta['iiif_thumbnail_url'] ?? null,
+            'source_meta.small_url' => $sourceMeta['small_url'] ?? null,
+            'source_meta.preview_url' => $sourceMeta['preview_url'] ?? null,
+            'source_meta.thumbnail' => $sourceMeta['thumbnail'] ?? null,
+            'source_meta.thumb' => $sourceMeta['thumb'] ?? null,
+        ];
+
+        foreach ($candidates as $source => $candidate) {
+            $url = $this->extractUrlFromMixed($candidate);
+            if ($url !== null) {
+                return ['url' => $url, 'source' => $source];
+            }
+        }
+
+        $iiifThumb = $this->iiifThumbnailUrl($asset);
+        if ($iiifThumb !== null) {
+            return ['url' => $iiifThumb, 'source' => 'iiif_thumbnail'];
+        }
+
+        if ($asset->smallUrl !== null && $asset->smallUrl !== '') {
+            return ['url' => $asset->smallUrl, 'source' => 'small_url'];
+        }
+
+        return [
+            'url' => $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL),
+            'source' => 'imgproxy_small',
+        ];
+    }
+
+    private function iiifThumbnailUrl(Asset $asset): ?string
+    {
+        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        if (!is_string($iiifBase) || $iiifBase === '') {
+            return null;
+        }
+
+        return rtrim($iiifBase, '/') . '/full/!512,512/0/default.jpg';
+    }
+
+    private function extractUrlFromMixed(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            return $this->isLikelyUrl($value) ? $value : null;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        foreach (['url', 'id', '@id', 'href', 'src'] as $key) {
+            if (!array_key_exists($key, $value)) {
+                continue;
+            }
+
+            $url = $this->extractUrlFromMixed($value[$key]);
+            if ($url !== null) {
+                return $url;
+            }
+        }
+
+        foreach ($value as $item) {
+            $url = $this->extractUrlFromMixed($item);
+            if ($url !== null) {
+                return $url;
+            }
+        }
+
+        return null;
+    }
+
+    private function isLikelyUrl(string $value): bool
+    {
+        if ($value === '') {
+            return false;
+        }
+
+        return (bool) filter_var($value, FILTER_VALIDATE_URL);
+    }
+
+    /** @return array<string,mixed> */
+    private function consumeTaskOverride(Asset $asset, string $taskName): array
+    {
+        $context = $asset->context ?? [];
+        $overrides = $context['ai_task_overrides'] ?? null;
+        if (!is_array($overrides) || !isset($overrides[$taskName]) || !is_array($overrides[$taskName])) {
+            return [];
+        }
+
+        $override = $overrides[$taskName];
+        unset($overrides[$taskName]);
+        $context['ai_task_overrides'] = $overrides;
+        $asset->context = $context;
+
+        return $override;
+    }
+
+    private function recordCompletedTask(Asset $asset, string $taskName, array $result): void
+    {
+        $asset->aiCompleted[] = [
+            'task' => $taskName,
+            'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            'result' => $result,
+        ];
+
+        if ($taskName === AssetAiTask::CLASSIFY->value
+            && empty($result['failed'])
+            && empty($result['skipped'])
+        ) {
+            $asset->aiDocumentType = $result['type'] ?? null;
+        }
+
+        $enrichment = MediaEnrichment::fromCompleted($asset->aiCompleted);
+        $asset->mediaEnrichment = $enrichment->toArray();
+        $asset->enriched = $enrichment;
+    }
+
+    private function finishAiPipeline(Asset $asset): void
+    {
+        if ($this->assetWorkflow->can($asset, WF::TRANSITION_AI_DONE)) {
+            $this->assetWorkflow->apply($asset, WF::TRANSITION_AI_DONE);
+        }
+    }
+
+    /** @return array<string, array> */
+    private function indexedPriorResults(Asset $asset): array
+    {
+        $index = [];
+        foreach ($asset->aiCompleted as $entry) {
+            if (isset($entry['task'], $entry['result']) && is_array($entry['result'])) {
+                $index[(string) $entry['task']] = $this->sanitisePriorResult($entry['result']);
+            }
+        }
+
+        return $index;
+    }
+
+    private function sanitisePriorResult(array $result): array
+    {
+        unset($result['raw_response'], $result['blocks']);
+
+        if (isset($result['text']) && is_string($result['text']) && mb_strlen($result['text']) > 8000) {
+            $result['text'] = mb_substr($result['text'], 0, 8000) . "\n[… truncated for context]";
+        }
+
+        return $result;
+    }
+
+    private function iiifFullUrl(Asset $asset): ?string
+    {
+        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        if (!is_string($iiifBase) || $iiifBase === '') {
+            return null;
+        }
+
+        return rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+    }
+
+    private function effectiveArchiveUrl(Asset $asset): ?string
+    {
+        if (!$asset->storageKey) {
+            return $asset->archiveUrl;
+        }
+
+        $computed = $this->assetRegistry->s3Url($asset);
+        if ($asset->archiveUrl !== $computed) {
+            $this->logger->warning('Asset {id} has stale archiveUrl; using computed URL.', [
+                'id' => $asset->id,
+                'stored_archive_url' => $asset->archiveUrl,
+                'computed_archive_url' => $computed,
+            ]);
+            $asset->archiveUrl = $computed;
+        }
+
+        return $computed;
+    }
+
+    private function attachDebugContext(
+        Asset $asset,
+        string $taskName,
+        AiTaskInterface $handler,
+        array $inputs,
+        array $priorResults,
+        array $result,
+        string $imageSource,
+        array $taskOverride = [],
+    ): array {
+        $storedArchiveUrl = $asset->archiveUrl;
+        $archiveUrl = $this->effectiveArchiveUrl($asset);
+
+        $debug = [
+            'asset_id' => $asset->id,
+            'task' => $taskName,
+            'image_url' => $inputs['image_url'] ?? null,
+            'image_source' => $imageSource,
+            'requested_image_preference' => $taskOverride['image_source_preference'] ?? null,
+            'requested_model' => $taskOverride['model'] ?? null,
+            'tokens' => $result['_tokens'] ?? null,
+            'image_candidates' => [
+                'preferred_thumbnail_url' => $this->preferredThumbnailUrl($asset)['url'],
+                'iiif_thumbnail_url' => $this->iiifThumbnailUrl($asset),
+                'iiif_full_url' => $this->iiifFullUrl($asset),
+                'small_url' => $asset->smallUrl,
+                'archive_url' => $archiveUrl,
+                'stored_archive_url' => $storedArchiveUrl,
+                'original_url' => $asset->originalUrl,
+            ],
+            'iiif_manifest' => $asset->sourceMeta['iiif_manifest'] ?? null,
+            'iiif_base' => $asset->sourceMeta['iiif_base'] ?? null,
+            'meta' => $handler->getMeta(),
+        ];
+
+        $prompt = $this->renderPromptDebug($taskName, $inputs, $priorResults, $asset->context ?? []);
+        if ($prompt !== null) {
+            $debug['prompt'] = $prompt;
+        }
+
+        $result['_debug'] = $debug;
+
+        return $result;
+    }
+
+    /** @return array{system:string,user:string,combined:string}|null */
+    private function renderPromptDebug(string $taskName, array $inputs, array $priorResults, array $context): ?array
+    {
+        $template = "@SurvosAiPipeline/prompt/{$taskName}";
+        $templateContext = [
+            'imageUrl' => $inputs['image_url'] ?? null,
+            'inputs' => $inputs,
+            'context' => $context,
+            'prior' => $priorResults,
+            'ocr_text' => $priorResults['ocr_mistral']['text'] ?? $priorResults['ocr']['text'] ?? null,
+            'type' => $priorResults['classify']['type'] ?? null,
+            'metadata' => $priorResults['extract_metadata'] ?? [],
+            'description' => $priorResults['context_description']['description']
+                ?? $priorResults['basic_description']['description']
+                ?? null,
+            'title' => $priorResults['generate_title']['title'] ?? null,
+        ];
+
+        try {
+            $systemPrompt = trim($this->twig->render("{$template}/system.html.twig", $templateContext));
+            $userPrompt = trim($this->twig->render("{$template}/user.html.twig", $templateContext));
+
+            return [
+                'system' => $systemPrompt,
+                'user' => $userPrompt,
+                'combined' => trim("[SYSTEM]\n{$systemPrompt}\n\n[USER]\n{$userPrompt}"),
+            ];
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
