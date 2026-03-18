@@ -60,7 +60,7 @@
         "survos/simple-datatables-bundle": "^2.0.143",
         "survos/state-bundle": "^2.0.143",
         "survos/storage-bundle": "^2.0.143",
-        "survos/tabler-bundle": "*",
+        "survos/tabler-bundle": ">=2.0.117",
         "survos/thumb-hash-bundle": "^2.0.143",
         "survos/tree-bundle": "^2.0.143",
         "symfony/ai-agent": "^0.6.0",

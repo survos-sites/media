@@ -8,7 +8,7 @@ use App\Entity\Inst;
 use App\Entity\Media;
 use App\Entity\Obj;
 use App\Entity\Thumb;
-use Survos\TablerBundle\Event\KnpMenuEvent;
+use Survos\TablerBundle\Event\MenuEvent;
 use Survos\TablerBundle\Service\MenuService;
 use Survos\TablerBundle\Traits\KnpMenuHelperInterface;
 use Survos\TablerBundle\Traits\KnpMenuHelperTrait;
@@ -19,11 +19,11 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 
 // events are
 /*
-// #[AsEventListener(event: KnpMenuEvent::NAVBAR_MENU2)]
-#[AsEventListener(event: KnpMenuEvent::SIDEBAR_MENU, method: 'sidebarMenu')]
-#[AsEventListener(event: KnpMenuEvent::PAGE_MENU, method: 'pageMenu')]
-#[AsEventListener(event: KnpMenuEvent::FOOTER_MENU, method: 'footerMenu')]
-#[AsEventListener(event: KnpMenuEvent::AUTH_MENU, method: 'appAuthMenu')]
+// #[AsEventListener(event: MenuEvent::NAVBAR_MENU2)]
+#[AsEventListener(event: MenuEvent::SIDEBAR_MENU, method: 'sidebarMenu')]
+#[AsEventListener(event: MenuEvent::PAGE_MENU, method: 'pageMenu')]
+#[AsEventListener(event: MenuEvent::FOOTER_MENU, method: 'footerMenu')]
+#[AsEventListener(event: MenuEvent::AUTH_MENU, method: 'appAuthMenu')]
 */
 
 final class AppMenu implements KnpMenuHelperInterface
@@ -38,17 +38,17 @@ final class AppMenu implements KnpMenuHelperInterface
     ) {
     }
 
-    public function appAuthMenu(KnpMenuEvent $event): void
+    public function appAuthMenu(MenuEvent $event): void
     {
         $menu = $event->getMenu();
         $this->menuService->addAuthMenu($menu);
     }
 
-    #[AsEventListener(event: KnpMenuEvent::NAVBAR_MENU)]
-    public function navbarMenu(KnpMenuEvent $event): void
+    #[AsEventListener(event: MenuEvent::NAVBAR_MENU)]
+    public function navbarMenu(MenuEvent $event): void
     {
         $menu = $event->getMenu();
-        $options = $event->getOptions();
+        $options = $event->options;
         $this->add($menu, 'app_homepage');
         $this->add($menu, 'asset_browse', label: 'Assets');
         $this->add($menu, 'asset_task_registry', label: 'AI Tasks');

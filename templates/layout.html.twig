@@ -1,18 +1,146 @@
-{% extends "@SurvosTabler/base.html.twig" %}
+{% extends "@SurvosTabler/layout/base.html.twig" %}
 
-{% block body %}
+        {% block stylesheets %}
+{#            <link rel="stylesheet" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">#}
+            <link rel="stylesheet" href="{{ asset('bundles/survosmeili/style.css') }}">
+            {{ parent() }}
+            {#            <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials">#}
+        {% endblock %}
+
+{#        {% block javascripts %}#}
+{#        {% endblock %}#}
+
+{% block javascripts %}
+    {{ parent() }}
+    {% block importmap %}{{ importmap('app') }}{% endblock %}
+{#    {{ block('check') }}#}
 {% endblock %}
 
-{% block xxjavascripts %}
-<!-- Matomo Tag Manager -->
-<script>
-    var _mtm = window._mtm = window._mtm || [];
-    _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
-    (function() {
-        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
-        g.async=true; g.src='https://cdn.matomo.cloud/survos.matomo.cloud/container_iFOoG0R8.js'; s.parentNode.insertBefore(g,s);
-    })();
-</script>
-<!-- End Matomo Tag Manager -->
-{{ parent() }}
+{% block navbar_end %}
+    {{ component('tabler:menu', {type: NAVBAR_END, caller: _self}) }}
+{% endblock %}
+
+{% block navbar_search %}
+    {{ component('tabler:menu', {type: SEARCH, caller: _self}) }}
+{% endblock %}
+
+{% block navbar_menu %}
+<header class="navbar-expand-md">
+    <div class="collapse navbar-collapse" id="navbar-menu">
+        <div class="navbar">
+            <div class="{{ containerClass }}">
+                <div class="row flex-column flex-md-row flex-fill align-items-center">
+                    <div class="col">
+                        {{ component('tabler:menu', {type: NAVBAR_MENU, caller: _self}) }}
+                    </div>
+                    <div class="col col-md-auto">
+                        {{ component('tabler:menu', {type: NAVBAR_MENU_END, caller: _self}) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block sidebar %}
+<aside class="navbar navbar-vertical navbar-expand-lg{% if layout == 'navbar-dark' %} navbar-dark{% endif %}">
+    <div class="container-fluid">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Toggle sidebar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        {% block sidebar_brand %}
+        {% set id = tabler_identity ?? {} %}
+        <h1 class="navbar-brand navbar-brand-autodark">
+            <a href="{{ id.homepage_route is defined and id.homepage_route ? path(id.homepage_route) : (id.homepage_url is defined and id.homepage_url ? id.homepage_url : path('app_homepage')) }}">
+                {% if id.logo_small ?? id.logo %}
+                    <img src="{{ id.logo_small ?? id.logo }}" class="navbar-brand-image" height="32" alt="{{ id.title|default('') }}">
+                {% else %}
+                    {{ ux_icon('tabler:brand-tabler', {height: 32}) }}
+                {% endif %}
+                <span class="ms-2">{{ (id.abbr ?? id.title ?? 'Tabler')|raw }}</span>
+            </a>
+        </h1>
+        {% endblock %}
+
+        <div class="collapse navbar-collapse" id="sidebar-menu">
+            {{ component('tabler:menu', {type: SIDEBAR, caller: _self}) }}
+        </div>
+    </div>
+</aside>
+{% endblock %}
+
+{% block page_actions %}
+    {{ component('tabler:menu', {type: PAGE_ACTIONS, caller: _self}) }}
+{% endblock %}
+
+
+{% block check %}
+    <script type="module" defer>
+        async function getInstalledApps() {
+            const relatedApps = await navigator.getInstalledRelatedApps();
+            console.log(relatedApps);
+        }
+        if ('getInstalledRelatedApps' in navigator) {
+            getInstalledApps();
+        } else {
+            console.log('getInstalledRelatedApps is not supported');
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            let displayMode = 'browser tab';
+            if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+                displayMode = 'standalone';
+            } else if(window.matchMedia('(display-mode: standalone)').matches) {
+                displayMode = 'standalone';
+            } else if(window.matchMedia('(display-mode: fullscreen)').matches) {
+                displayMode = 'standalone';
+            } else {
+                displayMode = 'browser';
+            }
+            // Log launch display mode to analytics
+            console.log('DISPLAY_MODE_LAUNCH:', displayMode);
+        });
+
+        let installPrompt = null;
+
+        window.addEventListener("beforeinstallprompt", (event) => {
+            event.preventDefault();
+            installPrompt = event;
+            console.log("Install prompt was fired", event);
+            installButton.classList.remove('text-white', 'bg-blue-400', 'dark:bg-blue-500', 'cursor-not-allowed', 'font-medium', 'rounded-lg', 'text-sm', 'px-5', 'py-2.5', 'text-center');
+            installButton.classList.add('hover:bg-gray-50', 'dark:hover:bg-gray-800');
+        });
+
+        console.log('checking installable...');
+        const installButton = document.querySelector("#install");
+        installButton.addEventListener("click", async () => {
+            if (!installPrompt) {
+                console.warn(`no install prompt`);
+                return;
+            }
+            const result = await installPrompt.prompt();
+            console.log(`Install prompt was: ${result.outcome}`);
+            disableInAppInstallPrompt();
+        });
+
+        function disableInAppInstallPrompt() {
+            installPrompt = null;
+            installButton.classList.remove('hover:bg-gray-50', 'dark:hover:bg-gray-800');
+            installButton.classList.add('text-white', 'bg-blue-400', 'dark:bg-blue-500', 'cursor-not-allowed', 'font-medium', 'rounded-lg', 'text-sm', 'px-5', 'py-2.5', 'text-center');
+        }
+
+        navigator.serviceWorker.addEventListener('message', async event => {
+            if (event.data.meta === 'workbox-broadcast-update') {
+                const {updatedURL} = event.data.payload;
+                if (updatedURL === window.location.href) {
+                    const toast = document.getElementById('toast-refresh');
+                    toast.classList.remove('hidden');
+                    setTimeout(() => {
+                        toast.classList.add('hidden');
+                    }, 5000);
+                }
+            }
+        });
+    </script>
 {% endblock %}

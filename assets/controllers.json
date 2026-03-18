@@ -1,6 +1,5 @@
 {
     "controllers": {
-
         "@survos/js-twig-bundle": {
             "dexie": {
                 "enabled": true,
