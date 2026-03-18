@@ -1,2 +1,0 @@
-#!/usr/bin/env bash
-exec php -d memory_limit=512M "$@"
