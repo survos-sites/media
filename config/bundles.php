@@ -15,10 +15,7 @@ return [
     League\FlysystemBundle\FlysystemBundle::class => ['all' => true],
     Survos\StorageBundle\SurvosStorageBundle::class => ['all' => true],
     Symfony\UX\TwigComponent\TwigComponentBundle::class => ['all' => true],
-    Symfony\UX\Icons\UXIconsBundle::class => ['all' => true],
     Survos\CoreBundle\SurvosCoreBundle::class => ['all' => true],
-    Knp\Bundle\MenuBundle\KnpMenuBundle::class => ['all' => true],
-    Survos\BootstrapBundle\SurvosBootstrapBundle::class => ['all' => true],
     Survos\SimpleDatatables\SurvosSimpleDatatablesBundle::class => ['all' => true],
     Knp\Bundle\TimeBundle\KnpTimeBundle::class => ['all' => true],
     Bizkit\VersioningBundle\BizkitVersioningBundle::class => ['all' => true],
@@ -52,4 +49,7 @@ return [
     Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
     Survos\DataBundle\SurvosDataBundle::class => ['all' => true],
     Survos\ImportBundle\SurvosImportBundle::class => ['all' => true],
+    Symfony\UX\Icons\UXIconsBundle::class => ['all' => true],
+    Knp\Bundle\MenuBundle\KnpMenuBundle::class => ['all' => true],
+    Survos\TablerBundle\SurvosTablerBundle::class => ['all' => true],
 ];

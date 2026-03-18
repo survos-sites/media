@@ -1,12 +1,6 @@
 {
     "controllers": {
-        "@survos/bootstrap-bundle": {
-            "search": {
-                "enabled": true,
-                "fetch": "lazy",
-                "autoimport": []
-            }
-        },
+
         "@survos/js-twig-bundle": {
             "dexie": {
                 "enabled": true,
@@ -48,6 +42,13 @@
                 "autoimport": {
                     "@survos/simple-datatables/style.css": true
                 }
+            }
+        },
+        "@survos/tabler-bundle": {
+            "search": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
             }
         },
         "@survos/tree-bundle": {
