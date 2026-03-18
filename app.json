@@ -1,6 +1,6 @@
 {
     "name": "survos-sites/mediary",
-    "description": "Mediary Server, async images using imgProxy and Flysystem",
+    "description": "Survos Media Management",
     "keywords": [
         "php",
         "storage",
@@ -30,7 +30,7 @@
     "repository": "https://github.com/survos-sites/media",
     "scripts": {
         "dokku": {
-            "predeploy": "bin/console secrets:decrypt-to-local --force",
+            "predeploy": "bin/console importmap:install && bin/console asset-map:compile && bin/console  secrets:decrypt-to-local --force && bin/console d:m:m -n --allow-no-migration",
             "postdeploy": ""
         }
     },
