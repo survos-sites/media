@@ -105,7 +105,7 @@
         "twig/twig": "^3.24",
         "zenstruck/bytes": "^1.1",
         "zenstruck/class-metadata": "^1.1.1",
-        "zenstruck/messenger-monitor-bundle": "^0.6.0"
+        "zenstruck/messenger-monitor-bundle": "*"
     },
     "config": {
         "allow-plugins": {
@@ -142,7 +142,7 @@
     },
     "scripts": {
         "auto-scripts": {
-            "cache:clear": "symfony-cmd",
+            "bin/php bin/console cache:clear": "symfony-cmd",
             "assets:install %PUBLIC_DIR%": "symfony-cmd",
             "importmap:install": "symfony-cmd"
         },
