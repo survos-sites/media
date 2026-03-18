@@ -22,27 +22,73 @@ final class AiRegistryController extends AbstractController
     {
         $taskMap = $this->registry->getTaskMap();
 
-        // Build a display list enriched with pipeline membership
-        $quickValues = array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::quickScanPipeline());
-        $fullValues  = array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::fullEnrichmentPipeline());
+        // Build pipeline DTOs and value indexes
+        $quickPipeline = $this->buildPipelineDtos(AssetAiTask::quickScanPipeline(), $taskMap);
+        $fullPipeline = $this->buildPipelineDtos(AssetAiTask::fullEnrichmentPipeline(), $taskMap);
+        $quickValues = array_column($quickPipeline, 'value');
+        $fullValues = array_column($fullPipeline, 'value');
+
+        $enumByValue = [];
+        foreach (AssetAiTask::cases() as $case) {
+            $enumByValue[$case->value] = $case;
+        }
 
         $tasks = [];
-        foreach ($taskMap as $taskName => $serviceId) {
+        foreach (AssetAiTask::cases() as $task) {
+            $serviceId = $taskMap[$task->value] ?? null;
             $tasks[] = [
-                'value'      => $taskName,
+                'name' => $task->name,
+                'value' => $task->value,
+                'registered' => $serviceId !== null,
+                'class' => $serviceId ? basename(str_replace('\\', '/', $serviceId)) : null,
+                'inQuick' => in_array($task->value, $quickValues, true),
+                'inFull' => in_array($task->value, $fullValues, true),
+            ];
+        }
+
+        // Include registry-only tasks (not present in enum) for visibility.
+        foreach ($taskMap as $taskName => $serviceId) {
+            if (isset($enumByValue[$taskName])) {
+                continue;
+            }
+
+            $tasks[] = [
+                'name' => strtoupper($taskName),
+                'value' => $taskName,
                 'registered' => true,
-                'class'      => basename(str_replace('\\', '/', $serviceId)),
-                'inQuick'    => in_array($taskName, $quickValues, true),
-                'inFull'     => in_array($taskName, $fullValues, true),
+                'class' => basename(str_replace('\\', '/', $serviceId)),
+                'inQuick' => in_array($taskName, $quickValues, true),
+                'inFull' => in_array($taskName, $fullValues, true),
             ];
         }
 
         return $this->render('ai/registry.html.twig', [
             'tasks'     => $tasks,
             'pipelines' => [
-                'quick' => $quickValues,
-                'full'  => $fullValues,
+                'quick' => $quickPipeline,
+                'full'  => $fullPipeline,
             ],
         ]);
+    }
+
+    /**
+     * @param AssetAiTask[] $pipeline
+     * @param array<string,string> $taskMap
+     * @return array<int, array{name: string, value: string, registered: bool, class: ?string}>
+     */
+    private function buildPipelineDtos(array $pipeline, array $taskMap): array
+    {
+        $rows = [];
+        foreach ($pipeline as $task) {
+            $serviceId = $taskMap[$task->value] ?? null;
+            $rows[] = [
+                'name' => $task->name,
+                'value' => $task->value,
+                'registered' => $serviceId !== null,
+                'class' => $serviceId ? basename(str_replace('\\', '/', $serviceId)) : null,
+            ];
+        }
+
+        return $rows;
     }
 }

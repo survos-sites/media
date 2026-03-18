@@ -3,13 +3,18 @@
     "layout.html.twig"
 %}
 
-    {% block javascripts %}
-        {{ parent() }}
-        {{ importmap('app') }}
-    {% endblock %}
+{% block content %}
+    {% if block('body') is defined %}
+        {{ block('body') }}
+    {% endif %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+{% endblock %}
 
     {% block stylesheets %}
         {# @todo: switch to easyadmin #}
-        <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">
+{#        <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">#}
         {{ parent() }}
     {% endblock %}

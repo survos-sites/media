@@ -1476,66 +1476,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     controllers_json?: scalar|Param|null, // Deprecated: The "twig_component.controllers_json" config option is deprecated, and will be removed in 3.0. // Default: null
  * }
- * @psalm-type UxIconsConfig = array{
- *     icon_dir?: scalar|Param|null, // The local directory where icons are stored. // Default: "%kernel.project_dir%/assets/icons"
- *     default_icon_attributes?: array<string, scalar|Param|null>,
- *     icon_sets?: array<string, array{ // the icon set prefix (e.g. "acme") // Default: []
- *         path?: scalar|Param|null, // The local icon set directory path. (cannot be used with 'alias')
- *         alias?: scalar|Param|null, // The remote icon set identifier. (cannot be used with 'path')
- *         icon_attributes?: array<string, scalar|Param|null>,
- *         suffixes?: array<string, array{ // The suffix name (e.g. "solid", "20-solid") // Default: []
- *             icon_attributes?: array<string, scalar|Param|null>,
- *         }>,
- *     }>,
- *     aliases?: array<string, string|Param>,
- *     iconify?: bool|array{ // Configuration for the remote icon service.
- *         enabled?: bool|Param, // Default: true
- *         on_demand?: bool|Param, // Whether to download icons "on demand". // Default: true
- *         endpoint?: scalar|Param|null, // The endpoint for the Iconify icons API. // Default: "https://api.iconify.design"
- *     },
- *     ignore_not_found?: bool|Param, // Ignore error when an icon is not found. Set to 'true' to fail silently. // Default: false
- * }
  * @psalm-type SurvosCoreConfig = array{
  *     enabled?: bool|Param, // Default: true
  *     dd?: bool|Param, // Default: true
- * }
- * @psalm-type KnpMenuConfig = array{
- *     providers?: array{
- *         builder_alias?: bool|Param, // Default: true
- *     },
- *     twig?: array{
- *         template?: scalar|Param|null, // Default: "@KnpMenu/menu.html.twig"
- *     },
- *     templating?: bool|Param, // Default: false
- *     default_renderer?: scalar|Param|null, // Default: "twig"
- * }
- * @psalm-type SurvosBootstrapConfig = array{
- *     app?: array{
- *         impersonate?: array<string, scalar|Param|null>,
- *         social?: array<string, scalar|Param|null>,
- *         code?: scalar|Param|null, // project code, default for repo, dokku deployment, etc. // Default: "my-project"
- *         abbr?: scalar|Param|null, // text abbreviation // Default: "my<b>Project</b>"
- *         logo?: scalar|Param|null, // Default: null
- *         logo_small?: scalar|Param|null, // Default: null
- *     },
- *     routes?: array{
- *         home?: scalar|Param|null, // name of the homepage route // Default: "app_homepage"
- *         login?: scalar|Param|null, // name of the login // Default: "app_login"
- *         homepage?: scalar|Param|null, // name of the home routes // Default: "app_homepage"
- *         logout?: scalar|Param|null, // name of the logout route // Default: "app_logout"
- *         offcanvas?: scalar|Param|null, // name of the offcanvas route (e.g. a settings sidebar) // Default: "app_settings"
- *         register?: scalar|Param|null, // name of the register route // Default: "app_register"
- *         search?: scalar|Param|null, // multi-entity search route // Default: false
- *     },
- *     options?: array{
- *         theme?: scalar|Param|null, // theme name // Default: "bootswatch"
- *         layout_direction?: scalar|Param|null, // Default: "horizontal"
- *         offcanvas?: scalar|Param|null, // Offcanvas position (top,bottom,start,end // Default: "end"
- *         allow_login?: bool|Param, // Login route exists // Default: false
- *         show_locale_dropdown?: bool|Param, // Add a locale dropdown to the navbar // Default: false
- *     },
- *     menu_options?: array<string, scalar|Param|null>,
- *     impersonate?: array<string, scalar|Param|null>,
  * }
  * @psalm-type SurvosSimpleDatatablesConfig = array{
  *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables-bundle/table"
@@ -2684,6 +2627,100 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type SurvosImportConfig = array{
  *     dir?: scalar|Param|null, // The default directory for data files // Default: "data"
  * }
+ * @psalm-type UxIconsConfig = array{
+ *     icon_dir?: scalar|Param|null, // The local directory where icons are stored. // Default: "%kernel.project_dir%/assets/icons"
+ *     default_icon_attributes?: array<string, scalar|Param|null>,
+ *     icon_sets?: array<string, array{ // the icon set prefix (e.g. "acme") // Default: []
+ *         path?: scalar|Param|null, // The local icon set directory path. (cannot be used with 'alias')
+ *         alias?: scalar|Param|null, // The remote icon set identifier. (cannot be used with 'path')
+ *         icon_attributes?: array<string, scalar|Param|null>,
+ *         suffixes?: array<string, array{ // The suffix name (e.g. "solid", "20-solid") // Default: []
+ *             icon_attributes?: array<string, scalar|Param|null>,
+ *         }>,
+ *     }>,
+ *     aliases?: array<string, string|Param>,
+ *     iconify?: bool|array{ // Configuration for the remote icon service.
+ *         enabled?: bool|Param, // Default: true
+ *         on_demand?: bool|Param, // Whether to download icons "on demand". // Default: true
+ *         endpoint?: scalar|Param|null, // The endpoint for the Iconify icons API. // Default: "https://api.iconify.design"
+ *     },
+ *     ignore_not_found?: bool|Param, // Ignore error when an icon is not found. Set to 'true' to fail silently. // Default: false
+ * }
+ * @psalm-type KnpMenuConfig = array{
+ *     providers?: array{
+ *         builder_alias?: bool|Param, // Default: true
+ *     },
+ *     twig?: array{
+ *         template?: scalar|Param|null, // Default: "@KnpMenu/menu.html.twig"
+ *     },
+ *     templating?: bool|Param, // Default: false
+ *     default_renderer?: scalar|Param|null, // Default: "twig"
+ * }
+ * @psalm-type SurvosTablerConfig = array{
+ *     icons?: array{
+ *         prefix?: scalar|Param|null, // Default: "tabler"
+ *         aliases?: array<string, scalar|Param|null>,
+ *         presets?: array<string, array{ // Default: []
+ *             icon?: scalar|Param|null,
+ *             class?: scalar|Param|null, // Default: ""
+ *         }>,
+ *     },
+ *     app?: array{
+ *         code?: scalar|Param|null, // Default: "my-project"
+ *         title?: scalar|Param|null, // Default: "My Project"
+ *         description?: scalar|Param|null, // Default: ""
+ *         abbr?: scalar|Param|null, // Default: "my<b>Project</b>"
+ *         logo?: scalar|Param|null, // Default: null
+ *         logo_small?: scalar|Param|null, // Default: null
+ *         homepage_route?: scalar|Param|null, // Default: null
+ *         homepage_url?: scalar|Param|null, // Default: null
+ *         links?: array{
+ *             github?: scalar|Param|null, // Default: null
+ *             docs?: scalar|Param|null, // Default: null
+ *             sponsor?: scalar|Param|null, // Default: null
+ *             site?: scalar|Param|null, // Default: null
+ *             contact?: scalar|Param|null, // Default: null
+ *         },
+ *         social?: array<string, scalar|Param|null>,
+ *         meta?: array{
+ *             og_image?: scalar|Param|null, // Default: null
+ *             twitter_site?: scalar|Param|null, // Default: null
+ *             theme_color?: scalar|Param|null, // Default: null
+ *         },
+ *         header?: array{
+ *             locale_switcher?: bool|Param, // Default: true
+ *             container?: scalar|Param|null, // Default: "container-fluid"
+ *             auth?: array{
+ *                 enabled?: bool|Param, // Default: true
+ *                 show_login?: bool|Param, // Default: true
+ *                 show_user_menu?: bool|Param, // Default: true
+ *                 routes?: array{
+ *                     login?: scalar|Param|null, // Default: "app_login"
+ *                     logout?: scalar|Param|null, // Default: "app_logout"
+ *                     register?: scalar|Param|null, // Default: "app_register"
+ *                     profile?: scalar|Param|null, // Default: "app_profile"
+ *                 },
+ *             },
+ *         },
+ *     },
+ *     routes?: array{
+ *         home?: scalar|Param|null, // Default: "app_homepage"
+ *         login?: scalar|Param|null, // Default: null
+ *         logout?: scalar|Param|null, // Default: null
+ *         register?: scalar|Param|null, // Default: null
+ *         profile?: scalar|Param|null, // Default: null
+ *         settings?: scalar|Param|null, // Default: null
+ *         search?: scalar|Param|null, // Default: null
+ *     },
+ *     options?: array{
+ *         theme?: scalar|Param|null, // Default: "tabler"
+ *         layout?: "horizontal"|"dashboard"|"vertical"|"condensed"|Param, // Default: "horizontal"
+ *         dark_mode?: bool|Param, // Default: false
+ *         show_locale_dropdown?: bool|Param, // Default: true
+ *     },
+ *     menu_options?: array<string, scalar|Param|null>,
+ *     impersonate?: array<string, scalar|Param|null>,
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -2699,10 +2736,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     flysystem?: FlysystemConfig,
  *     survos_storage?: SurvosStorageConfig,
  *     twig_component?: TwigComponentConfig,
- *     ux_icons?: UxIconsConfig,
  *     survos_core?: SurvosCoreConfig,
- *     knp_menu?: KnpMenuConfig,
- *     survos_bootstrap?: SurvosBootstrapConfig,
  *     survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *     bizkit_versioning?: BizkitVersioningConfig,
  *     inspector?: InspectorConfig,
@@ -2727,6 +2761,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     imgproxy?: ImgproxyConfig,
  *     survos_data?: SurvosDataConfig,
  *     survos_import?: SurvosImportConfig,
+ *     ux_icons?: UxIconsConfig,
+ *     knp_menu?: KnpMenuConfig,
+ *     survos_tabler?: SurvosTablerConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2745,10 +2782,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flysystem?: FlysystemConfig,
  *         survos_storage?: SurvosStorageConfig,
  *         twig_component?: TwigComponentConfig,
- *         ux_icons?: UxIconsConfig,
  *         survos_core?: SurvosCoreConfig,
- *         knp_menu?: KnpMenuConfig,
- *         survos_bootstrap?: SurvosBootstrapConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         survos_deployment?: SurvosDeploymentConfig,
@@ -2776,6 +2810,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
+ *         ux_icons?: UxIconsConfig,
+ *         knp_menu?: KnpMenuConfig,
+ *         survos_tabler?: SurvosTablerConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -2792,10 +2829,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flysystem?: FlysystemConfig,
  *         survos_storage?: SurvosStorageConfig,
  *         twig_component?: TwigComponentConfig,
- *         ux_icons?: UxIconsConfig,
  *         survos_core?: SurvosCoreConfig,
- *         knp_menu?: KnpMenuConfig,
- *         survos_bootstrap?: SurvosBootstrapConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         inspector?: InspectorConfig,
@@ -2820,6 +2854,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
+ *         ux_icons?: UxIconsConfig,
+ *         knp_menu?: KnpMenuConfig,
+ *         survos_tabler?: SurvosTablerConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -2837,10 +2874,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flysystem?: FlysystemConfig,
  *         survos_storage?: SurvosStorageConfig,
  *         twig_component?: TwigComponentConfig,
- *         ux_icons?: UxIconsConfig,
  *         survos_core?: SurvosCoreConfig,
- *         knp_menu?: KnpMenuConfig,
- *         survos_bootstrap?: SurvosBootstrapConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         inspector?: InspectorConfig,
@@ -2867,6 +2901,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
+ *         ux_icons?: UxIconsConfig,
+ *         knp_menu?: KnpMenuConfig,
+ *         survos_tabler?: SurvosTablerConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,
