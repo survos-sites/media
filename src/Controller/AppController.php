@@ -23,6 +23,12 @@ final class AppController extends AbstractController
     {
     }
 
+    #[Route('/health', name: 'app_health')]
+    public function health(): Response
+    {
+        return new Response('OK', 200);
+    }
+
     #[Route('/home', name: 'app_app')]
     #[AdminRoute('/stats', name: 'stats')]
     public function index(): Response
