@@ -9,4 +9,7 @@ dokku checks:skip
 # Drop wait-to-retire from 60s to 5s (fine for stateless/async apps)
 dokku checks:set wait-to-retire 5
 
+# PHP-FPM workers (app.json generator isn't applied automatically)
+dokku config:set WEB_CONCURRENCY=5
+
 echo "Done. Fast deploys enabled."
