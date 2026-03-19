@@ -1,4 +1,15 @@
+
+# Ideas:
+
+* EasyOCR (very slow)
+* ONNX: runtime for OCR, optimized for CPU/GPU, PaddleOCR (Chinese/Korean),
+* Azure Document Intelligence (Slow and expensive)
+* GropID
+* Digital Humanities
+
 # Survos Media Server -- formerly Survos Async Image Server (SAIS)
+
+
 
 Now uses Asset and Variant instead of Media and Thumbs
 

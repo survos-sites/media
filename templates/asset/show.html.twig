@@ -499,7 +499,7 @@ prompt:
 
       <script>
       (function () {
-        var nav = document.getElementById({{ (tabId ~ '-nav')|json_encode }});
+        var nav = document.getElementById({{ (tabId ~ '-nav')|json_encode|raw }});
         if (!nav) return;
         var hash = location.hash.slice(1);
         if (hash) {
