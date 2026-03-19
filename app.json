@@ -30,7 +30,7 @@
     "repository": "https://github.com/survos-sites/media",
     "scripts": {
         "dokku": {
-            "predeploy": "bin/console importmap:install && bin/console asset-map:compile && bin/console  secrets:decrypt-to-local --force && bin/console d:m:m -n --allow-no-migration",
+            "predeploy": "bin/console importmap:install && bin/console asset-map:compile && bin/console secrets:decrypt-to-local --force && bin/console d:m:m -n --allow-no-migration",
             "postdeploy": ""
         }
     },
@@ -42,6 +42,14 @@
         "WEB_CONCURRENCY": {
             "description": "The number of processes to run.",
             "generator": "echo 5"
+        },
+        "DOKKU_CHECKS_WAIT": {
+            "description": "Seconds to wait before running checks (lower = faster deploy).",
+            "value": "2"
+        },
+        "DOKKU_DEFAULT_CHECKS_WAIT": {
+            "description": "Default wait before assuming container is up.",
+            "value": "2"
         }
     },
     "image": "gliderlabs/herokuish",
