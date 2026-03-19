@@ -221,9 +221,6 @@
     "survos/babel-bundle": {
         "version": "2.0.5"
     },
-    "survos/bootstrap-bundle": {
-        "version": "2.0.143"
-    },
     "survos/code-bundle": {
         "version": "2.0.61"
     },
