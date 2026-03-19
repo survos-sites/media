@@ -166,399 +166,298 @@
     {# ── RIGHT: AI task runner ───────────────────────────────────────────────── #}
     <div class="col-lg-7">
 
+      {% set tabId = 'asset-' ~ asset.id %}
+
       <div class="card mb-3">
         <div class="card-header">
-          <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
-            <li class="nav-item" data-bs-toggle="tooltip" data-bs-tooltip="OCR">
-              <a href="#tabs-ocr" class="nav-link active" data-bs-toggle="tab">OCR</a>
-            </li>
-            <li class="nav-item">
-              <a href="#tabs-source-metadata" class="nav-link" data-bs-toggle="tab">Source Metadata</a>
-            </li>
-            <li class="nav-item">
-              <a href="#tabs-ai-metadata" class="nav-link" data-bs-toggle="tab">AI Metadata</a>
-            </li>
-            <li class="nav-item">
-              <a href="#tabs-ai-task-results" class="nav-link" data-bs-toggle="tab">AI Task Results</a>
-            </li>
-            <li class="nav-item">
-              <a href="#tabs-media-enrichment" class="nav-link" data-bs-toggle="tab">Media Enrichment</a>
-            </li>
-            <li class="nav-item">
-              <a href="#tabs-human-vs-ai" class="nav-link" data-bs-toggle="tab">Human vs AI</a>
-            </li>
-            <li class="nav-item">
-              <a href="#tabs-tasks" class="nav-link" data-bs-toggle="tab">Tasks</a>
-            </li>
+          <ul class="nav nav-tabs card-header-tabs" id="{{ tabId }}-nav" data-bs-toggle="tabs" role="tablist">
+            <li class="nav-item"><a href="#{{ tabId }}-ocr"              class="nav-link active" data-bs-toggle="tab" data-tab-id="ocr">OCR</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-source_metadata"  class="nav-link" data-bs-toggle="tab" data-tab-id="source_metadata">Source Metadata</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-ai_metadata"      class="nav-link" data-bs-toggle="tab" data-tab-id="ai_metadata">AI Metadata</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-ai_task_results"  class="nav-link" data-bs-toggle="tab" data-tab-id="ai_task_results">AI Task Results</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-media_enrichment" class="nav-link" data-bs-toggle="tab" data-tab-id="media_enrichment">Media Enrichment</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-human_vs_ai"      class="nav-link" data-bs-toggle="tab" data-tab-id="human_vs_ai">Human vs AI</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-tasks"            class="nav-link" data-bs-toggle="tab" data-tab-id="tasks">Tasks</a></li>
             {% if app.debug %}
-            <li class="nav-item">
-              <a href="#tabs-dev-dump" class="nav-link" data-bs-toggle="tab">Dev Dump</a>
-            </li>
+            <li class="nav-item"><a href="#{{ tabId }}-dev_dump"         class="nav-link" data-bs-toggle="tab" data-tab-id="dev_dump">Dev Dump</a></li>
             {% endif %}
           </ul>
         </div>
         <div class="card-body">
           <div class="tab-content">
 
-             <div id="tabs-ocr" class="tab-pane active show">
-               <div class="card">
-                 <div class="card-header d-flex justify-content-between align-items-center">
-                   <h4 class="card-title mb-0">OCR</h4>
-                 </div>
-                 <div class="card-body">
-                   <twig:AiMetadata :results="asset.aiResults()" group="ocr" />
-                 </div>
-               </div>
-             </div>
+        {# ── OCR ──────────────────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-ocr" class="tab-pane active show" role="tabpanel">
+          <twig:AiMetadata :results="asset.aiResults()" group="ocr" />
+        </div>
+        {# ── Source Metadata ──────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-source_metadata" class="tab-pane" role="tabpanel">
+          {% set ctx = asset.sourceMeta %}
+          {% if ctx %}
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="card-title mb-0">Source Metadata</h4>
+                {% if ctx.aggregator is defined %}
+                  <span class="badge bg-blue-lt">{{ ctx.aggregator }}</span>
+                {% endif %}
+              </div>
+              <div class="card-body small p-2">
+                <twig:SourceMetadata :ctx="asset.sourceMeta ?? {}" />
+                {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
+                  <tr>
+                    <th class="text-muted fw-normal pe-3">Source</th>
+                    <td><a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener">{{ ctx['dcterms:source']|slice(0,60) }}{% if ctx['dcterms:source']|length > 60 %}…{% endif %}</a></td>
+                  </tr>
+                {% endif %}
+                {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
+                  <tr>
+                    <th class="text-muted fw-normal pe-3">IIIF Manifest</th>
+                    <td><a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">manifest ↗</a></td>
+                  </tr>
+                {% endif %}
+                {% if ctx.iiif_base is defined and ctx.iiif_base %}
+                  <tr>
+                    <th class="text-muted fw-normal pe-3">Thumbnail</th>
+                    <td>
+                      <a href="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" target="_blank" rel="noopener">
+                        <img src="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" alt="thumbnail" style="max-width:120px;max-height:120px;border-radius:4px;" loading="lazy">
+                      </a>
+                      <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ ctx.iiif_base }}</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <th class="text-muted fw-normal pe-3">IIIF sizes</th>
+                    <td class="d-flex gap-1 flex-wrap">
+                      {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'medium': '!800,800', 'max': 'max'} %}
+                        <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg" target="_blank" rel="noopener" class="btn btn-xs btn-ghost-secondary">{{ label }}</a>
+                      {% endfor %}
+                    </td>
+                  </tr>
+                {% endif %}
+                {% if ctx.source_ark is defined and ctx.source_ark %}
+                  <tr>
+                    <th class="text-muted fw-normal pe-3">ARK</th>
+                    <td><code>{{ ctx.source_ark }}</code></td>
+                  </tr>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
 
-            <div id="tabs-source-metadata" class="tab-pane">
-              {# ── Source metadata from DC / aggregator context ────────────────────── #}
-              {% set ctx = asset.sourceMeta %}
-              {% if ctx %}
-                <div class="card">
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">Source Metadata</h4>
-                    {% if ctx.aggregator is defined %}
-                      <span class="badge bg-blue-lt">{{ ctx.aggregator }}</span>
+        {# ── AI Metadata ──────────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-ai_metadata" class="tab-pane" role="tabpanel">
+          <twig:AiMetadata :results="asset.aiResults()" group="image" />
+        </div>
+
+        {# ── AI Task Results ──────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-ai_task_results" class="tab-pane" role="tabpanel">
+          <div class="vstack gap-2" id="task-log">
+            {% if taskResults|length == 0 %}
+              <div class="text-muted small" id="log-empty">No task results yet.</div>
+            {% else %}
+              {% for entry in taskResults|reverse %}
+                <div class="border rounded p-2">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <strong>{{ entry.task }}</strong>
+                    <small class="text-muted">{{ entry.at|default('') }}</small>
+                  </div>
+                  {% set debug = entry.result._debug|default(null) %}
+                  {% if debug %}
+                    <div class="small text-muted mt-1">
+                      image: {{ debug.image_source|default('unknown') }}
+                      {% if debug.meta is defined and debug.meta.model is defined and debug.meta.model %}· model: {{ debug.meta.model }}{% endif %}
+                      {% if entry.result._tokens is defined and entry.result._tokens.total is defined %}· tokens: {{ entry.result._tokens.total }}{% endif %}
+                      {% if debug.image_url is defined and debug.image_url %}· <a href="{{ debug.image_url }}" target="_blank" rel="noopener">open</a>{% endif %}
+                    </div>
+                  {% endif %}
+                  <pre class="small mb-0 mt-2" style="white-space: pre-wrap;">{{ entry.result|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+
+        {# ── Media Enrichment ─────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-media_enrichment" class="tab-pane" role="tabpanel">
+          {% if enrichment is null %}
+            <div class="text-muted small">No normalized media enrichment yet. Run AI tasks first.</div>
+          {% else %}
+            <table class="table table-sm">
+              <tr><th style="width: 220px">Title</th><td>{{ enrichment.title ?? '—' }}</td></tr>
+              <tr><th>Description</th><td>{{ enrichment.description ?? '—' }}</td></tr>
+              <tr><th>Document Type</th><td>{{ enrichment.documentType ?? '—' }}{% if enrichment.documentSubtype %} / {{ enrichment.documentSubtype }}{% endif %}</td></tr>
+              <tr><th>Keywords</th><td>{{ enrichment.keywords is not empty ? enrichment.keywords|join(', ') : '—' }}</td></tr>
+              <tr><th>People</th><td>{{ enrichment.people is not empty ? enrichment.people|join(', ') : '—' }}</td></tr>
+              <tr><th>Places</th><td>{{ enrichment.places is not empty ? enrichment.places|join(', ') : '—' }}</td></tr>
+              <tr><th>OCR Text</th><td>{{ enrichment.ocrText ?? '—' }}</td></tr>
+              <tr><th>Summary</th><td>{{ enrichment.summary ?? enrichment.denseSummary ?? '—' }}</td></tr>
+              <tr><th>Image Source</th><td>{{ enrichment.imageSource ?? '—' }}</td></tr>
+              <tr><th>Image URL</th><td>{% if enrichment.imageUrl %}<a href="{{ enrichment.imageUrl }}" target="_blank" rel="noopener">{{ enrichment.imageUrl }}</a>{% else %}—{% endif %}</td></tr>
+            </table>
+            <details class="mt-2">
+              <summary class="small text-muted">Raw mediaEnrichment JSON</summary>
+              <pre class="small mt-2" style="white-space: pre-wrap;">{{ enrichment.toArray()|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+            </details>
+          {% endif %}
+        </div>
+
+        {# ── Human vs AI ──────────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-human_vs_ai" class="tab-pane" role="tabpanel">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><h4 class="card-title mb-0">Human Metadata</h4></div>
+                <div class="card-body small">
+                  <div class="mb-2"><span class="text-muted">Title</span><div class="fw-semibold">{{ humanTitle ?? '—' }}</div></div>
+                  <div><span class="text-muted">Description</span><div>{{ humanDescription ?? '—' }}</div></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card h-100">
+                <div class="card-header"><h4 class="card-title mb-0">AI Result</h4></div>
+                <div class="card-body small">
+                  <div class="mb-2"><span class="text-muted">Title</span><div class="fw-semibold">{{ enrichment ? (enrichment.title ?? '—') : '—' }}</div></div>
+                  <div><span class="text-muted">Description</span><div>{{ enrichment ? (enrichment.description ?? '—') : '—' }}</div></div>
+                  <hr class="my-2">
+                  {% set firstPassSource = enrichEntry.result._debug.image_source|default(enrichment ? enrichment.imageSource : null) %}
+                  <div>
+                    <span class="text-muted">First-pass image source</span>
+                    <div>
+                      <span class="badge {{ firstPassSource and ('thumb' in firstPassSource or 'small' in firstPassSource or 'source_meta' in firstPassSource) ? 'bg-yellow-lt' : 'bg-secondary-lt' }}">{{ firstPassSource ?? 'unknown' }}</span>
+                      {% if firstPassSource and ('thumb' in firstPassSource or 'small' in firstPassSource or 'source_meta' in firstPassSource) %}
+                        <span class="text-muted ms-1">thumbnail / low-res pass</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h4 class="card-title mb-0">A/B: Enrichment Quality</h4>
+              <span class="text-muted small">Low-res first pass vs high-res pass</span>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="border rounded p-2 h-100">
+                    <div class="fw-semibold mb-1">Low-res run</div>
+                    {% if enrichLowResRun %}
+                      {% set rr = enrichLowResRun.result|default({}) %}
+                      {% set dd = rr._debug|default({}) %}
+                      <div class="small text-muted mb-1">{{ dd.image_source|default('unknown') }} · {{ dd.meta.model|default('—') }} · {{ rr._tokens.total|default(0) }} tokens</div>
+                      <div><span class="text-muted">Title:</span> <strong>{{ rr.title|default('—') }}</strong></div>
+                      <div class="mt-1"><span class="text-muted">Description:</span> {{ rr.description|default('—') }}</div>
+                    {% else %}
+                      <div class="text-muted small">No low-res enrichment run found.</div>
                     {% endif %}
                   </div>
-                  <div class="card-body small p-2">
-                    {# Schema-driven display — fields come from ContentType + BaseItemDto, not hard-coded #}
-                    <twig:SourceMetadata :ctx="asset.sourceMeta ?? {}" />
-
-
-                      {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
-                        <tr>
-                          <th class="text-muted fw-normal pe-3">Source</th>
-                          <td><a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener">{{ ctx['dcterms:source']|slice(0,60) }}{% if ctx['dcterms:source']|length > 60 %}…{% endif %}</a></td>
-                        </tr>
-                      {% endif %}
-
-                      {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
-                        <tr>
-                          <th class="text-muted fw-normal pe-3">IIIF Manifest</th>
-                          <td>
-                            <a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">manifest ↗</a>
-                          </td>
-                        </tr>
-                      {% endif %}
-
-                      {% if ctx.iiif_base is defined and ctx.iiif_base %}
-                        <tr>
-                          <th class="text-muted fw-normal pe-3">Thumbnail</th>
-                          <td>
-                            <a href="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" target="_blank" rel="noopener">
-                              <img src="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg"
-                                  alt="thumbnail"
-                                  style="max-width:120px;max-height:120px;border-radius:4px;"
-                                  loading="lazy">
-                            </a>
-                            <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ ctx.iiif_base }}</div>
-                          </td>
-                        </tr>
-                        <tr>
-                          <th class="text-muted fw-normal pe-3">IIIF sizes</th>
-                          <td class="d-flex gap-1 flex-wrap">
-                            {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'medium': '!800,800', 'max': 'max'} %}
-                              <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg"
-                                target="_blank" rel="noopener"
-                                class="btn btn-xs btn-ghost-secondary">{{ label }}</a>
-                            {% endfor %}
-                          </td>
-                        </tr>
-                      {% endif %}
-
-                      {% if ctx.source_ark is defined and ctx.source_ark %}
-                        <tr>
-                          <th class="text-muted fw-normal pe-3">ARK</th>
-                          <td><code>{{ ctx.source_ark }}</code></td>
-                        </tr>
-                      {% endif %}
-
-                    </table>
+                </div>
+                <div class="col-md-6">
+                  <div class="border rounded p-2 h-100">
+                    <div class="fw-semibold mb-1">High-res run</div>
+                    {% if enrichHighResRun %}
+                      {% set rr = enrichHighResRun.result|default({}) %}
+                      {% set dd = rr._debug|default({}) %}
+                      <div class="small text-muted mb-1">{{ dd.image_source|default('unknown') }} · {{ dd.meta.model|default('—') }} · {{ rr._tokens.total|default(0) }} tokens</div>
+                      <div><span class="text-muted">Title:</span> <strong>{{ rr.title|default('—') }}</strong></div>
+                      <div class="mt-1"><span class="text-muted">Description:</span> {{ rr.description|default('—') }}</div>
+                    {% else %}
+                      <div class="text-muted small">No high-res enrichment run found yet.</div>
+                    {% endif %}
                   </div>
+                </div>
+              </div>
+              {% if humanTitle %}
+                <div class="mt-3 small">
+                  <span class="text-muted">Reference title:</span> <strong>{{ humanTitle }}</strong>
+                  {% set lowTitle = enrichLowResRun ? (enrichLowResRun.result.title|default('')) : '' %}
+                  {% set highTitle = enrichHighResRun ? (enrichHighResRun.result.title|default('')) : '' %}
+                  {% if lowTitle %}<span class="ms-2 badge {{ lowTitle|lower == humanTitle|lower ? 'bg-green-lt' : 'bg-red-lt' }}">low-res {{ lowTitle|lower == humanTitle|lower ? 'match' : 'mismatch' }}</span>{% endif %}
+                  {% if highTitle %}<span class="ms-1 badge {{ highTitle|lower == humanTitle|lower ? 'bg-green-lt' : 'bg-red-lt' }}">high-res {{ highTitle|lower == humanTitle|lower ? 'match' : 'mismatch' }}</span>{% endif %}
                 </div>
               {% endif %}
             </div>
+          </div>
 
-              <div id="tabs-ai-metadata" class="tab-pane">
-                <twig:AiMetadata :results="asset.aiResults()" group="image" />
-              </div>
-
-              <div id="tabs-ai-task-results" class="tab-pane">
-                <div class="vstack gap-2" id="task-log">
-                  {% if taskResults|length == 0 %}
-                    <div class="text-muted small" id="log-empty">No task results yet.</div>
+          <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h4 class="card-title mb-0">Cost + Model Trace</h4>
+              <span class="badge bg-secondary">{{ asset.aiTokensTotal }} tokens total</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                  <thead><tr><th>Task</th><th>Model</th><th>Image Source</th><th class="text-end">Tokens</th></tr></thead>
+                  <tbody>
+                  {% for entry in taskResults|reverse %}
+                    {% set r = entry.result|default({}) %}
+                    {% set dbg = r._debug|default({}) %}
+                    <tr>
+                      <td><code>{{ entry.task|default('unknown') }}</code></td>
+                      <td>{{ dbg.requested_model|default(dbg.meta.model|default('—')) }}</td>
+                      <td><span class="badge bg-secondary-lt">{{ dbg.image_source|default('—') }}</span></td>
+                      <td class="text-end">{{ r._tokens.total|default(0) }}</td>
+                    </tr>
                   {% else %}
-                    {% for entry in taskResults|reverse %}
-                      <div class="border rounded p-2">
-                        <div class="d-flex justify-content-between align-items-center">
-                          <strong>{{ entry.task }}</strong>
-                          <small class="text-muted">{{ entry.at|default('') }}</small>
-                        </div>
-                        {% set debug = entry.result._debug|default(null) %}
-                        {% if debug %}
-                          <div class="small text-muted mt-1">
-                            image: {{ debug.image_source|default('unknown') }}
-                            {% if debug.meta is defined and debug.meta.model is defined and debug.meta.model %}
-                              · model: {{ debug.meta.model }}
-                            {% endif %}
-                            {% if entry.result._tokens is defined and entry.result._tokens.total is defined %}
-                              · tokens: {{ entry.result._tokens.total }}
-                            {% endif %}
-                            {% if debug.image_url is defined and debug.image_url %}
-                              · <a href="{{ debug.image_url }}" target="_blank" rel="noopener">open</a>
-                            {% endif %}
-                          </div>
-                        {% endif %}
-                        <pre class="small mb-0 mt-2" style="white-space: pre-wrap;">{{ entry.result|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
-                      </div>
-                    {% endfor %}
-                  {% endif %}
-                </div>
+                    <tr><td colspan="4" class="text-muted small">No task executions recorded.</td></tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
               </div>
+            </div>
+          </div>
 
-              <div id="tabs-media-enrichment" class="tab-pane">
-                {% if enrichment is null %}
-                  <div class="text-muted small">No normalized media enrichment yet. Run AI tasks first.</div>
-                {% else %}
-                  <table class="table table-sm">
-                    <tr><th style="width: 220px">Title</th><td>{{ enrichment.title ?? '—' }}</td></tr>
-                    <tr><th>Description</th><td>{{ enrichment.description ?? '—' }}</td></tr>
-                    <tr><th>Document Type</th><td>{{ enrichment.documentType ?? '—' }}{% if enrichment.documentSubtype %} / {{ enrichment.documentSubtype }}{% endif %}</td></tr>
-                    <tr><th>Keywords</th><td>{{ enrichment.keywords is not empty ? enrichment.keywords|join(', ') : '—' }}</td></tr>
-                    <tr><th>People</th><td>{{ enrichment.people is not empty ? enrichment.people|join(', ') : '—' }}</td></tr>
-                    <tr><th>Places</th><td>{{ enrichment.places is not empty ? enrichment.places|join(', ') : '—' }}</td></tr>
-                    <tr><th>OCR Text</th><td>{{ enrichment.ocrText ?? '—' }}</td></tr>
-                    <tr><th>Summary</th><td>{{ enrichment.summary ?? enrichment.denseSummary ?? '—' }}</td></tr>
-                    <tr><th>Image Source</th><td>{{ enrichment.imageSource ?? '—' }}</td></tr>
-                    <tr><th>Image URL</th><td>{% if enrichment.imageUrl %}<a href="{{ enrichment.imageUrl }}" target="_blank" rel="noopener">{{ enrichment.imageUrl }}</a>{% else %}—{% endif %}</td></tr>
-                  </table>
-                  <details class="mt-2">
-                    <summary class="small text-muted">Raw mediaEnrichment JSON</summary>
-                    <pre class="small mt-2" style="white-space: pre-wrap;">{{ enrichment.toArray()|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
-                  </details>
-                {% endif %}
-              </div>
+          <div class="card">
+            <div class="card-header"><h4 class="card-title mb-0">Try Better Passes</h4></div>
+            <div class="card-body d-flex flex-wrap gap-2">
+              <a class="btn btn-sm btn-outline-primary" href="{{ path('asset_run_task', {id: asset.id, taskName: 'enrich_from_thumbnail'}) ~ '?image=full&async=1' }}">Re-run enrich_from_thumbnail (full-res)</a>
+              <a class="btn btn-sm btn-outline-primary" href="{{ path('asset_run_task', {id: asset.id, taskName: 'context_description'}) ~ '?image=full&model=mistral-large-latest&async=1' }}">context_description (full-res, mistral hint)</a>
+              <a class="btn btn-sm btn-outline-primary" href="{{ path('asset_run_task', {id: asset.id, taskName: 'ocr_mistral'}) ~ '?image=full&async=1' }}">ocr_mistral (full-res)</a>
+              <div class="w-100 small text-muted mt-1">Model/image preferences are recorded in debug metadata; model hints depend on handler support.</div>
+            </div>
+          </div>
+        </div>
 
-              <div id="tabs-human-vs-ai" class="tab-pane">
-                <div class="row g-3 mb-3">
-                  <div class="col-md-6">
-                    <div class="card h-100">
-                      <div class="card-header"><h4 class="card-title mb-0">Human Metadata</h4></div>
-                      <div class="card-body small">
-                        <div class="mb-2"><span class="text-muted">Title</span><div class="fw-semibold">{{ humanTitle ?? '—' }}</div></div>
-                        <div><span class="text-muted">Description</span><div>{{ humanDescription ?? '—' }}</div></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="card h-100">
-                      <div class="card-header"><h4 class="card-title mb-0">AI Result</h4></div>
-                      <div class="card-body small">
-                        <div class="mb-2"><span class="text-muted">Title</span><div class="fw-semibold">{{ enrichment ? (enrichment.title ?? '—') : '—' }}</div></div>
-                        <div><span class="text-muted">Description</span><div>{{ enrichment ? (enrichment.description ?? '—') : '—' }}</div></div>
-                        <hr class="my-2">
-                        {% set firstPassSource = enrichEntry.result._debug.image_source|default(enrichment ? enrichment.imageSource : null) %}
-                        <div>
-                          <span class="text-muted">First-pass image source</span>
-                          <div>
-                            <span class="badge {{ firstPassSource and ('thumb' in firstPassSource or 'small' in firstPassSource or 'source_meta' in firstPassSource) ? 'bg-yellow-lt' : 'bg-secondary-lt' }}">{{ firstPassSource ?? 'unknown' }}</span>
-                            {% if firstPassSource and ('thumb' in firstPassSource or 'small' in firstPassSource or 'source_meta' in firstPassSource) %}
-                              <span class="text-muted ms-1">thumbnail / low-res pass</span>
-                            {% endif %}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="card mb-3">
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">A/B: Enrichment Quality</h4>
-                    <span class="text-muted small">Low-res first pass vs high-res pass</span>
-                  </div>
-                  <div class="card-body">
-                    <div class="row g-3">
-                      <div class="col-md-6">
-                        <div class="border rounded p-2 h-100">
-                          <div class="fw-semibold mb-1">Low-res run</div>
-                          {% if enrichLowResRun %}
-                            {% set rr = enrichLowResRun.result|default({}) %}
-                            {% set dd = rr._debug|default({}) %}
-                            <div class="small text-muted mb-1">{{ dd.image_source|default('unknown') }} · {{ dd.meta.model|default('—') }} · {{ rr._tokens.total|default(0) }} tokens</div>
-                            <div><span class="text-muted">Title:</span> <strong>{{ rr.title|default('—') }}</strong></div>
-                            <div class="mt-1"><span class="text-muted">Description:</span> {{ rr.description|default('—') }}</div>
-                          {% else %}
-                            <div class="text-muted small">No low-res enrichment run found.</div>
-                          {% endif %}
-                        </div>
-                      </div>
-                      <div class="col-md-6">
-                        <div class="border rounded p-2 h-100">
-                          <div class="fw-semibold mb-1">High-res run</div>
-                          {% if enrichHighResRun %}
-                            {% set rr = enrichHighResRun.result|default({}) %}
-                            {% set dd = rr._debug|default({}) %}
-                            <div class="small text-muted mb-1">{{ dd.image_source|default('unknown') }} · {{ dd.meta.model|default('—') }} · {{ rr._tokens.total|default(0) }} tokens</div>
-                            <div><span class="text-muted">Title:</span> <strong>{{ rr.title|default('—') }}</strong></div>
-                            <div class="mt-1"><span class="text-muted">Description:</span> {{ rr.description|default('—') }}</div>
-                          {% else %}
-                            <div class="text-muted small">No high-res enrichment run found yet.</div>
-                          {% endif %}
-                        </div>
-                      </div>
-                    </div>
-                    {% if humanTitle %}
-                      <div class="mt-3 small">
-                        <span class="text-muted">Reference title:</span>
-                        <strong>{{ humanTitle }}</strong>
-                        {% set lowTitle = enrichLowResRun ? (enrichLowResRun.result.title|default('')) : '' %}
-                        {% set highTitle = enrichHighResRun ? (enrichHighResRun.result.title|default('')) : '' %}
-                        {% if lowTitle %}
-                          <span class="ms-2 badge {{ lowTitle|lower == humanTitle|lower ? 'bg-green-lt' : 'bg-red-lt' }}">low-res {{ lowTitle|lower == humanTitle|lower ? 'match' : 'mismatch' }}</span>
-                        {% endif %}
-                        {% if highTitle %}
-                          <span class="ms-1 badge {{ highTitle|lower == humanTitle|lower ? 'bg-green-lt' : 'bg-red-lt' }}">high-res {{ highTitle|lower == humanTitle|lower ? 'match' : 'mismatch' }}</span>
-                        {% endif %}
-                      </div>
-                    {% endif %}
-                  </div>
-                </div>
-
-                <div class="card mb-3">
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">Cost + Model Trace</h4>
-                    <span class="badge bg-secondary">{{ asset.aiTokensTotal }} tokens total</span>
-                  </div>
-                  <div class="card-body p-0">
-                    <div class="table-responsive">
-                      <table class="table table-sm mb-0">
-                        <thead><tr><th>Task</th><th>Model</th><th>Image Source</th><th class="text-end">Tokens</th></tr></thead>
-                        <tbody>
-                        {% for entry in taskResults|reverse %}
-                          {% set r = entry.result|default({}) %}
-                          {% set dbg = r._debug|default({}) %}
-                          {% set modelName = dbg.requested_model|default(dbg.meta.model|default('—')) %}
-                          {% set tokenCount = r._tokens.total|default(0) %}
-                          <tr>
-                            <td><code>{{ entry.task|default('unknown') }}</code></td>
-                            <td>{{ modelName }}</td>
-                            <td><span class="badge bg-secondary-lt">{{ dbg.image_source|default('—') }}</span></td>
-                            <td class="text-end">{{ tokenCount }}</td>
-                          </tr>
-                        {% else %}
-                          <tr><td colspan="4" class="text-muted small">No task executions recorded.</td></tr>
-                        {% endfor %}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="card mb-3">
-                  <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">Better Model Report</h4>
-                    <span class="text-muted small">High-res + model upgrades</span>
-                  </div>
-                  <div class="card-body p-0">
-                    <div class="table-responsive">
-                      <table class="table table-sm mb-0">
-                        <thead>
-                          <tr>
-                            <th>When</th>
-                            <th>Task</th>
-                            <th>Model</th>
-                            <th>Image</th>
-                            <th>Output Snapshot</th>
-                            <th class="text-end">Tokens</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                        {% for entry in taskResults|reverse %}
-                          {% set r = entry.result|default({}) %}
-                          {% set d = r._debug|default({}) %}
-                          {% set source = d.image_source|default('') %}
-                          {% set model = d.requested_model|default(d.meta.model|default('—')) %}
-                          {% set isUpgraded = (source and ('full' in source or source in ['archive_url', 'original_url'])) or (model and 'mistral' in model|lower) %}
-                          {% if isUpgraded %}
-                            <tr>
-                              <td class="small text-muted">{{ entry.at|default('') }}</td>
-                              <td><code>{{ entry.task|default('unknown') }}</code></td>
-                              <td>{{ model }}</td>
-                              <td><span class="badge bg-secondary-lt">{{ source ?: '—' }}</span></td>
-                              <td class="small">{{ r.title|default(r.summary|default(r.description|default('—')))|slice(0, 80) }}{% if (r.title|default(r.summary|default(r.description|default('')))|length) > 80 %}…{% endif %}</td>
-                              <td class="text-end">{{ r._tokens.total|default(0) }}</td>
-                            </tr>
-                          {% endif %}
-                        {% else %}
-                          <tr><td colspan="6" class="text-muted small">No upgraded runs found yet.</td></tr>
-                        {% endfor %}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="card">
-                  <div class="card-header"><h4 class="card-title mb-0">Try Better Passes</h4></div>
-                  <div class="card-body d-flex flex-wrap gap-2">
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('asset_run_task', {id: asset.id, taskName: 'enrich_from_thumbnail'}) ~ '?image=full&async=1' }}">
-                      Re-run enrich_from_thumbnail (full-res)
-                    </a>
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('asset_run_task', {id: asset.id, taskName: 'context_description'}) ~ '?image=full&model=mistral-large-latest&async=1' }}">
-                      context_description (full-res, mistral hint)
-                    </a>
-                    <a class="btn btn-sm btn-outline-primary" href="{{ path('asset_run_task', {id: asset.id, taskName: 'ocr_mistral'}) ~ '?image=full&async=1' }}">
-                      ocr_mistral (full-res)
-                    </a>
-                    <div class="w-100 small text-muted mt-1">Model/image preferences are recorded in debug metadata; model hints depend on handler support.</div>
-                  </div>
-                </div>
-              </div>
-
-              <div id="tabs-tasks" class="tab-pane">
-                <div class="card mb-3">
-                  <div class="card-header">
-                    <h4 class="card-title">Pipelines</h4>
-                  </div>
-                  <div class="card-body d-flex gap-2 flex-wrap">
-                    {% for pipelineName, pipelineTasks in pipelines %}
-                      <form method="post" action="{{ path('asset_enqueue_pipeline', {id: asset.id, name: pipelineName}) }}">
-                        <button class="btn btn-sm btn-outline-primary">
-                          ▶ {{ pipelineName|capitalize }} pipeline
-                          <span class="badge bg-primary-lt ms-1">{{ pipelineTasks|length }}</span>
-                        </button>
-                      </form>
-                    {% endfor %}
-                    <a href="{{ path('asset_task_registry') }}" class="btn btn-sm btn-ghost-secondary">
-                      View task registry →
-                    </a>
-                  </div>
-                  {% if asset.aiQueue|length > 0 %}
-                    <div class="card-footer small text-muted">
-                      Queue: {{ asset.aiQueue|join(' → ') }}
-                    </div>
-                  {% endif %}
-                </div>
-
-                <div class="card mb-0">
-                  <div class="card-header">
-                    <h4 class="card-title">Run Individual Task</h4>
-                    <div class="card-options text-muted small">results appear in AI Task Results tab</div>
-                  </div>
-                  <div class="card-body">
-                    <div class="row g-2" id="task-grid" hx-sync="this:queue sequential">
-                      {% for task in tasks %}
-                        {% set isDone = completedMap[task] is defined %}
-                        {% set hasFailed = isDone and (completedMap[task].result.failed is defined) %}
-                        {% set meta = taskMeta[task] ?? {} %}
-                        {% set entry = completedMap[task]|default(null) %}
-                        {% set debug = entry and entry.result._debug is defined ? entry.result._debug : null %}
-                        {% set promptCombined = debug and debug.prompt is defined and debug.prompt.combined is defined ? debug.prompt.combined : null %}
-                        {% set imageUrl = debug and debug.image_url is defined ? debug.image_url : null %}
-                        {% set popContent %}agent: {{ meta.agent|default('?') }}
+        {# ── Tasks ────────────────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-tasks" class="tab-pane" role="tabpanel">
+          <div class="card mb-3">
+            <div class="card-header"><h4 class="card-title">Pipelines</h4></div>
+            <div class="card-body d-flex gap-2 flex-wrap">
+              {% for pipelineName, pipelineTasks in pipelines %}
+                <form method="post" action="{{ path('asset_enqueue_pipeline', {id: asset.id, name: pipelineName}) }}">
+                  <button class="btn btn-sm btn-outline-primary">
+                    ▶ {{ pipelineName|capitalize }} pipeline
+                    <span class="badge bg-primary-lt ms-1">{{ pipelineTasks|length }}</span>
+                  </button>
+                </form>
+              {% endfor %}
+              <a href="{{ path('asset_task_registry') }}" class="btn btn-sm btn-ghost-secondary">View task registry →</a>
+            </div>
+            {% if asset.aiQueue|length > 0 %}
+              <div class="card-footer small text-muted">Queue: {{ asset.aiQueue|join(' → ') }}</div>
+            {% endif %}
+          </div>
+          <div class="card mb-0">
+            <div class="card-header">
+              <h4 class="card-title">Run Individual Task</h4>
+              <div class="card-options text-muted small">results appear in AI Task Results tab</div>
+            </div>
+            <div class="card-body">
+              <div class="row g-2" id="task-grid" hx-sync="this:queue sequential">
+                {% for task in tasks %}
+                  {% set isDone = completedMap[task] is defined %}
+                  {% set hasFailed = isDone and (completedMap[task].result.failed is defined) %}
+                  {% set meta = taskMeta[task] ?? {} %}
+                  {% set entry = completedMap[task]|default(null) %}
+                  {% set debug = entry and entry.result._debug is defined ? entry.result._debug : null %}
+                  {% set promptCombined = debug and debug.prompt is defined and debug.prompt.combined is defined ? debug.prompt.combined : null %}
+                  {% set imageUrl = debug and debug.image_url is defined ? debug.image_url : null %}
+                  {% set popContent %}agent: {{ meta.agent|default('?') }}
 model: {{ meta.model|default('—') }}
 platform: {{ meta.platform|default('—') }}{% if imageUrl %}
 
@@ -571,37 +470,49 @@ prompt:
 
 {{ meta.system_prompt|default('no prompt info')|slice(0, 600) }}{% if (meta.system_prompt|default(''))|length > 600 %}…{% endif %}
 {% endif %}{% endset %}
-                        <div class="col-sm-6" id="task-card-col-{{ task }}">
-                          {{ include('asset/_task_card.html.twig', {
-                            task: task,
-                            isDone: isDone,
-                            hasFailed: hasFailed,
-                            entry: entry,
-                            meta: meta,
-                            popContent: popContent,
-                            assetId: asset.id,
-                          }, with_context: false) }}
-                        </div>
-                      {% endfor %}
-                    </div>
+                  <div class="col-sm-6" id="task-card-col-{{ task }}">
+                    {{ include('asset/_task_card.html.twig', {
+                      task: task, isDone: isDone, hasFailed: hasFailed,
+                      entry: entry, meta: meta, popContent: popContent,
+                      assetId: asset.id,
+                    }, with_context: false) }}
                   </div>
-                </div>
+                {% endfor %}
               </div>
-
-              {% if app.debug %}
-              <div id="tabs-dev-dump" class="tab-pane">
-                <details open>
-                  <summary class="small text-muted mb-2">asset dump (dev only)</summary>
-                    {% guard function dump %}
-                          {{ dump(asset) }}
-                    {% endguard %}
-                </details>
-              </div>
-              {% endif %}
-
+            </div>
           </div>
         </div>
-      </div>
+
+        {# ── Dev Dump (debug only) ─────────────────────────────────────────────── #}
+        {% if app.debug %}
+        <div id="{{ tabId }}-dev_dump" class="tab-pane" role="tabpanel">
+          <details open>
+            <summary class="small text-muted mb-2">asset dump (dev only)</summary>
+            {% guard function dump %}{{ dump(asset) }}{% endguard %}
+          </details>
+        </div>
+        {% endif %}
+
+          </div>{# /tab-content #}
+        </div>{# /card-body #}
+      </div>{# /card #}
+
+      <script>
+      (function () {
+        var nav = document.getElementById({{ (tabId ~ '-nav')|json_encode }});
+        if (!nav) return;
+        var hash = location.hash.slice(1);
+        if (hash) {
+          var link = nav.querySelector('[data-tab-id="' + hash + '"]');
+          if (link) { link.click(); }
+        }
+        nav.addEventListener('shown.bs.tab', function (e) {
+          var id = e.target.getAttribute('data-tab-id');
+          if (id) history.replaceState(null, '', '#' + id);
+        });
+      })();
+      </script>
+
 
     </div>{# /col-lg-7 #}
   </div>{# /row #}
