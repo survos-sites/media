@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "387a2235121d8869f32d46b1dfc681eb",
+    "content-hash": "cf2781adb5b5ecefe0984497716ebe03",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -8081,16 +8081,16 @@
         },
         {
             "name": "survos/tabler-bundle",
-            "version": "2.0.117",
+            "version": "dev-main",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/SurvosTablerBundle.git",
-                "reference": "3a1366b6cdbf68261cfc5aa414194933ebad97a0"
+                "reference": "c5c98af306d2908722ef0493c3ef5f97f5213488"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/SurvosTablerBundle/zipball/3a1366b6cdbf68261cfc5aa414194933ebad97a0",
-                "reference": "3a1366b6cdbf68261cfc5aa414194933ebad97a0",
+                "url": "https://api.github.com/repos/survos/SurvosTablerBundle/zipball/c5c98af306d2908722ef0493c3ef5f97f5213488",
+                "reference": "c5c98af306d2908722ef0493c3ef5f97f5213488",
                 "shasum": ""
             },
             "require": {
@@ -8138,6 +8138,7 @@
                 "symfony/cache": "Great cache to use, but you can pick any PSR-6 cache you wish.",
                 "twig/markdown-extra": "use markdown_to_html filter"
             },
+            "default-branch": true,
             "type": "symfony-bundle",
             "extra": {
                 "symfony": {
@@ -8170,7 +8171,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/SurvosTablerBundle/issues",
-                "source": "https://github.com/survos/SurvosTablerBundle/tree/2.0.117"
+                "source": "https://github.com/survos/SurvosTablerBundle/tree/main"
             },
             "funding": [
                 {
@@ -8178,7 +8179,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-01-05T14:54:09+00:00"
+            "time": "2026-03-17T13:34:54+00:00"
         },
         {
             "name": "survos/thumb-hash-bundle",
@@ -19814,7 +19815,8 @@
         "knplabs/knp-menu": 20,
         "meilisearch/meilisearch-php": 20,
         "roave/security-advisories": 20,
-        "survos/ai-pipeline-bundle": 20
+        "survos/ai-pipeline-bundle": 20,
+        "survos/tabler-bundle": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,
