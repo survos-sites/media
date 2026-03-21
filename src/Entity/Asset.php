@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Ai\Result\MediaEnrichment;
+use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;

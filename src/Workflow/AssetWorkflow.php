@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace App\Workflow;
 
 use App\Ai\AssetAiTask;
-use App\Ai\Result\MediaEnrichment;
+use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Service\AssetRegistry;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
