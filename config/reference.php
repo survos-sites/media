@@ -1481,7 +1481,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     dd?: bool|Param, // Default: true
  * }
  * @psalm-type SurvosSimpleDatatablesConfig = array{
- *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables-bundle/table"
+ *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables/table"
  *     per_page?: bool|Param, // Default: 10
  *     searchable?: bool|Param, // Default: true
  *     fixed_height?: scalar|Param|null, // Default: true
@@ -1624,8 +1624,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     lifetime?: int|Param, // The length of time in seconds that a signed URI is valid for after it is created. // Default: 3600
  * }
  * @psalm-type SurvosTreeConfig = array{
- *     tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/tree"
- *     api_tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/api_tree"
+ *     tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree/tree"
+ *     api_tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree/api_tree"
  *     stimulus_controller?: scalar|Param|null, // Deprecated: The "stimulus_controller" option is deprecated, use "api_tree_stimulus_controller" and/or "tree_stimulus_controller" instead. // Default: null
  * }
  * @psalm-type ApiPlatformConfig = array{
@@ -2050,9 +2050,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             apiVersion?: scalar|Param|null, // Default: null
  *             deploymentId?: scalar|Param|null, // Default: null
  *             label?: scalar|Param|null, // Human-readable label used in dynamic prompts (defaults to indexName) // Default: null
+ *             curatorName?: scalar|Param|null, // Optional explicit curator display name for this workspace template // Default: null
+ *             curatorNameByIndex?: list<scalar|Param|null>,
  *             detailUrlPattern?: scalar|Param|null, // URL pattern for item detail pages; use {id} as placeholder e.g. /product/{id} // Default: null
  *             schemaUrl?: scalar|Param|null, // Optional OpenAPI schema URL used to explain field meanings in collection overview responses // Default: null
  *             examples?: list<scalar|Param|null>,
+ *             examplesByIndex?: list<list<scalar|Param|null>>,
  *             prompts?: array{ // Static prompt overrides — these win over dynamic template rendering
  *                 system?: scalar|Param|null, // Default: null
  *                 searchFilterParam?: scalar|Param|null, // Default: null
@@ -2557,6 +2560,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         response_key?: scalar|Param|null, // key if API returns an object response, e.g. dummyjson returns {'products': [...]}
  *     }>,
  * }
+ * @psalm-type SurvosApiGridConfig = array{
+ *     stimulus_controller?: scalar|Param|null, // The stimulus controller to use, should extend @survos/api-grid/api_grid // Default: "@survos/api-grid/api_grid"
+ *     grid_stimulus_controller?: scalar|Param|null, // Default: "@survos/api-grid/grid"
+ *     meiliHost?: scalar|Param|null, // Default: "%env(MEILI_SERVER)%"
+ *     meiliKey?: scalar|Param|null, // Default: "%env(MEILI_API_KEY)%"
+ *     meiliPrefix?: scalar|Param|null, // Default: "%env(MEILI_PREFIX)%"
+ *     passLocale?: bool|Param, // Default: false
+ *     maxValuesPerFacet?: int|Param, // https://www.meilisearch.com/docs/reference/api/settings#faceting-object // Default: 1000
+ * }
  * @psalm-type ImgproxyConfig = array{
  *     host?: scalar|Param|null,
  *     media_url?: scalar|Param|null,
@@ -2721,6 +2733,37 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     ignore_not_found?: bool|Param, // Ignore error when an icon is not found. Set to 'true' to fail silently. // Default: false
  * }
+ * @psalm-type McpConfig = array{
+ *     app?: scalar|Param|null, // Default: "app"
+ *     version?: scalar|Param|null, // Default: "0.0.1"
+ *     description?: scalar|Param|null, // Default: null
+ *     icons?: list<array{ // Default: []
+ *         src?: scalar|Param|null,
+ *         mime_type?: scalar|Param|null, // Default: null
+ *         sizes?: list<scalar|Param|null>,
+ *     }>,
+ *     website_url?: scalar|Param|null, // Default: null
+ *     pagination_limit?: int|Param, // Default: 50
+ *     instructions?: scalar|Param|null, // Default: null
+ *     client_transports?: array{
+ *         stdio?: bool|Param, // Default: false
+ *         http?: bool|Param, // Default: false
+ *     },
+ *     discovery?: array{
+ *         scan_dirs?: list<scalar|Param|null>,
+ *         exclude_dirs?: list<scalar|Param|null>,
+ *     },
+ *     http?: array{
+ *         path?: scalar|Param|null, // Default: "/_mcp"
+ *         session?: array{
+ *             store?: "file"|"memory"|"cache"|Param, // Default: "file"
+ *             directory?: scalar|Param|null, // Default: "%kernel.cache_dir%/mcp-sessions"
+ *             cache_pool?: scalar|Param|null, // Default: "cache.mcp.sessions"
+ *             prefix?: scalar|Param|null, // Default: "mcp-"
+ *             ttl?: int|Param, // Default: 3600
+ *         },
+ *     },
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -2758,12 +2801,14 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     ai?: AiConfig,
  *     survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     survos_js_twig?: SurvosJsTwigConfig,
+ *     survos_api_grid?: SurvosApiGridConfig,
  *     imgproxy?: ImgproxyConfig,
  *     survos_data?: SurvosDataConfig,
  *     survos_import?: SurvosImportConfig,
  *     knp_menu?: KnpMenuConfig,
  *     survos_tabler?: SurvosTablerConfig,
  *     ux_icons?: UxIconsConfig,
+ *     mcp?: McpConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2807,12 +2852,14 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         survos_api_grid?: SurvosApiGridConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
+ *         mcp?: McpConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -2851,12 +2898,14 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         survos_api_grid?: SurvosApiGridConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
+ *         mcp?: McpConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -2898,12 +2947,14 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         survos_api_grid?: SurvosApiGridConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
+ *         mcp?: McpConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

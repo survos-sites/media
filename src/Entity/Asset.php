@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\GetCollection;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
@@ -25,6 +27,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
 #[ORM\HasLifecycleCallbacks]
+#[ApiResource(
+    operations: [
+        new GetCollection()
+    ]
+)]
 #[MeiliIndex(
 //    chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal'],

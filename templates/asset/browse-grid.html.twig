@@ -1,0 +1,10 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Assets{% endblock %}
+
+{% block body %}
+<div class="container-xl py-4">
+    <h1>Assets</h1>
+    <twig:SurvosApiGrid:api_grid apiGetCollectionUrl="/api/assets.json" class="App\\Entity\\Asset" />
+</div>
+{% endblock %}

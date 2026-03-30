@@ -100,6 +100,13 @@ final class AssetController extends AbstractController
         ]);
     }
 
+    /** API Grid view. */
+    #[Route('/grid', name: 'browse_grid')]
+    public function browseGrid(Request $request): Response
+    {
+        return $this->render('asset/browse-grid.html.twig');
+    }
+
     /** Detail page for a single asset with AI task runner UI. */
     #[Route('/{id}', name: 'show')]
     public function show(Asset $asset): Response

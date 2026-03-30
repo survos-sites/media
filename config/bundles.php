@@ -46,10 +46,12 @@ return [
     Survos\AiPipelineBundle\SurvosAiPipelineBundle::class => ['all' => true],
     Survos\IiifBundle\SurvosIiifBundle::class => ['all' => true],
     Survos\JsTwigBundle\SurvosJsTwigBundle::class => ['all' => true],
+    Survos\ApiGridBundle\SurvosApiGridBundle::class => ['all' => true],
     Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
     Survos\DataBundle\SurvosDataBundle::class => ['all' => true],
     Survos\ImportBundle\SurvosImportBundle::class => ['all' => true],
     Knp\Bundle\MenuBundle\KnpMenuBundle::class => ['all' => true],
     Survos\TablerBundle\SurvosTablerBundle::class => ['all' => true],
     Symfony\UX\Icons\UXIconsBundle::class => ['all' => true],
+    Symfony\AI\McpBundle\McpBundle::class => ['all' => true],
 ];

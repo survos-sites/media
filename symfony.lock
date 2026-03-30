@@ -478,6 +478,9 @@
             "ref": "fadbfe33303a76e25cb63401050439aa9b1a9c7f"
         }
     },
+    "symfony/mcp-bundle": {
+        "version": "v0.6.0"
+    },
     "symfony/messenger": {
         "version": "7.2",
         "recipe": {
