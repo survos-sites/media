@@ -173,6 +173,7 @@
           <ul class="nav nav-tabs card-header-tabs" id="{{ tabId }}-nav" data-bs-toggle="tabs" role="tablist">
             <li class="nav-item"><a href="#{{ tabId }}-ocr"              class="nav-link active" data-bs-toggle="tab" data-tab-id="ocr">OCR</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-source_metadata"  class="nav-link" data-bs-toggle="tab" data-tab-id="source_metadata">Source Metadata</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-edge_analysis"    class="nav-link" data-bs-toggle="tab" data-tab-id="edge_analysis">Edge Analysis</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-ai_metadata"      class="nav-link" data-bs-toggle="tab" data-tab-id="ai_metadata">AI Metadata</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-ai_task_results"  class="nav-link" data-bs-toggle="tab" data-tab-id="ai_task_results">AI Task Results</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-media_enrichment" class="nav-link" data-bs-toggle="tab" data-tab-id="media_enrichment">Media Enrichment</a></li>
@@ -242,6 +243,67 @@
                 {% endif %}
               </div>
             </div>
+          {% endif %}
+        </div>
+
+        {# ── Edge Analysis ────────────────────────────────────────────────────── #}
+        <div id="{{ tabId }}-edge_analysis" class="tab-pane" role="tabpanel">
+          {% set edge = asset.context.edge_analysis|default(null) %}
+          {% if edge %}
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="card-title mb-0">Type and OCR Gate</h4>
+                {% if edge.primary_type|default(null) %}
+                  <span class="badge bg-azure-lt">{{ edge.primary_type }}</span>
+                {% endif %}
+              </div>
+              <div class="card-body small p-2">
+                <table class="table table-sm table-borderless mb-3">
+                  <tr><th>Type Estimate</th><td>{{ asset.context.type_estimate|default('—') }}</td></tr>
+                  <tr><th>Has Text Likely</th><td>{{ edge.has_text_likely ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>Typed Likely</th><td>{{ edge.typed_likely ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>Handwritten Likely</th><td>{{ edge.handwritten_likely ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>OCR Auto Queued</th><td>{{ asset.context.ocr_auto_queued|default(false) ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>Document Likely</th><td>{{ edge.document_likely|default(false) ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>Photo Likely</th><td>{{ edge.photo_likely|default(false) ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>People Likely</th><td>{{ edge.people_likely|default(false) ? 'yes' : 'no' }}</td></tr>
+                  <tr><th>Tag Like</th><td>{{ edge.tag_like|default(false) ? 'yes' : 'no' }}</td></tr>
+                </table>
+
+                {% if edge.type_candidates|default([]) is not empty %}
+                  <div class="mb-3">
+                    <div class="text-muted fw-semibold mb-2">Type Candidates</div>
+                    <div class="vstack gap-2">
+                      {% for candidate in edge.type_candidates|slice(0,5) %}
+                        <div class="border rounded p-2">
+                          <div class="d-flex justify-content-between align-items-center">
+                            <strong>{{ candidate.label|default('unknown') }}</strong>
+                            <span class="badge bg-secondary-lt">score {{ candidate.score|default(0) }}</span>
+                          </div>
+                          {% if candidate.reasons|default([]) is not empty %}
+                            <div class="small text-muted mt-1">{{ candidate.reasons|join('; ') }}</div>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endif %}
+
+                {% if edge.reasons|default([]) is not empty %}
+                  <div class="mb-3">
+                    <div class="text-muted fw-semibold mb-2">Reasons</div>
+                    <div class="small">{{ edge.reasons|join('; ') }}</div>
+                  </div>
+                {% endif %}
+
+                <details>
+                  <summary class="text-muted">Raw edge analysis</summary>
+                  <pre class="small mb-0 mt-2">{{ edge|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                </details>
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted small">No edge analysis recorded yet.</div>
           {% endif %}
         </div>
 

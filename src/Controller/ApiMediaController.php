@@ -137,6 +137,11 @@ final class ApiMediaController extends AbstractController
             'id'         => $asset->id,
             'source'     => (string) $asset->originalUrl,
             'marking'    => $asset->marking,
+            'typeEstimate' => $asset->context['type_estimate'] ?? null,
+            'edgeAnalysis' => $asset->context['edge_analysis'] ?? null,
+            'hasTextLikely' => $asset->context['has_text_likely'] ?? null,
+            'typedLikely' => $asset->context['typed_likely'] ?? null,
+            'handwrittenLikely' => $asset->context['handwritten_likely'] ?? null,
             'thumbs'     => $thumbs,
             'variants'   => $variants,
             'context'    => $asset->context,    // image-derived: OCR, thumbhash, colors, hash

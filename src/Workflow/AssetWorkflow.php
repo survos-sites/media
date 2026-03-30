@@ -6,6 +6,7 @@ namespace App\Workflow;
 use App\Ai\AssetAiTask;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Service\AssetRegistry;
+use App\Service\EdgeAnalysisService;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
@@ -94,6 +95,7 @@ class AssetWorkflow
         private readonly VariantPlan                           $plan,
         private readonly StorageService $storageService,
         private readonly AssetRegistry $assetRegistry,
+        private readonly EdgeAnalysisService $edgeAnalysisService,
         private readonly OcrService $ocrService,
         private readonly TwigEnvironment $twig,
         private readonly ?FilesystemOperator $archiveStorage = null,
@@ -189,6 +191,7 @@ class AssetWorkflow
 
         $asset->statusCode = 200;
         $this->processLocalFile($localPath, $asset);
+        $this->applyEdgeAnalysisFromLocalFile($asset, $localPath);
         $detectedExt = ImageProbe::extFromMime($asset->mime);
         if ($detectedExt) {
             $asset->ext = $detectedExt;
@@ -276,6 +279,7 @@ class AssetWorkflow
             // no network calls! Only what we need while we have local
             // Inspect local file once: size, mime, dimensions, exif (when applicable)
             $this->processLocalFile($tmpFile, $asset);
+            $this->applyEdgeAnalysisFromLocalFile($asset, $tmpFile);
 
             // Normalize extension based on detected mime type
             $detectedExt = ImageProbe::extFromMime($asset->mime);
@@ -696,6 +700,53 @@ class AssetWorkflow
         $enrichment = MediaEnrichment::fromCompleted($asset->aiCompleted);
         $asset->mediaEnrichment = $enrichment->toArray();
         $asset->enriched = $enrichment;
+    }
+
+    private function applyEdgeAnalysisFromLocalFile(Asset $asset, string $localPath): void
+    {
+        if (!str_starts_with((string) $asset->mime, 'image/')) {
+            return;
+        }
+
+        $analysis = $this->edgeAnalysisService->analyzeLocalFile($localPath, $asset->mime);
+        if (!is_array($analysis) || $analysis === []) {
+            return;
+        }
+
+        $asset->context ??= [];
+        $asset->context['edge_analysis'] = $analysis;
+        $asset->context['has_text_likely'] = (bool) ($analysis['has_text_likely'] ?? false);
+        $asset->context['typed_likely'] = (bool) ($analysis['typed_likely'] ?? false);
+        $asset->context['handwritten_likely'] = (bool) ($analysis['handwritten_likely'] ?? false);
+
+        $primaryType = $analysis['primary_type'] ?? null;
+        if (is_string($primaryType) && $primaryType !== '') {
+            $asset->context['type_estimate'] = $primaryType;
+            $asset->aiDocumentType ??= $primaryType;
+        }
+
+        if (!isset($asset->context['tasks']) || !is_array($asset->context['tasks'])) {
+            $tasks = ['thumbhash', 'palette'];
+            if ($this->shouldAutoQueueOcr($analysis)) {
+                $tasks[] = 'ocr';
+                $asset->context['ocr_auto_queued'] = true;
+            }
+            $asset->context['tasks'] = $tasks;
+        }
+    }
+
+    /** @param array<string, mixed> $analysis */
+    private function shouldAutoQueueOcr(array $analysis): bool
+    {
+        if (($analysis['has_text_likely'] ?? false) === true) {
+            return true;
+        }
+
+        $primaryType = is_string($analysis['primary_type'] ?? null)
+            ? (string) $analysis['primary_type']
+            : null;
+
+        return in_array($primaryType, ['document', 'text_page', 'handwritten_note', 'tag_or_label'], true);
     }
 
     private function finishAiPipeline(Asset $asset): void

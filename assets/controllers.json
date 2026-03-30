@@ -1,5 +1,12 @@
 {
     "controllers": {
+        "@survos/ai-pipeline-bundle": {
+            "pipeline-actions": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            }
+        },
         "@survos/js-twig-bundle": {
             "dexie": {
                 "enabled": true,
