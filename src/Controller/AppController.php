@@ -52,8 +52,14 @@ final class AppController extends AbstractController
     {
         return $this->render('app/browse-assets.html.twig', [
             'class' => Asset::class,
-            'apiCall' => $this->generateUrl('_api_/assets{._format}_get_collection', ['_format' => 'json']),
-            'columns' => ['id', 'title', 'mime', 'marking', 'createdAt'],
+            'apiCall' => $this->generateUrl('_api_/assets{._format}_get_collection', ['_format' => 'jsonld']),
+            'columns' => [
+                'id',
+                'title',
+                'mime',
+                ['name' => 'marking', 'browsable' => true],
+                'createdAt',
+            ],
         ]);
     }
 

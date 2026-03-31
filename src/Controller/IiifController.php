@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Asset;
+use App\Entity\IiifManifest;
 use App\Repository\AssetRepository;
+use App\Repository\IiifManifestRepository;
 use App\Service\AssetRegistry;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,9 +23,33 @@ final class IiifController extends AbstractController
 {
     public function __construct(
         private readonly AssetRepository $assetRepository,
+        private readonly IiifManifestRepository $iiifManifestRepository,
         private readonly AssetRegistry $assetRegistry,
         private readonly HttpClientInterface $httpClient,
     ) {
+    }
+
+    #[Route('/iiif', name: 'iiif_browse', options: ['expose' => true], methods: ['GET'])]
+    public function browse(): Response
+    {
+        $items = $this->iiifManifestRepository->findBy([], ['createdAt' => 'DESC']);
+
+        return $this->render('iiif/browse.html.twig', [
+            'items' => $items,
+        ]);
+    }
+
+    #[Route('/iiif/show/{id}', name: 'iiif_show', options: ['expose' => true], methods: ['GET'])]
+    public function show(string $id): Response
+    {
+        $manifest = $this->iiifManifestRepository->find($id);
+        if (!$manifest instanceof IiifManifest) {
+            throw $this->createNotFoundException(sprintf('IIIF manifest not found: %s', $id));
+        }
+
+        return $this->render('iiif/show.html.twig', [
+            'manifest' => $manifest,
+        ]);
     }
 
     /*

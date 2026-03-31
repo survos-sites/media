@@ -25,6 +25,7 @@ final class AssetRegistry
         private readonly EntityManagerInterface $entityManager,
         private readonly AssetRepository $assetRepository,
         private readonly AssetPathRepository $assetPathRepository,
+        private readonly IiifManifestService $iiifManifestService,
         private AsyncQueueLocator $asyncQueueLocator,
         #[Target(AssetFlow::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
         private MessageBusInterface $messageBus,
@@ -60,6 +61,8 @@ final class AssetRegistry
 
         // Merge source metadata from the caller into sourceMeta (non-destructive)
         if ($contextHints !== []) {
+            $this->iiifManifestService->attachFromContextHints($asset, $contextHints);
+
             $asset->sourceMeta ??= [];
             foreach ($contextHints as $key => $value) {
                 if (!isset($asset->sourceMeta[$key])) {
@@ -104,6 +107,12 @@ final class AssetRegistry
     }
     public function imgProxyUrl(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): ?string
     {
+        return $this->imgProxyDebug($asset, $preset)['url'];
+    }
+
+    /** @return array{url: ?string, source: string, source_url: ?string} */
+    public function imgProxyDebug(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): array
+    {
         // Redirect to imgproxy for now (no byte streaming or caching yet)
         $presetDef = MediaUrlGenerator::PRESETS[$preset];
         [$width, $height] = $presetDef['size'];
@@ -125,16 +134,25 @@ final class AssetRegistry
         // if the asset has been stored on OUR s3, then use it, much faster.
         if ($asset->storageKey) {
             $source = $this->s3Url($asset);
+            $sourceLabel = 's3_url';
+        } elseif (is_string($asset->archiveUrl) && $asset->archiveUrl !== '') {
+            $source = $asset->archiveUrl;
+            $sourceLabel = 'archive_url';
         } else {
             $source = $asset->originalUrl;
             $builder = $builder->usePlain();
+            $sourceLabel = 'original_url';
         }
         $path = $builder->url($source, $presetDef['format']);
 //        $url = $builder->usePlain()->url($src);
 // Example: /9SaGqJILqstFsWthdP/dpr:2/q:90/w:300/h:400/plain/http://example.com/image.jpg
 
         $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
-        return $imgproxyUrl;
+        return [
+            'url' => $imgproxyUrl,
+            'source' => $sourceLabel,
+            'source_url' => $source,
+        ];
 
     }
 
@@ -174,6 +192,8 @@ final class AssetRegistry
 
         if ($asset->storageKey) {
             $source = $this->s3Url($asset);
+        } elseif (is_string($asset->archiveUrl) && $asset->archiveUrl !== '') {
+            $source = $asset->archiveUrl;
         } else {
             $source = $asset->originalUrl;
             $builder = $builder->usePlain();

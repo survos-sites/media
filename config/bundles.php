@@ -47,6 +47,7 @@ return [
     Survos\IiifBundle\SurvosIiifBundle::class => ['all' => true],
     Survos\JsTwigBundle\SurvosJsTwigBundle::class => ['all' => true],
     Survos\ApiGridBundle\SurvosApiGridBundle::class => ['all' => true],
+    Survos\InspectionBundle\SurvosInspectionBundle::class => ['all' => true],
     Mezcalito\ImgproxyBundle\ImgproxyBundle::class => ['all' => true],
     Survos\DataBundle\SurvosDataBundle::class => ['all' => true],
     Survos\ImportBundle\SurvosImportBundle::class => ['all' => true],
@@ -54,4 +55,6 @@ return [
     Survos\TablerBundle\SurvosTablerBundle::class => ['all' => true],
     Symfony\UX\Icons\UXIconsBundle::class => ['all' => true],
     Symfony\AI\McpBundle\McpBundle::class => ['all' => true],
+    KnpU\OAuth2ClientBundle\KnpUOAuth2ClientBundle::class => ['all' => true],
+    Survos\AuthBundle\SurvosAuthBundle::class => ['all' => true],
 ];

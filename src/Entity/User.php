@@ -43,10 +43,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $email = null;
 
-    #[ORM\Column]
-    #[Groups(['user.read'])]
-    private ?int $binCount = null;
-
     /**
      * @param string|null $id
      * @param int|null $approxImageCount
@@ -60,10 +56,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
         #[Groups(['user.read'])]
         private ?string $id = null,
 
-        #[ORM\Column]
-        #[Groups(['user.read'])]
-        public ?int    $approxImageCount = null,
-
         #[ORM\Column(length: 255, nullable: true)]
         #[Groups(['user.read'])]
         public ?string $mediaCallbackUrl = null,
@@ -73,6 +65,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
         public ?string $thumbCallbackUrl = null,
     )
     {
+        if ($this->id === null || $this->id === '') {
+            $this->id = bin2hex(random_bytes(8));
+        }
+
         $this->password = $this->id;
     }
 
@@ -194,18 +190,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
         return $this;
     }
 
-    public function getApproxImageCount(): ?int
-    {
-        return $this->approxImageCount;
-    }
-
-    public function setApproxImageCount(int $approxImageCount): static
-    {
-        $this->approxImageCount = $approxImageCount;
-
-        return $this;
-    }
-
     public function getEmail(): ?string
     {
         return $this->email;
@@ -218,20 +202,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
         return $this;
     }
 
-    public function getBinCount(): ?int
-    {
-        return $this->binCount;
-    }
-
-    public function setBinCount(int $binCount): static
-    {
-        if ($this->binCount && ($this->binCount <> $binCount)) {
-            throw new \Exception("bin count cannot be changed if images have been imported " . $this->approxImageCount);
-        }
-        $this->binCount = $binCount;
-
-        return $this;
-    }
 
     /**
      * @return Collection<int, Media>

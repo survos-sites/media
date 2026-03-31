@@ -24,6 +24,9 @@ return [
         'path' => './assets/meili.js',
         'entrypoint' => true,
     ],
+    '@survos/js-twig/generated/fos_routes.js' => [
+        'path' => './var/js_twig_bundle/generated/fos_routes.js',
+    ],
     '@symfony/stimulus-bundle' => [
         'path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js',
     ],
@@ -49,9 +52,6 @@ return [
     ],
     'thumbhash' => [
         'version' => '0.1.1',
-    ],
-    'twig' => [
-        'version' => '2.0.0',
     ],
     'locutus/php/strings/sprintf' => [
         'version' => '3.0.19',
@@ -671,5 +671,14 @@ return [
     'datatables.net-columncontrol-bs5/css/columnControl.bootstrap5.min.css' => [
         'version' => '1.2.1',
         'type' => 'css',
+    ],
+    '@stimulus-components/timeago' => [
+        'version' => '5.0.2',
+    ],
+    'date-fns' => [
+        'version' => '4.1.0',
+    ],
+    '@stimulus-components/read-more' => [
+        'version' => '5.0.0',
     ],
 ];

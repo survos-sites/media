@@ -108,10 +108,11 @@ final class AssetController extends AbstractController
     }
 
     /** Detail page for a single asset with AI task runner UI. */
-    #[Route('/{id}', name: 'show')]
+    #[Route('/{id}', name: 'show', options: ['expose' => true])]
     public function show(Asset $asset): Response
     {
         $computedArchiveUrl = $asset->storageKey ? $this->assetRegistry->s3Url($asset) : null;
+        $computedPreview = $this->assetRegistry->imgProxyDebug($asset);
 
         // Index completed results for template convenience
         $completedMap = [];
@@ -125,6 +126,9 @@ final class AssetController extends AbstractController
             'taskMeta'     => $this->taskMeta(),
             'completedMap' => $completedMap,
             'computedArchiveUrl' => $computedArchiveUrl,
+            'computedPreviewUrl' => $computedPreview['url'],
+            'computedPreviewSource' => $computedPreview['source'],
+            'computedPreviewSourceUrl' => $computedPreview['source_url'],
             'pipelines'    => [
                 'quick' => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::quickScanPipeline()),
                 'full'  => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::fullEnrichmentPipeline()),

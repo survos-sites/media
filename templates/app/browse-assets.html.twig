@@ -1,20 +1,53 @@
 {% extends "base.html.twig" %}
+{% set containerClass = 'container-fluid' %}
 
 {% block title %}{{ class }}{% endblock %}
 
 {% block body %}
 <h1>{{ class }} {{ _self }}</h1>
 
+{% set columns = [
+    col(name: 'thumb', sortable: false),
+    col('id'),
+    col('title'),
+    col('mime'),
+    col(name: 'marking', browsable: true),
+    col(name: 'createdAt', sortable: true),
+] %}
+
 <twig:api_grid
-        facets="false"
+        :searchPanes="true"
         :class="class"
         :apiGetCollectionUrl="apiCall"
         :caller="_self"
         :columns="columns"
 >
 
+    <twig:block name="thumb">
+        {% set thumb = row.smallUrl|default(row.thumbnail_url)|default(row.thumbnail)|default(row.archiveUrl)|default(row.originalUrl)|default(null) %}
+        {% if thumb %}
+            <picture>
+                <img src="{{ thumb }}" alt="thumb {{ row.id }}" loading="lazy" decoding="async" style="width:72px;height:72px;object-fit:cover;border-radius:6px;">
+            </picture>
+        {% else %}
+            <span class="text-muted small">-</span>
+        {% endif %}
+    </twig:block>
+
     <twig:block name="id">
-        ID: {{ row.id }}
+        <a href="{{ path('asset_show', {id: row.id}) }}" target="_blank" rel="noopener">{{ row.id }}</a>
+    </twig:block>
+
+    <twig:block name="title">
+        {% set title = row.title ?: row.id %}
+        {% set short = title|slice(0, 72) %}
+        <a href="{{ path('asset_show', {id: row.id}) }}" target="_blank" rel="noopener" title="{{ title }}">{{ short }}{% if title|length > 72 %}…{% endif %}</a>
+    </twig:block>
+
+    <twig:block name="createdAt">
+        <span {{ stimulus_controller('timeago', {dateTime: row.createdAt}) }}>
+            {{ row.createdAt }}
+        </span>
     </twig:block>
 </twig:api_grid>
 {% endblock %}

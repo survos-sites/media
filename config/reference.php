@@ -2561,13 +2561,16 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     }>,
  * }
  * @psalm-type SurvosApiGridConfig = array{
- *     stimulus_controller?: scalar|Param|null, // The stimulus controller to use, should extend @survos/api-grid/api_grid // Default: "@survos/api-grid/api_grid"
+ *     stimulus_controller?: scalar|Param|null, // The stimulus controller to use, should extend @survos/api-grid/api-grid // Default: "@survos/api-grid/api-grid"
  *     grid_stimulus_controller?: scalar|Param|null, // Default: "@survos/api-grid/grid"
  *     meiliHost?: scalar|Param|null, // Default: "%env(MEILI_SERVER)%"
  *     meiliKey?: scalar|Param|null, // Default: "%env(MEILI_API_KEY)%"
  *     meiliPrefix?: scalar|Param|null, // Default: "%env(MEILI_PREFIX)%"
  *     passLocale?: bool|Param, // Default: false
  *     maxValuesPerFacet?: int|Param, // https://www.meilisearch.com/docs/reference/api/settings#faceting-object // Default: 1000
+ * }
+ * @psalm-type SurvosInspectionConfig = array{
+ *     debug?: bool|Param, // Default: false
  * }
  * @psalm-type ImgproxyConfig = array{
  *     host?: scalar|Param|null,
@@ -2764,6 +2767,20 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         },
  *     },
  * }
+ * @psalm-type KnpuOauth2ClientConfig = array{
+ *     http_client?: scalar|Param|null, // Service id of HTTP client to use (must implement GuzzleHttp\ClientInterface) // Default: null
+ *     http_client_options?: array{
+ *         timeout?: int|Param,
+ *         proxy?: scalar|Param|null,
+ *         verify?: bool|Param, // Use only with proxy option set
+ *     },
+ *     clients?: array<string, array<string, mixed>>,
+ * }
+ * @psalm-type SurvosAuthConfig = array{
+ *     new_user_redirect_route?: scalar|Param|null, // Default: "oauth_profile"
+ *     user_provider?: scalar|Param|null, // Default: null
+ *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -2802,6 +2819,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     survos_js_twig?: SurvosJsTwigConfig,
  *     survos_api_grid?: SurvosApiGridConfig,
+ *     survos_inspection?: SurvosInspectionConfig,
  *     imgproxy?: ImgproxyConfig,
  *     survos_data?: SurvosDataConfig,
  *     survos_import?: SurvosImportConfig,
@@ -2809,6 +2827,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     survos_tabler?: SurvosTablerConfig,
  *     ux_icons?: UxIconsConfig,
  *     mcp?: McpConfig,
+ *     knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *     survos_auth?: SurvosAuthConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2853,6 +2873,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
+ *         survos_inspection?: SurvosInspectionConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
@@ -2860,6 +2881,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
  *         mcp?: McpConfig,
+ *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *         survos_auth?: SurvosAuthConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -2899,6 +2922,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
+ *         survos_inspection?: SurvosInspectionConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
@@ -2906,6 +2930,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
  *         mcp?: McpConfig,
+ *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *         survos_auth?: SurvosAuthConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -2948,6 +2974,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
+ *         survos_inspection?: SurvosInspectionConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
@@ -2955,6 +2982,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
  *         mcp?: McpConfig,
+ *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *         survos_auth?: SurvosAuthConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

@@ -33,7 +33,13 @@ class AssetFlow
     )]
     public const PLACE_DOWNLOADED = 'downloaded';
 
-//    #[Place(
+    #[Place(
+        info: 'Ocr/confidence from local Tesseract',
+//        next: [self::TRANSITION_ANALYZE]
+    )]
+    public const PLACE_LOCAL_OCR = 'local_ocr';
+
+    //    #[Place(
 //        info: 'Basic checks passed (type/size/codec)',
 //        next: [self::TRANSITION_ANALYZE]
 //    )]
@@ -74,6 +80,16 @@ class AssetFlow
         next: [self::TRANSITION_DOWNLOAD_FAILED] # , self::TRANSITION_ARCHIVE]
     )]
     public const TRANSITION_DOWNLOAD = 'download';
+
+    #[Transition(
+        from: [self::PLACE_NEW, self::PLACE_DOWNLOADED, self::PLACE_FAILED],
+        to: self::PLACE_AI_READY,
+        info: 'Local OCR',
+        description: 'Run local OCR confidence pass and queue follow-up AI tasks',
+        async: true,
+        next: [self::TRANSITION_AI_TASK]
+    )]
+    public const TRANSITION_LOCAL_OCR = 'local_ocr';
 
     #[Transition(
         from: self::PLACE_DOWNLOADED,

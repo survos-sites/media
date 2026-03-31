@@ -3,8 +3,8 @@
 {% block title %}{{ asset.aiTitle ?? asset.id }}{% endblock %}
 {% set iiifParam = app.request.query.get('iiif')|default(false) %}
 {% set useIiif = iiifParam in ['1', 'true', 'yes', 'on'] %}
-{% set zoomImageUrl = asset.originalUrl ?? computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl %}
-{% set zoomFallbackUrl = computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl ?? null %}
+{% set zoomImageUrl = computedPreviewUrl ?? computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl ?? asset.originalUrl %}
+{% set zoomFallbackUrl = computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl ?? asset.originalUrl ?? null %}
 {% set enrichment = asset.mediaEnrichmentDto %}
 {% set taskResults = asset.aiCompleted|default([]) %}
 {% if taskResults is empty and asset.context is defined and asset.context.aiTaskResults is defined and asset.context.aiTaskResults is iterable %}
@@ -94,6 +94,13 @@
           {% endif %}
         </div>
         <div class="card-footer small text-muted">
+          {% if computedPreviewUrl %}
+            <div class="mb-2">
+              <div><strong>Preview source:</strong> {{ computedPreviewSource|default('n/a') }}</div>
+              <div style="font-size:0.65rem;word-break:break-all;">{{ computedPreviewSourceUrl|default('') }}</div>
+              <div style="font-size:0.65rem;word-break:break-all;">{{ computedPreviewUrl }}</div>
+            </div>
+          {% endif %}
           {% if useIiif %}
             {{ path('iiif_image_info', {id: asset.id}) }}
             {{ path('iiif_manifest', {id: asset.id}) }}
@@ -552,6 +559,24 @@ prompt:
             <summary class="small text-muted mb-2">asset dump (dev only)</summary>
             {% guard function dump %}{{ dump(asset) }}{% endguard %}
           </details>
+          <div class="card mt-3">
+            <div class="card-header"><h4 class="card-title mb-0">Raw Source Data</h4></div>
+            <div class="card-body">
+              <div class="mb-3">
+                <div class="small text-muted mb-1">sourceMeta</div>
+                <andypf-json-viewer id="asset-source-meta-json" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+              </div>
+              <div>
+                <div class="small text-muted mb-1">context</div>
+                <andypf-json-viewer id="asset-context-json" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+              </div>
+              <script type="module">
+                import '@andypf/json-viewer';
+                document.getElementById('asset-source-meta-json').data = {{ asset.sourceMeta|default({})|json_encode|raw }};
+                document.getElementById('asset-context-json').data = {{ asset.context|default({})|json_encode|raw }};
+              </script>
+            </div>
+          </div>
         </div>
         {% endif %}
 

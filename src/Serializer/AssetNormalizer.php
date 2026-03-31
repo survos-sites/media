@@ -52,7 +52,13 @@ final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInter
 
         // Merge: computed AI fields go in as top-level keys.
         // They will not collide with real columns because we've dropped the flat ones.
-        return array_merge($data, $ai, $enrichment);
+        $data = array_merge($data, $ai, $enrichment);
+
+        if (!isset($data['aiOcrText']) || $data['aiOcrText'] === null || $data['aiOcrText'] === '') {
+            $data['aiOcrText'] = $object->localOcrText ?? null;
+        }
+
+        return $data;
     }
 
     /**

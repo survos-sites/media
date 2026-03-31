@@ -15,6 +15,7 @@ use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\UserRepository;
 use App\Service\ArchiveService;
+use App\Service\AiToolsOcrService;
 use App\Service\AtomicFileWriter;
 use App\Service\AssetPreviewService;
 use App\Service\VariantPlan;
@@ -97,6 +98,7 @@ class AssetWorkflow
         private readonly AssetRegistry $assetRegistry,
         private readonly EdgeAnalysisService $edgeAnalysisService,
         private readonly OcrService $ocrService,
+        private readonly AiToolsOcrService $aiToolsOcrService,
         private readonly TwigEnvironment $twig,
         private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
@@ -235,6 +237,70 @@ class AssetWorkflow
         $this->em->flush();
     }
 
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_LOCAL_OCR)]
+    public function onLocalOcr(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        $sourceUrl = $this->preferredLocalOcrUrl($asset);
+        if ($sourceUrl === null) {
+            $this->logger->warning('Local OCR skipped for {id}: no source URL', ['id' => $asset->id]);
+            return;
+        }
+
+        $analysis = $this->aiToolsOcrService->analyzeUrl($sourceUrl);
+        if (!is_array($analysis) || $analysis === []) {
+            $this->logger->warning('Local OCR returned no result for {id}', ['id' => $asset->id]);
+            return;
+        }
+
+        $asset->localOcrStatus = isset($analysis['status']) && is_numeric($analysis['status'])
+            ? (int) $analysis['status']
+            : null;
+        $asset->localOcrError = is_string($analysis['error'] ?? null) ? $analysis['error'] : null;
+
+        if (($analysis['ok'] ?? true) !== true) {
+            $asset->context ??= [];
+            $asset->context['local_ocr'] = $analysis;
+            $this->em->flush();
+            return;
+        }
+
+        $ocr = $analysis['ocr'] ?? [];
+        if (!is_array($ocr)) {
+            $ocr = [];
+        }
+
+        $asset->context ??= [];
+        $asset->context['local_ocr'] = $analysis;
+        if (isset($ocr['text']) && is_string($ocr['text']) && trim($ocr['text']) !== '') {
+            $asset->context['ocr'] = mb_substr($ocr['text'], 0, 20000);
+            $asset->context['ocr_chars'] = mb_strlen($asset->context['ocr']);
+        }
+
+        $asset->localOcrText = is_string($ocr['text'] ?? null) ? trim((string) $ocr['text']) : null;
+        $asset->localOcrConfidence = isset($ocr['mean_confidence']) && is_numeric($ocr['mean_confidence'])
+            ? (float) $ocr['mean_confidence']
+            : null;
+        $asset->localOcrPrimaryType = is_string($analysis['primary_type'] ?? null) ? $analysis['primary_type'] : null;
+        $asset->localOcrSourceUrl = $sourceUrl;
+        $asset->localOcrProvider = 'ai-tools';
+        $asset->localOcrModel = 'tesseract';
+        $asset->localOcrAt = new \DateTimeImmutable();
+        $asset->localOcrStatus = 200;
+        $asset->localOcrError = null;
+
+        if ($asset->aiDocumentType === null && is_string($asset->localOcrPrimaryType) && $asset->localOcrPrimaryType !== '') {
+            $asset->aiDocumentType = $asset->localOcrPrimaryType;
+        }
+
+        $tasks = $this->localOcrNextTasks($analysis);
+        if ($tasks !== []) {
+            $asset->aiQueue = array_values(array_unique(array_merge($asset->aiQueue, $tasks)));
+        }
+
+        $this->em->flush();
+    }
+
         /**
      * @throws FilesystemException
      * @throws TransportExceptionInterface
@@ -355,7 +421,7 @@ class AssetWorkflow
         $this->em->flush();
 
         $transitionName = $event->getTransition()->getName();
-        if (in_array($transitionName, [WF::TRANSITION_QUEUE_AI, WF::TRANSITION_AI_TASK], true) && !$asset->aiLocked) {
+        if (in_array($transitionName, [WF::TRANSITION_QUEUE_AI, WF::TRANSITION_AI_TASK, WF::TRANSITION_LOCAL_OCR], true) && !$asset->aiLocked) {
             if (!empty($asset->aiQueue) && $this->assetWorkflow->can($asset, WF::TRANSITION_AI_TASK)) {
                 $this->dispatchTransition($asset, WF::TRANSITION_AI_TASK);
             } elseif (empty($asset->aiQueue) && $this->assetWorkflow->can($asset, WF::TRANSITION_AI_DONE)) {
@@ -617,7 +683,7 @@ class AssetWorkflow
 
     private function iiifThumbnailUrl(Asset $asset): ?string
     {
-        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        $iiifBase = $asset->iiifManifestEntity?->imageBase ?? $asset->sourceMeta['iiif_base'] ?? null;
         if (!is_string($iiifBase) || $iiifBase === '') {
             return null;
         }
@@ -756,6 +822,37 @@ class AssetWorkflow
         }
     }
 
+    private function preferredLocalOcrUrl(Asset $asset): ?string
+    {
+        foreach ([$asset->originalUrl, $asset->archiveUrl, $asset->smallUrl] as $candidate) {
+            if (is_string($candidate) && filter_var($candidate, FILTER_VALIDATE_URL)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $analysis */
+    private function localOcrNextTasks(array $analysis): array
+    {
+        $primaryType = strtolower(trim((string) ($analysis['primary_type'] ?? '')));
+        $typedLikely = (bool) ($analysis['typed_likely'] ?? false);
+        $handwrittenLikely = (bool) ($analysis['handwritten_likely'] ?? false);
+        $hasTextLikely = (bool) ($analysis['has_text_likely'] ?? false);
+
+        if (
+            $typedLikely
+            || $handwrittenLikely
+            || $hasTextLikely
+            || in_array($primaryType, ['document', 'text_page', 'handwritten_note', 'tag_or_label'], true)
+        ) {
+            return [AssetAiTask::OCR_MISTRAL->value];
+        }
+
+        return [AssetAiTask::ENRICH_FROM_THUMBNAIL->value];
+    }
+
     /** @return array<string, array> */
     private function indexedPriorResults(Asset $asset): array
     {
@@ -782,7 +879,7 @@ class AssetWorkflow
 
     private function iiifFullUrl(Asset $asset): ?string
     {
-        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        $iiifBase = $asset->iiifManifestEntity?->imageBase ?? $asset->sourceMeta['iiif_base'] ?? null;
         if (!is_string($iiifBase) || $iiifBase === '') {
             return null;
         }

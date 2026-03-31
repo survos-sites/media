@@ -15,6 +15,7 @@ use Survos\MeiliBundle\Metadata\Facet;
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\MediaBundle\Util\MediaIdentity;
+use App\Service\ImgProxyUrlHelper;
 use Survos\StateBundle\Traits\MarkingInterface;
 use Survos\StateBundle\Traits\MarkingTrait;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -46,7 +47,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         groups: ['asset.read'],
         fields: ['id',
             'originalUrl',
-            'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
+        'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
                  'aiDocumentType'],
     ),
     prompts: [
@@ -86,7 +87,12 @@ class Asset implements MarkingInterface, \Stringable
     public ?string $reuse { get => $this->sourceMeta['reuse_allowed'] ?? null; }
 
     #[Groups(['asset.read'])]
-    public ?string $thumb { get => $this->sourceMeta['thumbnail_url'] ?? null; }
+    public ?string $thumb {
+        get => $this->smallUrl
+            ?? $this->iiifManifestEntity?->thumbnailUrl
+            ?? $this->sourceMeta['thumbnail_url']
+            ?? null;
+    }
 
     #[Groups(['asset.read'])]
     #[Facet()]
@@ -156,6 +162,42 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?array $context = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrText = null;
+
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?float $localOcrConfidence = null;
+
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrPrimaryType = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrSourceUrl = null;
+
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrProvider = null;
+
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrModel = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?\DateTimeImmutable $localOcrAt = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?int $localOcrStatus = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrError = null;
+
     /**
      * Source metadata from the originating aggregator — dcterms:* keyed JSONB.
      * Written by BatchController from client context hints (DC fields, rights, ARK, IIIF URLs).
@@ -164,6 +206,10 @@ class Asset implements MarkingInterface, \Stringable
     #[ORM\Column(type: Types::JSON, nullable: true)]
     #[Groups(['asset.read'])]
     public ?array $sourceMeta = null;
+
+    #[ORM\ManyToOne(targetEntity: IiifManifest::class, inversedBy: 'assets')]
+    #[ORM\JoinColumn(name: 'iiif_manifest_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public ?IiifManifest $iiifManifestEntity = null;
 
      /**
       * Immutable parent reference (xxh3 key of parent Asset).
@@ -251,9 +297,17 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])] // for now, maybe removed after debugging
     public ?string $archiveUrl = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['asset.read'])] // directly to imgProxy after archive.  could happen elsewhere, but for now it's here.
-    public ?string $smallUrl = null;
+    private ?string $smallUrlOverride = null;
+
+    #[Groups(['asset.read'])]
+    public ?string $smallUrl {
+        get => $this->smallUrlOverride
+            ?? ImgProxyUrlHelper::small($this->archiveUrl ?? $this->originalUrl);
+
+        set(?string $value) {
+            $this->smallUrlOverride = $value;
+        }
+    }
 
     /** Temp filename during fetch; not a durable path. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
@@ -431,6 +485,10 @@ class Asset implements MarkingInterface, \Stringable
 
     public function getAiOcrText(): ?string
     {
+        if (is_string($this->localOcrText) && trim($this->localOcrText) !== '') {
+            return $this->localOcrText;
+        }
+
         if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['ocrText'])) {
             return is_string($this->mediaEnrichment['ocrText']) ? $this->mediaEnrichment['ocrText'] : null;
         }
