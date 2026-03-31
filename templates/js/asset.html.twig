@@ -9,6 +9,11 @@
 {% set title = hit.aiTitle|default(hit.title|default(attribute(sourceMeta, 'dcterms:title')|default('Untitled record'))) %}
 {% set description = hit.aiDescription|default(hit.description|default(attribute(sourceMeta, 'dcterms:description')|default(''))) %}
 
+{#
+  JS Twig still consumes the indexed `smallUrl` field for now.
+  Longer term, this should compute an imgProxy URL from the source URL here,
+  so Meili does not need to store a rendered thumbnail URL.
+#}
 {% set thumb =
     hit.smallUrl
     |default(hit.thumbnail_url)
