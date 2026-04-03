@@ -25,7 +25,6 @@ final class AssetRegistry
         private readonly EntityManagerInterface $entityManager,
         private readonly AssetRepository $assetRepository,
         private readonly AssetPathRepository $assetPathRepository,
-        private readonly IiifManifestService $iiifManifestService,
         private AsyncQueueLocator $asyncQueueLocator,
         #[Target(AssetFlow::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
         private MessageBusInterface $messageBus,
@@ -59,10 +58,9 @@ final class AssetRegistry
             $asset->clients[] = $client;
         }
 
-        // Merge source metadata from the caller into sourceMeta (non-destructive)
+        // Merge source metadata from the caller into sourceMeta (non-destructive).
+        // IIIF manifest attachment is intentionally deferred to async workflow.
         if ($contextHints !== []) {
-            $this->iiifManifestService->attachFromContextHints($asset, $contextHints);
-
             $asset->sourceMeta ??= [];
             foreach ($contextHints as $key => $value) {
                 if (!isset($asset->sourceMeta[$key])) {
@@ -84,12 +82,13 @@ final class AssetRegistry
     public function dispatch(Asset $asset): void
     {
         // trigger download
-        if ($this->assetWorkflow->can($asset, AssetFlow::TRANSITION_DOWNLOAD))
+        $nextTransition = AssetFlow::TRANSITION_FETCH_IIIF;
+        if ($this->assetWorkflow->can($asset, $nextTransition))
         {
             // dispatch a download request
             $message = new TransitionMessage($asset->id,
                 $asset::class,
-                AssetFlow::TRANSITION_DOWNLOAD,
+                $nextTransition,
                 AssetFlow::WORKFLOW_NAME);
             $stamps = $this->asyncQueueLocator->stamps($message);
             $this->messageBus->dispatch(

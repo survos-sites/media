@@ -23,19 +23,16 @@ final class IiifManifestService
 
     /**
      * @param array<string,mixed> $contextHints
+     * @return array<string,mixed> normalized context hints
      */
-    public function attachFromContextHints(Asset $asset, array &$contextHints): void
+    public function attachFromContextHints(Asset $asset, array $contextHints): array
     {
         [$manifestUrl, $manifestData, $source] = $this->extractManifestInput($contextHints);
         if (!is_string($manifestUrl) || $manifestUrl === '') {
-            return;
+            return $contextHints;
         }
 
         $manifest = $this->iiifManifestRepository->findOneByManifestUrl($manifestUrl) ?? new IiifManifest($manifestUrl);
-
-        if ($manifest->id === '' || $manifest->id === null) {
-            return;
-        }
 
         if ($manifestData === null && $manifest->manifestJson === null) {
             $manifestData = $this->fetchManifestJson($manifestUrl);
@@ -65,6 +62,8 @@ final class IiifManifestService
         if (!isset($contextHints['iiif_thumbnail_url']) && is_string($manifest->thumbnailUrl) && $manifest->thumbnailUrl !== '') {
             $contextHints['iiif_thumbnail_url'] = $manifest->thumbnailUrl;
         }
+
+        return $contextHints;
     }
 
     /**

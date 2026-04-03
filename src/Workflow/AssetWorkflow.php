@@ -7,6 +7,7 @@ use App\Ai\AssetAiTask;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Service\AssetRegistry;
 use App\Service\EdgeAnalysisService;
+use App\Service\IiifManifestService;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
@@ -50,6 +51,7 @@ use Symfony\Component\Workflow\Event\TransitionEvent;
 use Symfony\Component\Workflow\WorkflowInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Survos\StateBundle\Exception\UnrecoverableMessageException;
 use Twig\Environment as TwigEnvironment;
 use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
 use App\Service\OcrService;
@@ -96,6 +98,7 @@ class AssetWorkflow
         private readonly VariantPlan                           $plan,
         private readonly StorageService $storageService,
         private readonly AssetRegistry $assetRegistry,
+        private readonly IiifManifestService $iiifManifestService,
         private readonly EdgeAnalysisService $edgeAnalysisService,
         private readonly OcrService $ocrService,
         private readonly AiToolsOcrService $aiToolsOcrService,
@@ -299,6 +302,55 @@ class AssetWorkflow
         }
 
         $this->em->flush();
+    }
+
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_FETCH_IIIF)]
+    public function onFetchIiif(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+
+        $hints = is_array($asset->sourceMeta) ? $asset->sourceMeta : [];
+        $manifestRef = $hints['iiif_manifest'] ?? $hints['iiifManifest'] ?? null;
+
+        if ($manifestRef === null || $manifestRef === '') {
+            return;
+        }
+
+        try {
+            if (is_string($manifestRef) && !isset($hints['iiif_manifest_json'])) {
+                $tmpFile = tempnam(sys_get_temp_dir(), 'iiif_manifest_');
+                if ($tmpFile === false) {
+                    throw new RuntimeException('Unable to allocate temporary file for IIIF fetch.');
+                }
+
+                try {
+                    $this->downloadUrl($manifestRef, $tmpFile);
+                    $json = file_get_contents($tmpFile);
+                    if ($json !== false) {
+                        $decoded = json_decode($json, true);
+                        if (is_array($decoded)) {
+                            $hints['iiif_manifest_json'] = $decoded;
+                        }
+                    }
+                } finally {
+                    if (is_file($tmpFile)) {
+                        @unlink($tmpFile);
+                    }
+                }
+            }
+
+            $hints = $this->iiifManifestService->attachFromContextHints($asset, $hints);
+            $asset->sourceMeta = array_replace($asset->sourceMeta ?? [], $hints);
+            $this->em->flush();
+        } catch (UnrecoverableMessageException $e) {
+            $asset->sourceMeta ??= [];
+            $asset->sourceMeta['iiif_error'] = $e->getMessage();
+            $this->logger->warning('Skipping IIIF manifest fetch for {id}: {message}', [
+                'id' => $asset->id,
+                'message' => $e->getMessage(),
+            ]);
+            $this->em->flush();
+        }
     }
 
         /**

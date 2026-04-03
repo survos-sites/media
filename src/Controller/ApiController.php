@@ -239,7 +239,7 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
         if ($payload->wait) {
             $this->asyncQueueLocator->sync = true; // overwrite what's in the config
         }
-        $nextTransition = AssetFlow::TRANSITION_LOCAL_OCR;
+        $nextTransition = AssetFlow::TRANSITION_FETCH_IIIF;
 
         foreach ($listing as $asset) {
             $this->logger->warning("Dispatching " . $nextTransition . "  for {$asset->id} \n");

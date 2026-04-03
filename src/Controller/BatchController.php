@@ -80,7 +80,7 @@ final class BatchController implements LoggerAwareInterface
 
         // dispatch auto-download for the moment, let's focus on metadata
         foreach ($queue as $url => $asset) {
-//            $this->assetRegistry->dispatch($asset);
+            $this->assetRegistry->dispatch($asset);
         }
         $this->assetRegistry->flush();
 
