@@ -317,6 +317,11 @@ class AssetWorkflow
         }
 
         try {
+            $cachedManifest = $asset->iiifManifestEntity?->manifestJson;
+            if (!isset($hints['iiif_manifest_json']) && is_array($cachedManifest) && $cachedManifest !== []) {
+                $hints['iiif_manifest_json'] = $cachedManifest;
+            }
+
             if (is_string($manifestRef) && !isset($hints['iiif_manifest_json'])) {
                 $tmpFile = tempnam(sys_get_temp_dir(), 'iiif_manifest_');
                 if ($tmpFile === false) {

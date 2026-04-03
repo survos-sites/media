@@ -98,7 +98,7 @@ class AssetFlow
     public const TRANSITION_LOCAL_OCR = 'local_ocr';
 
     #[Transition(
-        from: [self::PLACE_NEW],
+        from: [self::PLACE_NEW, self::PLACE_IIIF],
         to: self::PLACE_IIIF,
         info: 'Fetch IIIF manifest',
         description: 'So download is optional',
