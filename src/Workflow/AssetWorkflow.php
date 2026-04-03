@@ -341,6 +341,17 @@ class AssetWorkflow
 
             $hints = $this->iiifManifestService->attachFromContextHints($asset, $hints);
             $asset->sourceMeta = array_replace($asset->sourceMeta ?? [], $hints);
+
+            // Once IIIF metadata is available, prefer a deterministic IIIF-derived thumbnail
+            // over any earlier fallback/insecure value.
+            $iiifThumb = $this->extractUrlFromMixed($asset->sourceMeta['iiif_thumbnail_url'] ?? null)
+                ?? $this->extractUrlFromMixed($asset->sourceMeta['thumbnail_url'] ?? null)
+                ?? $this->iiifThumbnailUrl($asset);
+
+            if (is_string($iiifThumb) && $iiifThumb !== '') {
+                $asset->smallUrl = $iiifThumb;
+            }
+
             $this->em->flush();
         } catch (UnrecoverableMessageException $e) {
             $asset->sourceMeta ??= [];
