@@ -342,6 +342,41 @@ class AssetWorkflow
             $hints = $this->iiifManifestService->attachFromContextHints($asset, $hints);
             $asset->sourceMeta = array_replace($asset->sourceMeta ?? [], $hints);
 
+            $metadataMap = $this->iiifMetadataMap($asset->iiifManifestEntity?->manifestJson ?? null);
+
+            // Fill canonical source metadata conservatively: only when empty.
+            if (!isset($asset->sourceMeta['dcterms:title']) || trim((string) $asset->sourceMeta['dcterms:title']) === '') {
+                $title = trim((string) ($asset->iiifManifestEntity?->label ?? ''));
+                if ($title === '') {
+                    $title = $this->firstIiifValue($metadataMap, ['title']);
+                }
+                if ($title !== '') {
+                    $asset->sourceMeta['dcterms:title'] = $title;
+                }
+            }
+
+            if (!isset($asset->sourceMeta['dcterms:description']) || trim((string) $asset->sourceMeta['dcterms:description']) === '') {
+                $description = $this->firstIiifValue($metadataMap, ['description', 'summary', 'abstract']);
+                if ($description !== '') {
+                    $asset->sourceMeta['dcterms:description'] = $description;
+                }
+            }
+
+            // Keep parsed IIIF facets in sourceMeta for indexing/debug.
+            $asset->sourceMeta ??= [];
+            if (!isset($asset->sourceMeta['iiif_subjects'])) {
+                $subjects = $this->iiifValues($metadataMap, ['subject', 'subjects', 'topic', 'topics']);
+                if ($subjects !== []) {
+                    $asset->sourceMeta['iiif_subjects'] = $subjects;
+                }
+            }
+            if (!isset($asset->sourceMeta['iiif_keywords'])) {
+                $keywords = $this->iiifValues($metadataMap, ['keyword', 'keywords']);
+                if ($keywords !== []) {
+                    $asset->sourceMeta['iiif_keywords'] = $keywords;
+                }
+            }
+
             // Once IIIF metadata is available, prefer a deterministic IIIF-derived thumbnail
             // over any earlier fallback/insecure value.
             $iiifThumb = $this->extractUrlFromMixed($asset->sourceMeta['iiif_thumbnail_url'] ?? null)
@@ -948,6 +983,116 @@ class AssetWorkflow
         }
 
         return rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+    }
+
+    /** @param array<string,mixed>|null $manifest */
+    private function iiifMetadataMap(?array $manifest): array
+    {
+        if (!is_array($manifest)) {
+            return [];
+        }
+
+        $metadata = $manifest['metadata'] ?? null;
+        if (!is_array($metadata)) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($metadata as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $label = $this->extractIiifLabel($entry['label'] ?? null);
+            if ($label === '') {
+                continue;
+            }
+
+            $values = $this->extractIiifValues($entry['value'] ?? null);
+            if ($values === []) {
+                continue;
+            }
+
+            $key = strtolower($label);
+            $map[$key] = array_values(array_unique(array_merge($map[$key] ?? [], $values)));
+        }
+
+        return $map;
+    }
+
+    private function extractIiifLabel(mixed $label): string
+    {
+        if (is_string($label)) {
+            return trim($label);
+        }
+
+        if (!is_array($label)) {
+            return '';
+        }
+
+        foreach (['none', 'en'] as $lang) {
+            $value = $label[$lang] ?? null;
+            if (is_array($value) && isset($value[0]) && is_string($value[0])) {
+                return trim($value[0]);
+            }
+        }
+
+        foreach ($label as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+            if (is_array($value) && isset($value[0]) && is_string($value[0])) {
+                return trim($value[0]);
+            }
+        }
+
+        return '';
+    }
+
+    /** @return list<string> */
+    private function extractIiifValues(mixed $value): array
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            return $trimmed === '' ? [] : [$trimmed];
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($value as $item) {
+            $out = array_merge($out, $this->extractIiifValues($item));
+        }
+
+        return array_values(array_unique(array_filter(array_map('trim', $out), static fn(string $v): bool => $v !== '')));
+    }
+
+    /** @param array<string,list<string>> $metadataMap */
+    private function firstIiifValue(array $metadataMap, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $values = $metadataMap[strtolower($key)] ?? [];
+            if ($values !== []) {
+                return (string) $values[0];
+            }
+        }
+
+        return '';
+    }
+
+    /** @param array<string,list<string>> $metadataMap
+     *  @return list<string>
+     */
+    private function iiifValues(array $metadataMap, array $keys): array
+    {
+        $out = [];
+        foreach ($keys as $key) {
+            $out = array_merge($out, $metadataMap[strtolower($key)] ?? []);
+        }
+
+        return array_values(array_unique(array_filter(array_map('trim', $out), static fn(string $v): bool => $v !== '')));
     }
 
     private function effectiveArchiveUrl(Asset $asset): ?string

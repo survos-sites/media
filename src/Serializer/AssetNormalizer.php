@@ -58,6 +58,16 @@ final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInter
             $data['aiOcrText'] = $object->localOcrText ?? null;
         }
 
+        $sourceMeta = is_array($object->sourceMeta) ? $object->sourceMeta : [];
+        $data['iiifManifest'] = $object->iiifManifestEntity?->manifestUrl ?? ($sourceMeta['iiif_manifest'] ?? null);
+        $data['iiifBase'] = $object->iiifManifestEntity?->imageBase ?? ($sourceMeta['iiif_base'] ?? null);
+        $data['iiifThumb'] = $object->iiifManifestEntity?->thumbnailUrl
+            ?? ($sourceMeta['iiif_thumbnail_url'] ?? ($sourceMeta['thumbnail_url'] ?? null));
+        $data['iiifLabel'] = $object->iiifManifestEntity?->label ?? null;
+        $data['iiifSource'] = $object->iiifManifestEntity?->source ?? null;
+        $data['iiifSubjects'] = $sourceMeta['iiif_subjects'] ?? [];
+        $data['iiifKeywords'] = $sourceMeta['iiif_keywords'] ?? [];
+
         return $data;
     }
 

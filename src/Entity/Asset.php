@@ -76,7 +76,7 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?string $description { get => $this->sourceMeta['dcterms:description'] ?? null; }
     #[Groups(['asset.read'])]
-    public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? null; }
+    public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? $this->sourceMeta['iiif_subjects'] ?? null; }
 
     #[Groups(['asset.read'])]
     #[Facet()]
