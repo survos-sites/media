@@ -986,7 +986,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             use_underscore?: bool|Param, // Default: true
  *             unordered_list_markers?: list<scalar|Param|null>,
  *         },
- *         ...<mixed>
+ *         ...<string, mixed>
  *     },
  * }
  * @psalm-type SecurityConfig = array{
@@ -1624,8 +1624,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     lifetime?: int|Param, // The length of time in seconds that a signed URI is valid for after it is created. // Default: 3600
  * }
  * @psalm-type SurvosTreeConfig = array{
- *     tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree/tree"
- *     api_tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree/api_tree"
+ *     tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/tree"
+ *     api_tree_stimulus_controller?: scalar|Param|null, // Default: "@survos/tree-bundle/api_tree"
  *     stimulus_controller?: scalar|Param|null, // Deprecated: The "stimulus_controller" option is deprecated, use "api_tree_stimulus_controller" and/or "tree_stimulus_controller" instead. // Default: null
  * }
  * @psalm-type ApiPlatformConfig = array{
@@ -1901,7 +1901,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             cast_fn?: mixed,
  *             default?: mixed,
  *             filter_class?: mixed,
- *             ...<mixed>
+ *             ...<string, mixed>
  *         }>,
  *         strict_query_parameter_validation?: mixed,
  *         hide_hydra_operation?: mixed,
@@ -1921,7 +1921,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         name?: mixed,
  *         allow_create?: mixed,
  *         item_uri_template?: mixed,
- *         ...<mixed>
+ *         ...<string, mixed>
  *     },
  * }
  * @psalm-type DoctrineDiagramConfig = array{
@@ -2628,7 +2628,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type SurvosDataConfig = array{
  *     data_dir?: scalar|Param|null, // Default: "%env(APP_DATA_DIR)%"
- *     dataset_root?: scalar|Param|null, // Default: "data"
+ *     dataset_root?: scalar|Param|null, // Default: "work"
  *     pixie_root?: scalar|Param|null, // Default: "pixie"
  *     runs_root?: scalar|Param|null, // Default: "runs"
  *     cache_root?: scalar|Param|null, // Default: "cache"
@@ -2777,7 +2777,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     clients?: array<string, array<string, mixed>>,
  * }
  * @psalm-type SurvosAuthConfig = array{
+ *     providers?: array<string, array{ // Default: []
+ *         type?: scalar|Param|null, // Default: null
+ *         client_id?: scalar|Param|null, // Default: null
+ *         client_secret?: scalar|Param|null, // Default: null
+ *         scopes?: list<scalar|Param|null>,
+ *         redirect_route?: scalar|Param|null, // Default: null
+ *         redirect_params?: list<scalar|Param|null>,
+ *         use_state?: bool|Param|null, // Default: null
+ *     }>,
  *     new_user_redirect_route?: scalar|Param|null, // Default: "oauth_profile"
+ *     production_url_base?: scalar|Param|null, // Default: null
  *     user_provider?: scalar|Param|null, // Default: null
  *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
  * }

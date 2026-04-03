@@ -54,34 +54,34 @@ return [
         'version' => '0.1.1',
     ],
     'locutus/php/strings/sprintf' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/strings/vsprintf' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/math/round' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/math/max' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/math/min' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/strings/strip_tags' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/datetime/strtotime' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/datetime/date' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/var/boolval' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'axios' => [
-        'version' => '1.13.6',
+        'version' => '1.14.0',
     ],
     'perfect-scrollbar' => [
         'version' => '1.5.6',
@@ -266,16 +266,16 @@ return [
         'version' => '2.0.3',
     ],
     'delaunator' => [
-        'version' => '5.0.1',
+        'version' => '5.1.0',
     ],
     'robust-predicates' => [
-        'version' => '3.0.2',
+        'version' => '3.0.3',
     ],
     'd3-graphviz' => [
         'version' => '5.6.0',
     ],
     '@hpcc-js/wasm/graphviz' => [
-        'version' => '2.33.1',
+        'version' => '2.33.2',
     ],
     'stimulus-attributes' => [
         'version' => '1.0.2',
@@ -291,7 +291,7 @@ return [
         'type' => 'css',
     ],
     'instantsearch.js' => [
-        'version' => '4.92.1',
+        'version' => '4.93.0',
     ],
     '@algolia/events' => [
         'version' => '4.0.1',
@@ -306,10 +306,10 @@ return [
         'version' => '3.28.1',
     ],
     'instantsearch.js/es/widgets' => [
-        'version' => '4.92.1',
+        'version' => '4.93.0',
     ],
     'instantsearch-ui-components' => [
-        'version' => '0.22.1',
+        'version' => '0.23.0',
     ],
     'preact' => [
         'version' => '10.29.0',
@@ -324,26 +324,26 @@ return [
         'version' => '10.29.0',
     ],
     '@babel/runtime/helpers/extends' => [
-        'version' => '7.28.6',
+        'version' => '7.29.2',
     ],
     '@babel/runtime/helpers/defineProperty' => [
-        'version' => '7.28.6',
+        'version' => '7.29.2',
     ],
     '@babel/runtime/helpers/objectWithoutProperties' => [
-        'version' => '7.28.6',
+        'version' => '7.29.2',
     ],
     'htm' => [
         'version' => '3.1.1',
     ],
     'instantsearch.css/themes/algolia.min.css' => [
-        'version' => '8.12.0',
+        'version' => '8.13.0',
         'type' => 'css',
     ],
     '@meilisearch/instant-meilisearch' => [
         'version' => '0.30.0',
     ],
     'meilisearch' => [
-        'version' => '0.54.0',
+        'version' => '0.56.0',
     ],
     '@stimulus-components/dialog' => [
         'version' => '1.0.1',
@@ -381,7 +381,7 @@ return [
         'version' => '1.3.0',
     ],
     'object-inspect' => [
-        'version' => '1.13.3',
+        'version' => '1.13.4',
     ],
     'side-channel-list' => [
         'version' => '1.0.0',
@@ -393,10 +393,10 @@ return [
         'version' => '1.0.2',
     ],
     'get-intrinsic' => [
-        'version' => '1.2.5',
+        'version' => '1.3.0',
     ],
     'call-bound' => [
-        'version' => '1.0.2',
+        'version' => '1.0.4',
     ],
     'es-errors' => [
         'version' => '1.3.0',
@@ -426,13 +426,13 @@ return [
         'version' => '1.1.0',
     ],
     'dunder-proto/get' => [
-        'version' => '1.0.0',
+        'version' => '1.0.1',
     ],
     'call-bind-apply-helpers/functionApply' => [
-        'version' => '1.0.0',
+        'version' => '1.0.2',
     ],
     'call-bind-apply-helpers/functionCall' => [
-        'version' => '1.0.0',
+        'version' => '1.0.2',
     ],
     'function-bind' => [
         'version' => '1.1.2',
@@ -444,13 +444,13 @@ return [
         'version' => '1.0.8',
     ],
     'call-bind-apply-helpers' => [
-        'version' => '1.0.0',
+        'version' => '1.0.2',
     ],
     'set-function-length' => [
         'version' => '1.2.2',
     ],
     'call-bind-apply-helpers/applyBind' => [
-        'version' => '1.0.0',
+        'version' => '1.0.2',
     ],
     'define-data-property' => [
         'version' => '1.1.4',
@@ -459,25 +459,25 @@ return [
         'version' => '1.0.2',
     ],
     'ai' => [
-        'version' => '6.0.116',
+        'version' => '6.0.141',
     ],
     '@babel/runtime/helpers/typeof' => [
-        'version' => '7.28.6',
+        'version' => '7.29.2',
     ],
     '@babel/runtime/helpers/slicedToArray' => [
-        'version' => '7.28.6',
+        'version' => '7.29.2',
     ],
     '@babel/runtime/helpers/toConsumableArray' => [
-        'version' => '7.28.6',
+        'version' => '7.29.2',
     ],
     'markdown-to-jsx' => [
-        'version' => '7.7.17',
+        'version' => '9.7.13',
     ],
     '@ai-sdk/gateway' => [
-        'version' => '3.0.66',
+        'version' => '3.0.83',
     ],
     '@ai-sdk/provider-utils' => [
-        'version' => '4.0.19',
+        'version' => '4.0.21',
     ],
     '@ai-sdk/provider' => [
         'version' => '3.0.8',
@@ -486,10 +486,10 @@ return [
         'version' => '4.3.6',
     ],
     '@opentelemetry/api' => [
-        'version' => '1.9.0',
+        'version' => '1.9.1',
     ],
     'react' => [
-        'version' => '19.2.0',
+        'version' => '19.2.4',
     ],
     '@vercel/oidc' => [
         'version' => '3.2.0',
@@ -513,7 +513,7 @@ return [
         'version' => '0.4.18',
     ],
     'dexie' => [
-        'version' => '4.3.0',
+        'version' => '4.4.2',
     ],
     '@tacman1123/twig-browser/adapters/symfony' => [
         'version' => '0.4.18',
@@ -522,58 +522,58 @@ return [
         'version' => '6.0.2',
     ],
     'locutus/php/strings/index' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/math/index' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/datetime/index' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     'locutus/php/var/index' => [
-        'version' => '3.0.19',
+        'version' => '3.0.34',
     ],
     '@swc/helpers/cjs/_sliced_to_array.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_to_consumable_array.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_define_property.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_extends.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_object_destructuring_empty.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_object_spread.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_object_spread_props.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_type_of.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_instanceof.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_object_without_properties.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_call_super.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_class_call_check.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_create_class.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/cjs/_inherits.cjs' => [
-        'version' => '0.5.19',
+        'version' => '0.5.20',
     ],
     'es-object-atoms' => [
         'version' => '1.1.1',
@@ -609,7 +609,7 @@ return [
         'version' => '1.0.1',
     ],
     'markdown-to-jsx/entities' => [
-        'version' => '9.7.9',
+        'version' => '9.7.13',
     ],
     'zod' => [
         'version' => '4.3.6',
@@ -618,49 +618,49 @@ return [
         'version' => '0.0.6',
     ],
     'marked' => [
-        'version' => '17.0.4',
+        'version' => '17.0.5',
     ],
     '@swc/helpers/esm/_sliced_to_array.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_to_consumable_array.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_define_property.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_extends.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_object_destructuring_empty.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_object_spread.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_object_spread_props.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_type_of.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_instanceof.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_object_without_properties.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_call_super.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_class_call_check.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_create_class.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     '@swc/helpers/esm/_inherits.js' => [
-        'version' => '0.5.18',
+        'version' => '0.5.20',
     ],
     'datatables.net-columncontrol' => [
         'version' => '1.2.1',
@@ -680,5 +680,8 @@ return [
     ],
     '@stimulus-components/read-more' => [
         'version' => '5.0.0',
+    ],
+    'chart.js' => [
+        'version' => '3.9.1',
     ],
 ];
