@@ -35,21 +35,24 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 #[MeiliIndex(
 //    chats: ['meili_assistant'],
-    sortable: ['createdAt', 'aiTokensTotal'],
+    sortable: ['createdAt', 'aiTokensTotal', 'size', 'width', 'height'],
     filterable: ['mime', 'clients', 'marking',
-        'ext', 'type',
+        'ext', 'type', 'publisher', 'reuse',
 //        'aiDocumentType', 'aiDocumentSubtype',
         'subjects',
 //                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
     ],
-    searchable: ['title', 'description', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
-                 'aiPeople', 'aiPlaces', 'aiSubjects'],
+    searchable: ['title', 'description', 'filename', 'subjects', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
+                  'aiPeople', 'aiPlaces', 'aiSubjects'],
     persisted: new Fields(
         groups: ['asset.read'],
         fields: ['id',
-            'originalUrl',
-        'mime', 'ext', 'type', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
-                 'aiDocumentType'],
+            'originalUrl', 'archiveUrl',
+        'mime', 'ext', 'filename', 'type', 'reuse', 'publisher', 'subjects',
+        'size', 'width', 'height',
+        'title', 'description', 'thumb', 'smallUrl',
+        'createdAt', 'marking', 'mediaRecordId',
+                  'aiDocumentType'],
     ),
     prompts: [
         'system' => 'You are assisting with media assets. Always use tool-backed search results from this index and always include [id:{value}] where {value} is the Asset primary key field {{ primaryKey }}.',
@@ -98,6 +101,19 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     #[Facet()]
     public ?string $publisher { get => $this->sourceMeta['dcterms:publisher'] ?? null; }
+
+    #[Groups(['asset.read'])]
+    public ?string $filename {
+        get {
+            $path = (string) (parse_url($this->originalUrl, PHP_URL_PATH) ?? '');
+            $name = basename($path);
+            return $name !== '' ? $name : null;
+        }
+    }
+
+    #[Groups(['asset.read'])]
+    #[Facet()]
+    public ?string $mediaRecordId { get => $this->mediaRecord?->id; }
 
     /** Fast non-cryptographic content hash (xxh3 of bytes). */
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
