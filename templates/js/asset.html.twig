@@ -18,11 +18,14 @@
     hit.smallUrl
     |default(hit.thumbnail_url)
     |default(hit.thumbnail)
+    |default(hit.iiifThumb)
     |default(attribute(sourceMeta, 'thumbnail_url'))
+    |default(attribute(sourceMeta, 'iiif_thumbnail_url'))
     |default(hit.archiveUrl)
     |default(hit.originalUrl)
     |default(null)
 %}
+{% set hasBrokenThumb = thumb and 'imgproxy.survos.com/insecure/' in thumb %}
 
 {% set ark = attribute(sourceMeta, 'source_ark')|default(null) %}
 {% set sourceUrl =
@@ -34,7 +37,7 @@
 
 <article class="card h-100 border-0 shadow-sm overflow-hidden">
   {% if thumb %}
-    <div class="ratio" style="--tblr-aspect-ratio: 62.5%; background: #eef3f7;">
+    <div class="ratio" style="--tblr-aspect-ratio: 62.5%; background: #eef3f7;{% if hasBrokenThumb %} border: 2px solid #d63939;{% endif %}">
       <img
 
         src="{{ thumb }}"
@@ -44,6 +47,11 @@
         style="max-height:200px;max-width:200px;width:100%;height:100%;object-fit:cover;"
       >
     </div>
+    {% if hasBrokenThumb %}
+      <div class="p-2 border-start border-danger border-3 bg-danger-lt text-danger" style="font-size:.8rem;">
+        Broken thumbnail URL in index: {{ thumb }}
+      </div>
+    {% endif %}
   {% endif %}
 
   <div class="card-body d-flex flex-column gap-2">

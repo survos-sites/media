@@ -39,6 +39,7 @@ final class AssetRegistry
         private readonly string        $imgproxyKey,
         #[Autowire('%survos_media.imgproxy.salt%')]
         private readonly string        $imgproxySalt,
+        private readonly MediaUrlGenerator $mediaUrlGenerator,
 
     ) {
     }
@@ -112,24 +113,6 @@ final class AssetRegistry
     /** @return array{url: ?string, source: string, source_url: ?string} */
     public function imgProxyDebug(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): array
     {
-        // Redirect to imgproxy for now (no byte streaming or caching yet)
-        $presetDef = MediaUrlGenerator::PRESETS[$preset];
-        [$width, $height] = $presetDef['size'];
-
-        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
-            $this->imgproxyKey,
-            $this->imgproxySalt
-        )->with(
-            new \Mperonnet\ImgProxy\Options\Resize($presetDef['resize']),
-            new \Mperonnet\ImgProxy\Options\Width($width),
-            new \Mperonnet\ImgProxy\Options\Height($height),
-            new \Mperonnet\ImgProxy\Options\Quality($presetDef['quality']),
-        );
-
-        if (isset($presetDef['dpr'][0])) {
-//            $builder = $builder->with(new \Mperonnet\ImgProxy\Options\Dpr($presetDef['dpr'][0]));
-        }
-
         // if the asset has been stored on OUR s3, then use it, much faster.
         if ($asset->storageKey) {
             $source = $this->s3Url($asset);
@@ -139,14 +122,10 @@ final class AssetRegistry
             $sourceLabel = 'archive_url';
         } else {
             $source = $asset->originalUrl;
-            $builder = $builder->usePlain();
             $sourceLabel = 'original_url';
         }
-        $path = $builder->url($source, $presetDef['format']);
-//        $url = $builder->usePlain()->url($src);
-// Example: /9SaGqJILqstFsWthdP/dpr:2/q:90/w:300/h:400/plain/http://example.com/image.jpg
 
-        $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
+        $imgproxyUrl = $this->mediaUrlGenerator->resizeRemote($source, 0, 0, $preset);
         return [
             'url' => $imgproxyUrl,
             'source' => $sourceLabel,

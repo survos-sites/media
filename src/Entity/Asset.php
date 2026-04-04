@@ -15,7 +15,6 @@ use Survos\MeiliBundle\Metadata\Facet;
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\MediaBundle\Util\MediaIdentity;
-use App\Service\ImgProxyUrlHelper;
 use Survos\StateBundle\Traits\MarkingInterface;
 use Survos\StateBundle\Traits\MarkingTrait;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -302,7 +301,9 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?string $smallUrl {
         get => $this->smallUrlOverride
-            ?? ImgProxyUrlHelper::small($this->archiveUrl ?? $this->originalUrl);
+            ?? $this->iiifManifestEntity?->thumbnailUrl
+            ?? $this->sourceMeta['thumbnail_url']
+            ?? null;
 
         set(?string $value) {
             $this->smallUrlOverride = $value;

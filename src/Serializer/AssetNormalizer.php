@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Serializer;
 
 use App\Entity\Asset;
+use App\Service\AssetRegistry;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
@@ -25,6 +27,11 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInterface
 {
     use NormalizerAwareTrait;
+
+    public function __construct(
+        private readonly AssetRegistry $assetRegistry,
+    ) {
+    }
 
     private const ALREADY_CALLED = 'ASSET_NORMALIZER_ALREADY_CALLED';
 
@@ -56,6 +63,12 @@ final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInter
 
         if (!isset($data['aiOcrText']) || $data['aiOcrText'] === null || $data['aiOcrText'] === '') {
             $data['aiOcrText'] = $object->localOcrText ?? null;
+        }
+
+        $signedSmall = $this->assetRegistry->imgProxyUrl($object, MediaUrlGenerator::PRESET_SMALL);
+        if (is_string($signedSmall) && $signedSmall !== '') {
+            $data['smallUrl'] = $signedSmall;
+            $data['thumb'] = $signedSmall;
         }
 
         $sourceMeta = is_array($object->sourceMeta) ? $object->sourceMeta : [];
