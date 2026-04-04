@@ -561,20 +561,17 @@ prompt:
           </details>
           <div class="card mt-3">
             <div class="card-header"><h4 class="card-title mb-0">Raw Source Data</h4></div>
-            <div class="card-body">
+            <div class="card-body" data-controller="json-viewer">
               <div class="mb-3">
                 <div class="small text-muted mb-1">sourceMeta</div>
-                <andypf-json-viewer id="asset-source-meta-json" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                <andypf-json-viewer data-json-viewer-target="viewer" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                <script type="application/json" data-json-viewer-target="payload">{{ asset.sourceMeta|default({})|json_encode|raw }}</script>
               </div>
               <div>
                 <div class="small text-muted mb-1">context</div>
-                <andypf-json-viewer id="asset-context-json" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                <andypf-json-viewer data-json-viewer-target="viewer" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                <script type="application/json" data-json-viewer-target="payload">{{ asset.context|default({})|json_encode|raw }}</script>
               </div>
-              <script type="module">
-                import '@andypf/json-viewer';
-                document.getElementById('asset-source-meta-json').data = {{ asset.sourceMeta|default({})|json_encode|raw }};
-                document.getElementById('asset-context-json').data = {{ asset.context|default({})|json_encode|raw }};
-              </script>
             </div>
           </div>
         </div>

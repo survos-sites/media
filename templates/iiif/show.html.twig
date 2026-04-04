@@ -26,9 +26,9 @@
 
   <div class="card">
     <div class="card-header"><h4 class="card-title mb-0">Manifest JSON</h4></div>
-    <div class="card-body">
+    <div class="card-body" data-controller="json-viewer">
       <andypf-json-viewer
-        id="iiif-manifest-json"
+        data-json-viewer-target="viewer"
         expanded="1"
         indent="2"
         show-data-types="false"
@@ -37,10 +37,7 @@
         show-size="true"
         show-copy="true"
       ></andypf-json-viewer>
-      <script type="module">
-        import '@andypf/json-viewer';
-        document.getElementById('iiif-manifest-json').data = {{ manifest.manifestJson|json_encode|raw }};
-      </script>
+      <script type="application/json" data-json-viewer-target="payload">{{ manifest.manifestJson|json_encode|raw }}</script>
     </div>
   </div>
 </div>
