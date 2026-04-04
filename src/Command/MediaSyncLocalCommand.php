@@ -74,6 +74,8 @@ final class MediaSyncLocalCommand
         foreach ($assets as $asset) {
             if ($reset) {
                 $asset->marking = AssetFlow::PLACE_NEW;
+                $asset->aiQueue = [];
+                $asset->aiCompleted = [];
                 $asset->localOcrStatus = null;
                 $asset->localOcrError = null;
                 $asset->localOcrText = null;
@@ -88,7 +90,7 @@ final class MediaSyncLocalCommand
                 }
                 $this->entityManager->flush();
                 if ($io->isVeryVerbose()) {
-                    $io->writeln('reset: marking + local OCR fields');
+                    $io->writeln('reset: marking + ai queue/history + local OCR fields');
                 }
             }
 

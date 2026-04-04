@@ -93,6 +93,8 @@ class AssetWorkflow
         private readonly int                                   $source529CooldownMs,
         #[Autowire('%env(int:SERVICE_HTTP_TIMEOUT_SECONDS)%')]
         private readonly int                                   $serviceHttpTimeoutSeconds,
+        #[Autowire('%env(bool:AI_PAID_TOOLS_ENABLED)%')]
+        private readonly bool                                  $paidAiToolsEnabled,
         #[Autowire('%kernel.project_dir%/public/temp')]
         private string                                         $tempDir,
         #[Autowire('%env(default:media_canonical_dir_default:MEDIA_CANONICAL_DIR)%')]
@@ -1011,6 +1013,10 @@ class AssetWorkflow
     /** @param array<string, mixed> $analysis */
     private function localOcrNextTasks(array $analysis): array
     {
+        if (!$this->paidAiToolsEnabled) {
+            return [];
+        }
+
         $primaryType = strtolower(trim((string) ($analysis['primary_type'] ?? '')));
         $typedLikely = (bool) ($analysis['typed_likely'] ?? false);
         $handwrittenLikely = (bool) ($analysis['handwritten_likely'] ?? false);
