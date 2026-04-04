@@ -62,6 +62,8 @@ use App\Workflow\VariantFlowDefinition as VWF;
 class AssetWorkflow
 {
     const THUMBHASH_PRESET = 'small';
+    private const CANONICAL_MAX_EDGE = 3000;
+    private const CANONICAL_WEBP_QUALITY = 82;
     private ?float $sourceCooldownUntil = null;
     /** @var array<string, AiTaskInterface> */
     private array $aiTaskHandlers = [];
@@ -439,6 +441,7 @@ class AssetWorkflow
         // path will change if there is an extension mismatch!
         // Download to a process-local temp file (not persisted)
         $tmpFile = tempnam(sys_get_temp_dir(), 'asset_');
+        $uploadPath = $tmpFile;
         try {
             $this->downloadUrl($url, $tmpFile);
             if (!is_file($tmpFile) || filesize($tmpFile) === 0) {
@@ -459,6 +462,7 @@ class AssetWorkflow
                 $tmpFile = $renamed;
                 $asset->ext = $detectedExt;
             }
+            $uploadPath = $tmpFile;
 
             // tasks[] controls which analysis steps to run for this asset.
             // Sent by ssai in context hints; defaults to all tasks if absent.
@@ -498,11 +502,17 @@ class AssetWorkflow
                 }
             }
 
+            // Build canonical payload while we still have local bytes.
+            $uploadPath = $this->buildCanonicalAsset($asset, $tmpFile);
+
             // Archive to S3 — now after all local analysis is done
-            $this->uploadToArchiveFromPath($asset, $tmpFile);
+            $this->uploadToArchiveFromPath($asset, $uploadPath);
         } finally {
             if (is_file($tmpFile)) {
                 @unlink($tmpFile);
+            }
+            if (is_string($uploadPath) && $uploadPath !== $tmpFile && is_file($uploadPath)) {
+                @unlink($uploadPath);
             }
         }
 
@@ -1355,6 +1365,86 @@ class AssetWorkflow
             'ext' => $asset->ext
         ];
 
+    }
+
+    private function buildCanonicalAsset(Asset $asset, string $sourcePath): string
+    {
+        $mime = is_string($asset->mime) ? trim($asset->mime) : '';
+        if ($mime === '' || !str_starts_with($mime, 'image/')) {
+            return $sourcePath;
+        }
+
+        try {
+            $image = new \Imagick($sourcePath);
+
+            // Keep animated/multi-frame payloads untouched for now.
+            if ($image->getNumberImages() > 1) {
+                $image->clear();
+                $image->destroy();
+                return $sourcePath;
+            }
+
+            $width = $image->getImageWidth();
+            $height = $image->getImageHeight();
+            $maxEdge = max($width, $height);
+            if ($maxEdge <= 0) {
+                $image->clear();
+                $image->destroy();
+                return $sourcePath;
+            }
+
+            $resized = false;
+            if ($maxEdge > self::CANONICAL_MAX_EDGE) {
+                $image->resizeImage(
+                    self::CANONICAL_MAX_EDGE,
+                    self::CANONICAL_MAX_EDGE,
+                    \Imagick::FILTER_LANCZOS,
+                    1,
+                    true
+                );
+                $resized = true;
+            }
+
+            $canonicalPath = $sourcePath . '.canonical.webp';
+            $image->stripImage();
+            $image->setImageFormat('webp');
+            $image->setOption('webp:method', '6');
+            $image->setImageCompressionQuality(self::CANONICAL_WEBP_QUALITY);
+            $image->writeImage($canonicalPath);
+            $image->clear();
+            $image->destroy();
+
+            if (!is_file($canonicalPath) || filesize($canonicalPath) === 0) {
+                return $sourcePath;
+            }
+
+            $sourceSize = filesize($sourcePath) ?: 0;
+            $canonicalSize = filesize($canonicalPath) ?: 0;
+            if (!$resized && $sourceSize > 0 && $canonicalSize > $sourceSize) {
+                @unlink($canonicalPath);
+                return $sourcePath;
+            }
+
+            $this->processLocalFile($canonicalPath, $asset);
+            $asset->ext = 'webp';
+            $asset->context ??= [];
+            $asset->context['canonical'] = [
+                'format' => 'webp',
+                'quality' => self::CANONICAL_WEBP_QUALITY,
+                'max_edge' => self::CANONICAL_MAX_EDGE,
+                'resized' => $resized,
+                'bytes' => $canonicalSize,
+            ];
+
+            return $canonicalPath;
+        } catch (\Throwable $e) {
+            $this->logger->warning('Canonical build failed for {id}: {error}', [
+                'id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $sourcePath;
+        }
     }
 
     private function resizeForThumbHash(string $imagePath, int $size = 100): array

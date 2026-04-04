@@ -36,6 +36,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 //    chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal'],
     filterable: ['mime', 'clients', 'marking',
+        'ext', 'type',
 //        'aiDocumentType', 'aiDocumentSubtype',
         'subjects',
 //                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
@@ -46,7 +47,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
         groups: ['asset.read'],
         fields: ['id',
             'originalUrl',
-        'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
+        'mime', 'ext', 'type', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
                  'aiDocumentType'],
     ),
     prompts: [
@@ -316,6 +317,8 @@ class Asset implements MarkingInterface, \Stringable
 
     /** Optional original extension hint (jpg, mp4, …). */
     #[ORM\Column(type: Types::STRING, length: 12, nullable: true)]
+    #[Groups(['asset.read'])]
+    #[Facet()]
     public ?string $ext = null;
 
     /** Variant map (preset => url/info). */

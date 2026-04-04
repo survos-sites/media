@@ -11,6 +11,7 @@ use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\AiPipelineBundle\Task\AiTaskRegistry;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -112,7 +113,7 @@ final class AssetController extends AbstractController
     public function show(Asset $asset): Response
     {
         $computedArchiveUrl = $asset->storageKey ? $this->assetRegistry->s3Url($asset) : null;
-        $computedPreview = $this->assetRegistry->imgProxyDebug($asset);
+        $computedPreview = $this->assetRegistry->imgProxyDebug($asset, MediaUrlGenerator::PRESET_LARGE);
 
         // Index completed results for template convenience
         $completedMap = [];
