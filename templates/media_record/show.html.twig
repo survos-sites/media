@@ -1,0 +1,99 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Media Record {{ mediaRecord.id }}{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="mb-0">Media Record {{ mediaRecord.id }}</h1>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="{{ path('media_record_browse') }}">Browse</a>
+            <a class="btn btn-outline-primary" href="{{ path('meili_insta', {indexName: 'mediarecord'}) }}">Search</a>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <table class="table table-sm mb-0">
+                <tr><th>ID</th><td><code>{{ mediaRecord.id }}</code></td></tr>
+                <tr><th>Label</th><td>{{ mediaRecord.label|default('—') }}</td></tr>
+                <tr><th>Record Key</th><td class="text-break">{{ mediaRecord.recordKey }}</td></tr>
+                <tr><th>Filename</th><td>{{ mediaRecord.filename|default('—') }}</td></tr>
+                <tr><th>Extension</th><td>{{ mediaRecord.extension ? '.' ~ mediaRecord.extension : '—' }}</td></tr>
+                <tr><th>Source MIME</th><td>{{ mediaRecord.sourceMime|default('—') }}</td></tr>
+                <tr><th>Source URL</th><td class="text-break">{% if mediaRecord.sourceUrl %}<a href="{{ mediaRecord.sourceUrl }}" target="_blank" rel="noopener">{{ mediaRecord.sourceUrl }}</a>{% else %}—{% endif %}</td></tr>
+                <tr><th>Marking</th><td>{{ mediaRecord.marking|default('—') }}</td></tr>
+                <tr><th>Pages</th><td>{{ mediaRecord.pageCount }}</td></tr>
+                <tr><th>Children</th><td>{{ mediaRecord.childCount }}</td></tr>
+                <tr><th>Created</th><td>{{ mediaRecord.createdAt|date('Y-m-d H:i:s') }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    {% set isPdf = (mediaRecord.sourceMime == 'application/pdf') or (mediaRecord.extension == 'pdf') %}
+    {% if isPdf and mediaRecord.sourceUrl %}
+        <div class="card mb-3">
+            <div class="card-header"><h3 class="card-title mb-0">PDF Viewer</h3></div>
+            <div class="card-body">
+                <object data="{{ mediaRecord.sourceUrl }}" type="application/pdf" style="width:100%;height:70vh;">
+                    <p>PDF preview unavailable. <a href="{{ mediaRecord.sourceUrl }}" target="_blank" rel="noopener">Open PDF</a>.</p>
+                </object>
+            </div>
+        </div>
+    {% endif %}
+
+    {% set previewAssets = mediaRecord.assets|slice(0, 8) %}
+    {% if previewAssets|length > 0 %}
+        <div class="card mb-3">
+            <div class="card-header"><h3 class="card-title mb-0">Page Previews</h3></div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {% for asset in previewAssets %}
+                        <div class="col-6 col-md-3">
+                            <a href="{{ path('asset_show', {id: asset.id}) }}" class="text-decoration-none d-block">
+                                {% set thumb = asset.smallUrl|default(asset.thumb)|default(asset.archiveUrl)|default(asset.originalUrl) %}
+                                {% if thumb %}
+                                    <img src="{{ thumb }}" alt="{{ asset.title|default(asset.id) }}" class="img-fluid rounded border" style="aspect-ratio: 3 / 4; object-fit: cover; width: 100%;">
+                                {% else %}
+                                    <div class="border rounded d-flex align-items-center justify-content-center text-muted" style="aspect-ratio: 3 / 4;">No thumb</div>
+                                {% endif %}
+                                <div class="small mt-1 text-truncate">{{ asset.title|default(asset.id) }}</div>
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header"><h3 class="card-title mb-0">Assets</h3></div>
+        <div class="table-responsive">
+            <table class="table table-vcenter mb-0">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>MIME</th>
+                    <th>Marking</th>
+                    <th>Created</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for asset in mediaRecord.assets %}
+                    <tr>
+                        <td><a href="{{ path('asset_show', {id: asset.id}) }}" target="_blank" rel="noopener">{{ asset.id }}</a></td>
+                        <td>{{ asset.title|default(asset.id) }}</td>
+                        <td>{{ asset.mime|default('—') }}</td>
+                        <td>{{ asset.marking|default('—') }}</td>
+                        <td>{{ asset.createdAt ? asset.createdAt|date('Y-m-d H:i') : '—' }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5" class="text-muted">No linked assets yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

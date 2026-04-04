@@ -6,6 +6,8 @@
 {% set modalController = globals._sc_modal|default(_sc_modal|default('@survos/meili-bundle/json')) %}
 
 {% set sourceMeta = attribute(hit, 'sourceMeta')|default({}) %}
+{% set mediaRecordId = hit.mediaRecordId|default(attribute(sourceMeta, 'media_record_id')|default(null)) %}
+{% set recordUrl = mediaRecordId ? '/media-record/' ~ mediaRecordId : (pkVal ? '/media/' ~ pkVal : null) %}
 {% set title = hit.aiTitle|default(hit.title|default(attribute(sourceMeta, 'dcterms:title')|default('Untitled record'))) %}
 {% set description = hit.aiDescription|default(hit.description|default(attribute(sourceMeta, 'dcterms:description')|default(''))) %}
 {% set typeLabel = hit.type|default(null) %}
@@ -46,7 +48,7 @@
 
 <article class="card h-100 border-0 shadow-sm overflow-hidden">
   {% if thumb %}
-    {% if pkVal %}<a href="/media/{{ pkVal }}" class="d-block text-reset text-decoration-none">{% endif %}
+    {% if recordUrl %}<a href="{{ recordUrl }}" class="d-block text-reset text-decoration-none">{% endif %}
       <div class="ratio" style="--tblr-aspect-ratio: 62.5%; background: #eef3f7;{% if hasBrokenThumb %} border: 2px solid #d63939;{% endif %}">
         <img
           src="{{ thumb }}"
@@ -56,7 +58,7 @@
           style="max-height:200px;max-width:200px;width:100%;height:100%;object-fit:cover;"
         >
       </div>
-    {% if pkVal %}</a>{% endif %}
+    {% if recordUrl %}</a>{% endif %}
     {% if hasBrokenThumb %}
       <div class="p-2 border-start border-danger border-3 bg-danger-lt text-danger" style="font-size:.8rem;">
         Broken thumbnail URL in index: {{ thumb }}
@@ -104,8 +106,8 @@
         </button>
       {% endif %}
 
-      {% if pkVal %}
-        <a href="/media/{{ pkVal }}" class="btn btn-sm btn-outline-primary">Record</a>
+      {% if recordUrl %}
+        <a href="{{ recordUrl }}" class="btn btn-sm btn-outline-primary">Record</a>
       {% endif %}
     </div>
 

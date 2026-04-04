@@ -1,0 +1,59 @@
+{% extends 'base.html.twig' %}
+{% set containerClass = 'container-fluid' %}
+
+{% block title %}{{ class }}{% endblock %}
+
+{% block body %}
+<h1>{{ class }}</h1>
+
+{% set columns = [
+    col('id'),
+    col('label'),
+    col('filename'),
+    col(name: 'extension', browsable: true),
+    col(name: 'sourceMime', browsable: true),
+    col(name: 'pageCount', sortable: true),
+    col(name: 'firstPage', sortable: false),
+    col(name: 'childCount', sortable: true),
+    col(name: 'marking', browsable: true),
+    col(name: 'createdAt', sortable: true),
+] %}
+
+<twig:api_grid
+    :searchPanes="true"
+    :class="class"
+    :apiGetCollectionUrl="apiCall"
+    :caller="_self"
+    :columns="columns"
+>
+    <twig:block name="id">
+        <a href="{{ path('media_record_show', {id: row.id}) }}" target="_blank" rel="noopener">{{ row.id }}</a>
+    </twig:block>
+
+    <twig:block name="label">
+        {% set label = row.label|default(row.recordKey)|default(row.id) %}
+        <a href="{{ path('media_record_show', {id: row.id}) }}" target="_blank" rel="noopener">{{ label|slice(0, 80) }}{% if label|length > 80 %}…{% endif %}</a>
+    </twig:block>
+
+    <twig:block name="filename">
+        {{ row.filename|default('—') }}
+    </twig:block>
+
+    <twig:block name="pageCount">
+        {{ row.pageCount|default(row.childCount|default(0)) }}
+    </twig:block>
+
+    <twig:block name="firstPage">
+        {% set first = row.firstPageAssetId|default(null) %}
+        {% if first %}
+            <a href="{{ path('asset_show', {id: first}) }}" target="_blank" rel="noopener">First page</a>
+        {% else %}
+            <span class="text-muted">—</span>
+        {% endif %}
+    </twig:block>
+
+    <twig:block name="createdAt">
+        <span {{ stimulus_controller('timeago', {dateTime: row.createdAt}) }}>{{ row.createdAt }}</span>
+    </twig:block>
+</twig:api_grid>
+{% endblock %}

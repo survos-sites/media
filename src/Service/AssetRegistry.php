@@ -129,6 +129,16 @@ final class AssetRegistry
             $record->addAsset($asset);
         }
 
+        $record->sourceMeta ??= [];
+        $record->sourceMeta['first_asset_id'] ??= $asset->id;
+        $record->sourceMeta['page_count'] = $record->childCount;
+
+        $filename = $this->filenameFromUrl($originalUrl);
+        if (is_string($filename) && $filename !== '') {
+            $record->sourceMeta['filename'] ??= $filename;
+            $record->sourceMeta['extension'] ??= $this->extensionFromFilename($filename);
+        }
+
         if ($record->label === null) {
             $label = $contextHints['dcterms:title']
                 ?? $contextHints['title']
@@ -140,17 +150,38 @@ final class AssetRegistry
 
         if ($record->sourceMeta === null && $contextHints !== []) {
             $record->sourceMeta = $contextHints;
+        } elseif ($contextHints !== []) {
+            foreach ($contextHints as $key => $value) {
+                if (!isset($record->sourceMeta[$key])) {
+                    $record->sourceMeta[$key] = $value;
+                }
+            }
         }
+
+        $record->sourceUrl ??= $originalUrl;
 
         if ($this->looksLikePdfUrl($originalUrl)) {
             $record->sourceUrl ??= $originalUrl;
             $record->sourceMime ??= 'application/pdf';
+        }
+
+        if ($record->sourceMime === null && is_string($asset->mime) && $asset->mime !== '') {
+            $record->sourceMime = $asset->mime;
         }
     }
 
     /** @param array<string,mixed> $contextHints */
     private function deriveMediaRecordKey(array $contextHints, string $originalUrl): ?string
     {
+        $explicitRecordKey = $contextHints['media_record_key'] ?? null;
+        $isPdf = $this->looksLikePdfUrl($originalUrl);
+
+        // Current policy: auto-create MediaRecord only for PDFs.
+        // Non-PDF grouping requires explicit media_record_key from caller.
+        if (!$isPdf && (!is_string($explicitRecordKey) || trim($explicitRecordKey) === '')) {
+            return null;
+        }
+
         foreach (['media_record_key', 'record_key', 'source_ark', 'code', 'dcterms:identifier', 'identifier'] as $key) {
             $value = $contextHints[$key] ?? null;
             if (is_string($value) && trim($value) !== '') {
@@ -166,7 +197,7 @@ final class AssetRegistry
             }
         }
 
-        if ($this->looksLikePdfUrl($originalUrl)) {
+        if ($isPdf) {
             $stem = $this->recordStemFromUrl($originalUrl);
             return $stem !== null ? $this->normalizeRecordKey('urlstem:' . $stem) : null;
         }
@@ -206,6 +237,20 @@ final class AssetRegistry
     {
         $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
         return strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
+    private function filenameFromUrl(string $url): ?string
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        $filename = basename($path);
+
+        return $filename !== '' ? $filename : null;
+    }
+
+    private function extensionFromFilename(string $filename): ?string
+    {
+        $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+        return $ext !== '' ? $ext : null;
     }
 
     public function imgProxyUrl(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): ?string

@@ -29,7 +29,7 @@ class AssetFlow
 
     #[Place(
         info: 'Registered/added',
-        next: [self::TRANSITION_LOCAL_OCR]
+        next: [self::TRANSITION_DOWNLOAD]
     )]
     public const PLACE_IIIF = 'iiif';
 
@@ -103,7 +103,7 @@ class AssetFlow
         info: 'Fetch IIIF manifest',
         description: 'So download is optional',
         async: true,
-        next: [self::TRANSITION_LOCAL_OCR]
+        next: [self::TRANSITION_DOWNLOAD]
     )]
     public const TRANSITION_FETCH_IIIF = 'iiif';
 

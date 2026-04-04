@@ -80,6 +80,7 @@ final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInter
         $data['iiifSource'] = $object->iiifManifestEntity?->source ?? null;
         $data['iiifSubjects'] = $sourceMeta['iiif_subjects'] ?? [];
         $data['iiifKeywords'] = $sourceMeta['iiif_keywords'] ?? [];
+        $data['mediaRecordId'] = $object->mediaRecord?->id;
 
         return $data;
     }
