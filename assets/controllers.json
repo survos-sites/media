@@ -49,6 +49,13 @@
                 "autoimport": []
             }
         },
+        "@survos/iiif-bundle": {
+            "iiif-viewer": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            }
+        },
         "@survos/meili-bundle": {
             "insta": {
                 "enabled": true,

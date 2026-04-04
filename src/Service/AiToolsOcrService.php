@@ -18,6 +18,10 @@ final class AiToolsOcrService
         private readonly ?string $baseUri = null,
         #[Autowire('%env(int:SERVICE_HTTP_TIMEOUT_SECONDS)%')]
         private readonly int $httpTimeoutSeconds = 120,
+        #[Autowire('%env(default::AI_TOOLS_LOCAL_PATH_HOST_PREFIX)%')]
+        private readonly ?string $localPathHostPrefix = null,
+        #[Autowire('%env(default::AI_TOOLS_LOCAL_PATH_CONTAINER_PREFIX)%')]
+        private readonly ?string $localPathContainerPrefix = null,
     ) {
     }
 
@@ -29,12 +33,26 @@ final class AiToolsOcrService
             return null;
         }
 
+        $payload = [
+            'include_ocr_text' => true,
+        ];
+        if (str_starts_with($url, 'file://')) {
+            $localPath = substr($url, 7);
+            $mappedPath = $this->mapLocalPathForRemote($localPath);
+            $payload['path'] = $mappedPath;
+            $payload['image_path'] = $mappedPath;
+            $payload['url'] = $url;
+            $payload['image_url'] = $url;
+            $payload['source'] = 'local_file';
+        } else {
+            $payload['url'] = $url;
+            $payload['image_url'] = $url;
+            $payload['source'] = 'url';
+        }
+
         try {
             $response = $this->httpClient->request('POST', '/analyze/type', [
-                'json' => [
-                    'url' => $url,
-                    'include_ocr_text' => true,
-                ],
+                'json' => $payload,
                 'timeout' => $this->httpTimeoutSeconds,
             ]);
 
@@ -75,5 +93,22 @@ final class AiToolsOcrService
                 'source_url' => $url,
             ];
         }
+    }
+
+    private function mapLocalPathForRemote(string $localPath): string
+    {
+        $hostPrefix = is_string($this->localPathHostPrefix) ? rtrim($this->localPathHostPrefix, '/') : '';
+        $containerPrefix = is_string($this->localPathContainerPrefix) ? rtrim($this->localPathContainerPrefix, '/') : '';
+
+        if ($hostPrefix === '' || $containerPrefix === '') {
+            return $localPath;
+        }
+
+        if ($localPath === $hostPrefix || str_starts_with($localPath, $hostPrefix . '/')) {
+            $suffix = substr($localPath, strlen($hostPrefix));
+            return $containerPrefix . $suffix;
+        }
+
+        return $localPath;
     }
 }

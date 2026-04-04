@@ -70,7 +70,7 @@
           {% if useIiif %}
             <twig:iiif:viewer
               manifestUrl="{{ path('iiif_manifest', {id: asset.id}) }}"
-              tileSourceUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
+              infoUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
               options="{{ {
 
               } | json_encode(constant('JSON_FORCE_OBJECT')) }}"
@@ -127,7 +127,15 @@
           <table class="table table-sm table-borderless mb-0">
             <tr><th>ID</th><td><code>{{ asset.id }}</code></td></tr>
             <tr><th>MIME</th><td>{{ asset.mime|default('—') }}</td></tr>
+            <tr><th>Dimensions</th><td>{% if asset.width and asset.height %}{{ asset.width }} × {{ asset.height }} px{% else %}—{% endif %}</td></tr>
+            <tr><th>Bytes</th><td>{{ asset.size|bytes }}</td></tr>
             <tr><th>Created</th><td>{{ asset.createdAt|date('Y-m-d H:i') }}</td></tr>
+            {% if asset.context.source_probe is defined %}
+            <tr><th>Source Probe</th><td>{{ asset.context.source_probe.width|default('?') }} × {{ asset.context.source_probe.height|default('?') }} px · {{ asset.context.source_probe.bytes|default(null)|bytes }}</td></tr>
+            {% endif %}
+            {% if asset.context.canonical_probe is defined %}
+            <tr><th>Canonical Probe</th><td>{{ asset.context.canonical_probe.width|default('?') }} × {{ asset.context.canonical_probe.height|default('?') }} px · {{ asset.context.canonical_probe.bytes|default(null)|bytes }}</td></tr>
+            {% endif %}
             {% if asset.storageKey %}
             <tr><th>Storage Key</th><td><code class="small">{{ asset.storageKey }}</code></td></tr>
             {% endif %}
@@ -649,6 +657,11 @@ prompt:
       transition: transform 0.08s linear;
       user-select: none;
       -webkit-user-drag: none;
+    }
+
+    .iiif-viewer > [data-controller*="iiif-viewer"] {
+      position: relative;
+      min-height: 70vh;
     }
   </style>
 {% endblock %}

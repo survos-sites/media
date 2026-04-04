@@ -95,6 +95,8 @@ class AssetWorkflow
         private readonly int                                   $serviceHttpTimeoutSeconds,
         #[Autowire('%kernel.project_dir%/public/temp')]
         private string                                         $tempDir,
+        #[Autowire('%env(default:media_canonical_dir_default:MEDIA_CANONICAL_DIR)%')]
+        private readonly string                                $canonicalDir,
         private readonly EntityManagerInterface                $entityManager,
         private readonly AsyncQueueLocator                     $asyncQueueLocator,
         private readonly VariantPlan                           $plan,
@@ -221,11 +223,11 @@ class AssetWorkflow
         $asset->storageKey = $path;
         // only AFTER we have a storage key, so it uses the s3 image for the thumb
         $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
-         if ($asset->tempFilename) {
+         if ($asset->localCanonicalFilename) {
              // keep files during testing locally
-//             unlink($asset->tempFilename);
+//             unlink($asset->localCanonicalFilename);
          }
-         $asset->tempFilename = null;
+         $asset->localCanonicalFilename = null;
 
          // Archive marks the end of the asset lifecycle for this worker
          $this->em->flush();
@@ -414,6 +416,7 @@ class AssetWorkflow
     public function onDownload(TransitionEvent $event): void
     {
         $asset = $this->getAsset($event);
+        $downloadUrl = null;
         $url = $asset->originalUrl;
 
 //        $url = 'https://ciim-public-media-s3.s3.eu-west-2.amazonaws.com/ramm/41_2005_3_2.jpg';
@@ -443,7 +446,34 @@ class AssetWorkflow
         $tmpFile = tempnam(sys_get_temp_dir(), 'asset_');
         $uploadPath = $tmpFile;
         try {
-            $this->downloadUrl($url, $tmpFile);
+            $downloadCandidates = $this->downloadCandidates($asset);
+            $lastError = null;
+            foreach ($downloadCandidates as $candidateUrl) {
+                try {
+                    $this->downloadUrl($candidateUrl, $tmpFile);
+                    $downloadUrl = $candidateUrl;
+                    break;
+                } catch (UnrecoverableMessageException|\Throwable $e) {
+                    $lastError = $e;
+                    $this->logger->warning('Download candidate failed for {id}: {url} ({error})', [
+                        'id' => $asset->id,
+                        'url' => $candidateUrl,
+                        'error' => $e->getMessage(),
+                    ]);
+                    continue;
+                }
+            }
+
+            if ($downloadUrl === null) {
+                if ($lastError instanceof \Throwable) {
+                    throw $lastError;
+                }
+                throw new RuntimeException(sprintf('No downloadable URL candidates for asset %s', $asset->id));
+            }
+
+            $asset->context ??= [];
+            $asset->context['download_url'] = $downloadUrl;
+
             if (!is_file($tmpFile) || filesize($tmpFile) === 0) {
                 throw new RuntimeException(sprintf('Downloaded zero-byte payload for asset %s', $asset->id));
             }
@@ -451,6 +481,14 @@ class AssetWorkflow
             // no network calls! Only what we need while we have local
             // Inspect local file once: size, mime, dimensions, exif (when applicable)
             $this->processLocalFile($tmpFile, $asset);
+            $asset->context ??= [];
+            $asset->context['source_probe'] = [
+                'mime' => $asset->mime,
+                'width' => $asset->width,
+                'height' => $asset->height,
+                'bytes' => $asset->size,
+                'url' => $downloadUrl,
+            ];
             $this->applyEdgeAnalysisFromLocalFile($asset, $tmpFile);
 
             // Normalize extension based on detected mime type
@@ -505,14 +543,22 @@ class AssetWorkflow
             // Build canonical payload while we still have local bytes.
             $uploadPath = $this->buildCanonicalAsset($asset, $tmpFile);
 
+            // Persist local canonical/small derivatives for shared AI-tools access.
+            $uploadPath = $this->persistLocalDerivatives($asset, $uploadPath);
+
             // Archive to S3 — now after all local analysis is done
             $this->uploadToArchiveFromPath($asset, $uploadPath);
         } finally {
             if (is_file($tmpFile)) {
-                @unlink($tmpFile);
+                unlink($tmpFile);
             }
-            if (is_string($uploadPath) && $uploadPath !== $tmpFile && is_file($uploadPath)) {
-                @unlink($uploadPath);
+            if (
+                is_string($uploadPath)
+                && $uploadPath !== $tmpFile
+                && $uploadPath !== $asset->localCanonicalFilename
+                && is_file($uploadPath)
+            ) {
+                unlink($uploadPath);
             }
         }
 
@@ -590,18 +636,28 @@ class AssetWorkflow
         }
 
         if (empty($asset->context['thumbhash']) && $asset->archiveUrl) {
-            $this->logger->info('onLocalAnalyze: thumbhash missing, fetching from archive URL (fallback)');
-            [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
-            $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
-            $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
-            unset($pixels);
+            $localForThumbhash = $this->localImagePath($asset, preferSmall: true);
+            if (is_string($localForThumbhash) && $localForThumbhash !== '') {
+                $this->logger->info('onLocalAnalyze: thumbhash missing, using local small derivative');
+                [$tw, $th, $pixels] = $this->resizeForThumbHash($localForThumbhash, 100);
+                $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+                $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
+                unset($pixels);
+            } else {
+                $this->logger->info('onLocalAnalyze: thumbhash missing, fetching from archive URL (fallback)');
+                [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
+                $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+                $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
+                unset($pixels);
+            }
         }
 
         if (empty($asset->context['colors']) && $asset->archiveUrl) {
+            $localForPalette = $this->localImagePath($asset, preferSmall: true);
             $this->assetPreviewService->maybeComputePaletteAndPhash(
                 $asset,
                 self::THUMBHASH_PRESET,
-                $asset->archiveUrl
+                $localForPalette ?? $asset->archiveUrl
             );
         }
 
@@ -693,6 +749,7 @@ class AssetWorkflow
 
         $inputs = array_filter([
             'image_url' => $imageUrl,
+            'image_path' => $this->localImagePath($asset, preferSmall: $taskName === AssetAiTask::ENRICH_FROM_THUMBNAIL->value),
             'mime' => $asset->mime ?? null,
         ], static fn ($value) => $value !== null);
 
@@ -736,14 +793,14 @@ class AssetWorkflow
     /** @return array{url: ?string, source: string} */
     private function preferredFullImageUrl(Asset $asset): array
     {
-        $iiifFullUrl = $this->iiifFullUrl($asset);
-        if ($iiifFullUrl !== null) {
-            return ['url' => $iiifFullUrl, 'source' => 'iiif_full'];
-        }
-
         $archiveUrl = $this->effectiveArchiveUrl($asset);
         if ($archiveUrl !== null) {
             return ['url' => $archiveUrl, 'source' => 'archive_url'];
+        }
+
+        $iiifFullUrl = $this->iiifFullUrl($asset);
+        if ($iiifFullUrl !== null) {
+            return ['url' => $iiifFullUrl, 'source' => 'iiif_full'];
         }
 
         if ($asset->originalUrl !== '') {
@@ -937,7 +994,12 @@ class AssetWorkflow
 
     private function preferredLocalOcrUrl(Asset $asset): ?string
     {
-        foreach ([$asset->originalUrl, $asset->archiveUrl, $asset->smallUrl] as $candidate) {
+        $localPath = $this->localImagePath($asset);
+        if (is_string($localPath) && $localPath !== '') {
+            return 'file://' . $localPath;
+        }
+
+        foreach ([$asset->archiveUrl, $asset->originalUrl, $asset->smallUrl] as $candidate) {
             if (is_string($candidate) && filter_var($candidate, FILTER_VALIDATE_URL)) {
                 return $candidate;
             }
@@ -998,6 +1060,98 @@ class AssetWorkflow
         }
 
         return rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+    }
+
+    /** @return list<string> */
+    private function downloadCandidates(Asset $asset): array
+    {
+        $candidates = [];
+        $iiifBase = $asset->iiifManifestEntity?->imageBase ?? $asset->sourceMeta['iiif_base'] ?? null;
+
+        if (is_string($iiifBase) && $iiifBase !== '' && !$this->looksLikePdf($asset->originalUrl)) {
+            $candidates[] = rtrim($iiifBase, '/') . '/full/' . self::CANONICAL_MAX_EDGE . ',/0/default.jpg';
+            $candidates[] = rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+        }
+
+        if ($asset->originalUrl !== '') {
+            $candidates[] = $asset->originalUrl;
+        }
+
+        return array_values(array_unique(array_filter($candidates, static fn(string $url): bool => filter_var($url, FILTER_VALIDATE_URL) !== false)));
+    }
+
+    private function looksLikePdf(string $url): bool
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        return strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
+    private function localImagePath(Asset $asset, bool $preferSmall = false): ?string
+    {
+        $candidates = $preferSmall
+            ? [$asset->localSmallFilename, $asset->localCanonicalFilename]
+            : [$asset->localCanonicalFilename, $asset->localSmallFilename];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function persistLocalDerivatives(Asset $asset, string $canonicalInputPath): string
+    {
+        if (!is_dir($this->canonicalDir) && !mkdir($this->canonicalDir, 0775, true) && !is_dir($this->canonicalDir)) {
+            throw new RuntimeException(sprintf('Unable to create canonical dir: %s', $this->canonicalDir));
+        }
+
+        $ext = $asset->ext ?: 'bin';
+        $canonicalPath = rtrim($this->canonicalDir, '/') . '/' . $asset->id . '.canonical.' . $ext;
+        if (!copy($canonicalInputPath, $canonicalPath)) {
+            throw new RuntimeException(sprintf('Failed to persist canonical file for asset %s', $asset->id));
+        }
+
+        $asset->localCanonicalFilename = $canonicalPath;
+        $asset->context ??= [];
+        $asset->context['local_canonical_filename'] = $canonicalPath;
+        $asset->context['canonical_probe'] = [
+            'mime' => $asset->mime,
+            'width' => $asset->width,
+            'height' => $asset->height,
+            'bytes' => filesize($canonicalPath) ?: null,
+            'path' => $canonicalPath,
+        ];
+
+        if (str_starts_with((string) $asset->mime, 'image/')) {
+            $smallPath = rtrim($this->canonicalDir, '/') . '/' . $asset->id . '.small.jpg';
+            try {
+                $img = new \Imagick($canonicalPath);
+                $img->thumbnailImage(1024, 1024, true);
+                $img->setImageFormat('jpg');
+                $img->setImageCompressionQuality(85);
+                $img->writeImage($smallPath);
+                $img->clear();
+                $asset->localSmallFilename = $smallPath;
+                $asset->context['local_small_filename'] = $smallPath;
+                $dims = getimagesize($smallPath);
+                $asset->context['small_probe'] = [
+                    'mime' => 'image/jpeg',
+                    'width' => is_array($dims) ? ($dims[0] ?? null) : null,
+                    'height' => is_array($dims) ? ($dims[1] ?? null) : null,
+                    'bytes' => filesize($smallPath) ?: null,
+                    'path' => $smallPath,
+                ];
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed creating local small derivative for {id}: {error}', [
+                    'id' => $asset->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $canonicalPath;
     }
 
     /** @param array<string,mixed>|null $manifest */
@@ -1146,6 +1300,7 @@ class AssetWorkflow
             'asset_id' => $asset->id,
             'task' => $taskName,
             'image_url' => $inputs['image_url'] ?? null,
+            'image_path' => $inputs['image_path'] ?? null,
             'image_source' => $imageSource,
             'requested_image_preference' => $taskOverride['image_source_preference'] ?? null,
             'requested_model' => $taskOverride['model'] ?? null,
@@ -1157,6 +1312,8 @@ class AssetWorkflow
                 'small_url' => $asset->smallUrl,
                 'archive_url' => $archiveUrl,
                 'stored_archive_url' => $storedArchiveUrl,
+                'local_canonical_filename' => $asset->localCanonicalFilename,
+                'local_small_filename' => $asset->localSmallFilename,
                 'original_url' => $asset->originalUrl,
             ],
             'iiif_manifest' => $asset->sourceMeta['iiif_manifest'] ?? null,

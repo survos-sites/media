@@ -109,7 +109,7 @@ final class AssetController extends AbstractController
     }
 
     /** Detail page for a single asset with AI task runner UI. */
-    #[Route('/{id}', name: 'show', options: ['expose' => true])]
+    #[Route('/{id}', name: 'show', requirements: ['id' => '[0-9a-f]{16}'], options: ['expose' => true])]
     public function show(Asset $asset): Response
     {
         $computedArchiveUrl = $asset->storageKey ? $this->assetRegistry->s3Url($asset) : null;

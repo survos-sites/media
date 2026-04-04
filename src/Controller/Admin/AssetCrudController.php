@@ -176,7 +176,8 @@ class AssetCrudController extends BaseCrudController
 //        yield TextField::new('root');                        // Storage root, now user
         yield UrlField::new('originalUrl'); // ->onlyOnDetail();                  // Source URL
 //        yield ArrayField::new('resized')->onlyOnDetail();
-        yield TextField::new('tempFilename')->onlyOnDetail();
+        yield TextField::new('localCanonicalFilename')->onlyOnDetail();
+        yield TextField::new('localSmallFilename')->onlyOnDetail();
         yield UrlField::new('archiveUrl')->onlyOnDetail();
         yield UrlField::new('smallUrl')->onlyOnDetail();
 //        yield ArrayField::new('resizedCount', "#resized");

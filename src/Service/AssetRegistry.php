@@ -5,8 +5,10 @@ namespace App\Service;
 
 use App\Entity\Asset;
 use App\Entity\AssetPath;
+use App\Entity\MediaRecord;
 use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
+use App\Repository\MediaRecordRepository;
 use App\Workflow\AssetFlow;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
@@ -25,6 +27,7 @@ final class AssetRegistry
         private readonly EntityManagerInterface $entityManager,
         private readonly AssetRepository $assetRepository,
         private readonly AssetPathRepository $assetPathRepository,
+        private readonly MediaRecordRepository $mediaRecordRepository,
         private AsyncQueueLocator $asyncQueueLocator,
         #[Target(AssetFlow::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
         private MessageBusInterface $messageBus,
@@ -70,6 +73,8 @@ final class AssetRegistry
             }
         }
 
+        $this->attachMediaRecord($asset, $contextHints, $originalUrl);
+
         $flush && $this->flush();
 
         return $asset;
@@ -105,6 +110,104 @@ final class AssetRegistry
     {
         return sprintf("%s/%s/%s", $this->s3Endpoint, $this->s3Bucket, $asset->storageKey);
     }
+
+    /** @param array<string,mixed> $contextHints */
+    private function attachMediaRecord(Asset $asset, array $contextHints, string $originalUrl): void
+    {
+        $recordKey = $this->deriveMediaRecordKey($contextHints, $originalUrl);
+        if ($recordKey === null) {
+            return;
+        }
+
+        $record = $this->mediaRecordRepository->findOneByRecordKey($recordKey);
+        if (!$record instanceof MediaRecord) {
+            $record = new MediaRecord($recordKey);
+            $this->entityManager->persist($record);
+        }
+
+        if ($asset->mediaRecord?->id !== $record->id) {
+            $record->addAsset($asset);
+        }
+
+        if ($record->label === null) {
+            $label = $contextHints['dcterms:title']
+                ?? $contextHints['title']
+                ?? null;
+            if (is_string($label) && trim($label) !== '') {
+                $record->label = trim($label);
+            }
+        }
+
+        if ($record->sourceMeta === null && $contextHints !== []) {
+            $record->sourceMeta = $contextHints;
+        }
+
+        if ($this->looksLikePdfUrl($originalUrl)) {
+            $record->sourceUrl ??= $originalUrl;
+            $record->sourceMime ??= 'application/pdf';
+        }
+    }
+
+    /** @param array<string,mixed> $contextHints */
+    private function deriveMediaRecordKey(array $contextHints, string $originalUrl): ?string
+    {
+        foreach (['media_record_key', 'record_key', 'source_ark', 'code', 'dcterms:identifier', 'identifier'] as $key) {
+            $value = $contextHints[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return $this->normalizeRecordKey($value);
+            }
+        }
+
+        $iiifManifest = $contextHints['iiif_manifest'] ?? $contextHints['iiifManifest'] ?? null;
+        if (is_string($iiifManifest) && trim($iiifManifest) !== '') {
+            $base = preg_replace('{/manifest/?$}i', '', trim($iiifManifest));
+            if (is_string($base) && $base !== '') {
+                return $this->normalizeRecordKey($base);
+            }
+        }
+
+        if ($this->looksLikePdfUrl($originalUrl)) {
+            $stem = $this->recordStemFromUrl($originalUrl);
+            return $stem !== null ? $this->normalizeRecordKey('urlstem:' . $stem) : null;
+        }
+
+        return null;
+    }
+
+    private function normalizeRecordKey(string $raw): ?string
+    {
+        $normalized = strtolower(trim($raw));
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        if (!is_string($normalized) || $normalized === '') {
+            return null;
+        }
+
+        return substr($normalized, 0, 191);
+    }
+
+    private function recordStemFromUrl(string $url): ?string
+    {
+        $host = (string) (parse_url($url, PHP_URL_HOST) ?? '');
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        if ($path === '') {
+            return null;
+        }
+
+        $stem = preg_replace('/\.[a-z0-9]{2,8}$/i', '', $path);
+        if (!is_string($stem) || $stem === '') {
+            return null;
+        }
+
+        $stem = preg_replace('/(?:[_-](?:p|page)?)\d{1,4}$/i', '', $stem) ?? $stem;
+        return $host !== '' ? $host . $stem : $stem;
+    }
+
+    private function looksLikePdfUrl(string $url): bool
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        return strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
     public function imgProxyUrl(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): ?string
     {
         return $this->imgProxyDebug($asset, $preset)['url'];

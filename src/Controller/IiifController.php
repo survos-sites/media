@@ -158,7 +158,7 @@ final class IiifController extends AbstractController
     */
 
     #[Route('/iiif/2/{id}/{region}/{size}/{rotation}/{quality}.{format}', name: 'iiif_image', methods: ['GET'])]
-    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): RedirectResponse
+    public function image(string $id, string $region, string $size, string $rotation, string $quality, string $format): Response
     {
         $asset = $this->findAsset($id);
         [$fullWidth, $fullHeight] = $this->dimensions($asset);

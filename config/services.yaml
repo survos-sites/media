@@ -2,6 +2,7 @@
 # Files in the packages/ subdirectory configure your dependencies.
 
 parameters:
+    media_canonical_dir_default: '%kernel.project_dir%/var/canonical'
 
 services:
     # default configuration for services in *this* file

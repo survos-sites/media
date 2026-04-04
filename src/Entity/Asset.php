@@ -26,6 +26,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
+#[ORM\Index(name: 'idx_asset_media_record', columns: ['media_record_id'])]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
@@ -211,6 +212,10 @@ class Asset implements MarkingInterface, \Stringable
     #[ORM\JoinColumn(name: 'iiif_manifest_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     public ?IiifManifest $iiifManifestEntity = null;
 
+    #[ORM\ManyToOne(targetEntity: MediaRecord::class, inversedBy: 'assets')]
+    #[ORM\JoinColumn(name: 'media_record_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public ?MediaRecord $mediaRecord = null;
+
      /**
       * Immutable parent reference (xxh3 key of parent Asset).
       * Null for top-level assets (e.g. PDFs).
@@ -311,9 +316,13 @@ class Asset implements MarkingInterface, \Stringable
         }
     }
 
-    /** Temp filename during fetch; not a durable path. */
+    /** Persisted local canonical path for shared AI-tools access. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $tempFilename = null;
+    public ?string $localCanonicalFilename = null;
+
+    /** Persisted local small derivative path for CPU tools (pHash/thumb tasks). */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $localSmallFilename = null;
 
     /** Optional original extension hint (jpg, mp4, …). */
     #[ORM\Column(type: Types::STRING, length: 12, nullable: true)]
