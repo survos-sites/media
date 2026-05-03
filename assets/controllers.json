@@ -49,13 +49,6 @@
                 "autoimport": []
             }
         },
-        "@survos/iiif-bundle": {
-            "iiif-viewer": {
-                "enabled": true,
-                "fetch": "lazy",
-                "autoimport": []
-            }
-        },
         "@survos/meili-bundle": {
             "insta": {
                 "enabled": true,
@@ -94,6 +87,10 @@
             }
         },
         "@survos/tabler-bundle": {
+            "accordion": {
+                "enabled": true,
+                "fetch": "lazy"
+            },
             "search": {
                 "enabled": true,
                 "fetch": "lazy"
