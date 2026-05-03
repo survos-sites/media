@@ -1,0 +1,44 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}IIIF {{ manifest.id }}{% endblock %}
+
+{% block body %}
+<div class="container-xl py-4">
+  <h1>{{ manifest.label ?? manifest.id }}</h1>
+
+  <div class="card mb-3">
+    <div class="card-body small">
+      <div><strong>Manifest</strong> <a href="{{ manifest.manifestUrl }}" target="_blank" rel="noopener">open ↗</a></div>
+      {% if manifest.thumbnailUrl %}<div><strong>Thumbnail</strong> <a href="{{ manifest.thumbnailUrl }}" target="_blank" rel="noopener">open ↗</a></div>{% endif %}
+      {% if manifest.imageBase %}<div><strong>Image base</strong> <code>{{ manifest.imageBase }}</code></div>{% endif %}
+      {% if manifest.width and manifest.height %}<div><strong>Size</strong> {{ manifest.width }} × {{ manifest.height }}</div>{% endif %}
+      <div><strong>Source</strong> {{ manifest.source }}</div>
+      {% if manifest.assets|length %}
+        <div class="mt-3"><strong>Assets</strong></div>
+        <ul class="mb-0">
+          {% for asset in manifest.assets %}
+            <li><a href="{{ path('asset_show', {id: asset.id}) }}">{{ asset.id }}</a></li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h4 class="card-title mb-0">Manifest JSON</h4></div>
+    <div class="card-body" data-controller="json-viewer">
+      <andypf-json-viewer
+        data-json-viewer-target="viewer"
+        expanded="1"
+        indent="2"
+        show-data-types="false"
+        theme="monokai"
+        show-toolbar="true"
+        show-size="true"
+        show-copy="true"
+      ></andypf-json-viewer>
+      <script type="application/json" data-json-viewer-target="payload">{{ manifest.manifestJson|json_encode|raw }}</script>
+    </div>
+  </div>
+</div>
+{% endblock %}

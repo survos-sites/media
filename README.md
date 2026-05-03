@@ -6,6 +6,7 @@
 * Azure Document Intelligence (Slow and expensive)
 * GropID
 * Digital Humanities
+* https://medium.com/@robi.tomar72/deepseek-ocr-just-did-the-impossible-and-the-entire-ai-world-is-shook-4020afb28956
 
 # Survos Media Server -- formerly Survos Async Image Server (SAIS)
 

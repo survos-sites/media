@@ -29,6 +29,7 @@ final class BatchController implements LoggerAwareInterface
             $urls       = [$request->query->get('url')];
             $contextMap = [];
             $callbackUrl = $request->query->get('callback_url');
+            $payload = ['client' => $client, 'urls' => $urls];
         } else {
             $payload     = $request->toArray();
             $urls        = $payload['urls'] ?? [];
@@ -67,6 +68,10 @@ final class BatchController implements LoggerAwareInterface
                 'storageKey'  => $asset->storageKey,
                 's3Url'       => $asset->archiveUrl,
                 'smallUrl'    => $asset->smallUrl,
+                'iiifManifestId' => $asset->iiifManifestEntity?->id,
+                'iiifManifest'   => $asset->iiifManifestEntity?->manifestUrl ?? ($asset->sourceMeta['iiif_manifest'] ?? null),
+                'iiifBase'       => $asset->iiifManifestEntity?->imageBase ?? ($asset->sourceMeta['iiif_base'] ?? null),
+                'iiifThumb'      => $asset->iiifManifestEntity?->thumbnailUrl ?? ($asset->sourceMeta['iiif_thumbnail_url'] ?? null),
                 'clients'     => $asset->clients,
                 'dispatched'  => array_key_exists($url, $queue) ? 'yes' : 'no',
             ];
@@ -75,7 +80,7 @@ final class BatchController implements LoggerAwareInterface
 
         // dispatch auto-download for the moment, let's focus on metadata
         foreach ($queue as $url => $asset) {
-//            $this->assetRegistry->dispatch($asset);
+            $this->assetRegistry->dispatch($asset);
         }
         $this->assetRegistry->flush();
 

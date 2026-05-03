@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\GetCollection;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
@@ -24,23 +26,33 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
+#[ORM\Index(name: 'idx_asset_media_record', columns: ['media_record_id'])]
 #[ORM\HasLifecycleCallbacks]
+#[ApiResource(
+    operations: [
+        new GetCollection()
+    ]
+)]
 #[MeiliIndex(
 //    chats: ['meili_assistant'],
-    sortable: ['createdAt', 'aiTokensTotal'],
+    sortable: ['createdAt', 'aiTokensTotal', 'size', 'width', 'height'],
     filterable: ['mime', 'clients', 'marking',
+        'ext', 'type', 'publisher', 'reuse',
 //        'aiDocumentType', 'aiDocumentSubtype',
         'subjects',
 //                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
     ],
-    searchable: ['title', 'description', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
-                 'aiPeople', 'aiPlaces', 'aiSubjects'],
+    searchable: ['title', 'description', 'filename', 'subjects', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
+                  'aiPeople', 'aiPlaces', 'aiSubjects'],
     persisted: new Fields(
         groups: ['asset.read'],
         fields: ['id',
-            'originalUrl',
-            'mime', 'width', 'title', 'description', 'height', 'createdAt', 'smallUrl', 'archiveUrl', 'marking',
-                 'aiDocumentType'],
+            'originalUrl', 'archiveUrl',
+        'mime', 'ext', 'filename', 'type', 'reuse', 'publisher', 'subjects',
+        'size', 'width', 'height',
+        'title', 'description', 'thumb', 'smallUrl',
+        'createdAt', 'marking', 'mediaRecordId',
+                  'aiDocumentType'],
     ),
     prompts: [
         'system' => 'You are assisting with media assets. Always use tool-backed search results from this index and always include [id:{value}] where {value} is the Asset primary key field {{ primaryKey }}.',
@@ -68,7 +80,7 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?string $description { get => $this->sourceMeta['dcterms:description'] ?? null; }
     #[Groups(['asset.read'])]
-    public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? null; }
+    public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? $this->sourceMeta['iiif_subjects'] ?? null; }
 
     #[Groups(['asset.read'])]
     #[Facet()]
@@ -79,11 +91,29 @@ class Asset implements MarkingInterface, \Stringable
     public ?string $reuse { get => $this->sourceMeta['reuse_allowed'] ?? null; }
 
     #[Groups(['asset.read'])]
-    public ?string $thumb { get => $this->sourceMeta['thumbnail_url'] ?? null; }
+    public ?string $thumb {
+        get => $this->smallUrl
+            ?? $this->iiifManifestEntity?->thumbnailUrl
+            ?? $this->sourceMeta['thumbnail_url']
+            ?? null;
+    }
 
     #[Groups(['asset.read'])]
     #[Facet()]
     public ?string $publisher { get => $this->sourceMeta['dcterms:publisher'] ?? null; }
+
+    #[Groups(['asset.read'])]
+    public ?string $filename {
+        get {
+            $path = (string) (parse_url($this->originalUrl, PHP_URL_PATH) ?? '');
+            $name = basename($path);
+            return $name !== '' ? $name : null;
+        }
+    }
+
+    #[Groups(['asset.read'])]
+    #[Facet()]
+    public ?string $mediaRecordId { get => $this->mediaRecord?->id; }
 
     /** Fast non-cryptographic content hash (xxh3 of bytes). */
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
@@ -149,6 +179,42 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?array $context = null;
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrText = null;
+
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?float $localOcrConfidence = null;
+
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrPrimaryType = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrSourceUrl = null;
+
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrProvider = null;
+
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrModel = null;
+
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?\DateTimeImmutable $localOcrAt = null;
+
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?int $localOcrStatus = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
+    public ?string $localOcrError = null;
+
     /**
      * Source metadata from the originating aggregator — dcterms:* keyed JSONB.
      * Written by BatchController from client context hints (DC fields, rights, ARK, IIIF URLs).
@@ -157,6 +223,14 @@ class Asset implements MarkingInterface, \Stringable
     #[ORM\Column(type: Types::JSON, nullable: true)]
     #[Groups(['asset.read'])]
     public ?array $sourceMeta = null;
+
+    #[ORM\ManyToOne(targetEntity: IiifManifest::class, inversedBy: 'assets')]
+    #[ORM\JoinColumn(name: 'iiif_manifest_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public ?IiifManifest $iiifManifestEntity = null;
+
+    #[ORM\ManyToOne(targetEntity: MediaRecord::class, inversedBy: 'assets')]
+    #[ORM\JoinColumn(name: 'media_record_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public ?MediaRecord $mediaRecord = null;
 
      /**
       * Immutable parent reference (xxh3 key of parent Asset).
@@ -244,16 +318,32 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])] // for now, maybe removed after debugging
     public ?string $archiveUrl = null;
 
-    #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['asset.read'])] // directly to imgProxy after archive.  could happen elsewhere, but for now it's here.
-    public ?string $smallUrl = null;
+    private ?string $smallUrlOverride = null;
 
-    /** Temp filename during fetch; not a durable path. */
+    #[Groups(['asset.read'])]
+    public ?string $smallUrl {
+        get => $this->smallUrlOverride
+            ?? $this->iiifManifestEntity?->thumbnailUrl
+            ?? $this->sourceMeta['thumbnail_url']
+            ?? null;
+
+        set(?string $value) {
+            $this->smallUrlOverride = $value;
+        }
+    }
+
+    /** Persisted local canonical path for shared AI-tools access. */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    public ?string $tempFilename = null;
+    public ?string $localCanonicalFilename = null;
+
+    /** Persisted local small derivative path for CPU tools (pHash/thumb tasks). */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $localSmallFilename = null;
 
     /** Optional original extension hint (jpg, mp4, …). */
     #[ORM\Column(type: Types::STRING, length: 12, nullable: true)]
+    #[Groups(['asset.read'])]
+    #[Facet()]
     public ?string $ext = null;
 
     /** Variant map (preset => url/info). */
@@ -424,6 +514,10 @@ class Asset implements MarkingInterface, \Stringable
 
     public function getAiOcrText(): ?string
     {
+        if (is_string($this->localOcrText) && trim($this->localOcrText) !== '') {
+            return $this->localOcrText;
+        }
+
         if (is_array($this->mediaEnrichment) && isset($this->mediaEnrichment['ocrText'])) {
             return is_string($this->mediaEnrichment['ocrText']) ? $this->mediaEnrichment['ocrText'] : null;
         }

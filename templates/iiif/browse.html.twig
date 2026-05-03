@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}IIIF{% endblock %}
+
+{% block body %}
+<div class="container-xl py-4">
+  <h1>IIIF Manifests</h1>
+  <twig:api_grid :class="'App\\Entity\\IiifManifest'" :apiGetCollectionUrl="path('_api_/iiif_manifests{._format}_get_collection', {_format: 'jsonld'})" :caller="_self" :facets="false">
+    <twig:block name="thumbnailUrl">
+      {% set thumb = row.thumbnailUrl ?: (row.imageBase ? row.imageBase ~ '/full/!200,200/0/default.jpg' : null) %}
+      {% if thumb %}
+        <a href="{{ path('iiif_show', {id: row.id}) }}" target="_blank" rel="noopener">
+          <img src="{{ thumb }}" alt="{{ row.label ?: row.id }}" loading="lazy" decoding="async" style="width:72px;height:72px;object-fit:cover;border-radius:6px;">
+        </a>
+      {% endif %}
+    </twig:block>
+
+    <twig:block name="id">
+      <a href="{{ path('iiif_show', {id: row.id}) }}" target="_blank" rel="noopener">{{ row.id }}</a>
+    </twig:block>
+
+    <twig:block name="label">
+      {% set label = row.label ?: row.manifestUrl %}
+      {% set short = label|slice(0, 72) %}
+      {% set link = row.assetId ? path('asset_show', {id: row.assetId}) : path('iiif_show', {id: row.id}) %}
+      <a href="{{ link }}" target="_blank" rel="noopener" title="{{ label }}">{{ short }}{% if label|length > 72 %}…{% endif %}</a>
+    </twig:block>
+
+    <twig:block name="manifestUrl">
+      <a href="{{ row.manifestUrl }}" target="_blank" rel="noopener">manifest ↗</a>
+    </twig:block>
+
+    <twig:block name="provider">
+      {{ row.provider ?: '—' }}
+    </twig:block>
+
+    <twig:block name="date">
+      {{ row.date ?: '—' }}
+    </twig:block>
+  </twig:api_grid>
+</div>
+{% endblock %}

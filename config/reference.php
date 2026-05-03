@@ -986,7 +986,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             use_underscore?: bool|Param, // Default: true
  *             unordered_list_markers?: list<scalar|Param|null>,
  *         },
- *         ...<mixed>
+ *         ...<string, mixed>
  *     },
  * }
  * @psalm-type SecurityConfig = array{
@@ -1481,7 +1481,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     dd?: bool|Param, // Default: true
  * }
  * @psalm-type SurvosSimpleDatatablesConfig = array{
- *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables-bundle/table"
+ *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables/table"
  *     per_page?: bool|Param, // Default: 10
  *     searchable?: bool|Param, // Default: true
  *     fixed_height?: scalar|Param|null, // Default: true
@@ -1901,7 +1901,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             cast_fn?: mixed,
  *             default?: mixed,
  *             filter_class?: mixed,
- *             ...<mixed>
+ *             ...<string, mixed>
  *         }>,
  *         strict_query_parameter_validation?: mixed,
  *         hide_hydra_operation?: mixed,
@@ -1921,7 +1921,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         name?: mixed,
  *         allow_create?: mixed,
  *         item_uri_template?: mixed,
- *         ...<mixed>
+ *         ...<string, mixed>
  *     },
  * }
  * @psalm-type DoctrineDiagramConfig = array{
@@ -2050,9 +2050,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             apiVersion?: scalar|Param|null, // Default: null
  *             deploymentId?: scalar|Param|null, // Default: null
  *             label?: scalar|Param|null, // Human-readable label used in dynamic prompts (defaults to indexName) // Default: null
+ *             curatorName?: scalar|Param|null, // Optional explicit curator display name for this workspace template // Default: null
+ *             curatorNameByIndex?: list<scalar|Param|null>,
  *             detailUrlPattern?: scalar|Param|null, // URL pattern for item detail pages; use {id} as placeholder e.g. /product/{id} // Default: null
  *             schemaUrl?: scalar|Param|null, // Optional OpenAPI schema URL used to explain field meanings in collection overview responses // Default: null
  *             examples?: list<scalar|Param|null>,
+ *             examplesByIndex?: list<list<scalar|Param|null>>,
  *             prompts?: array{ // Static prompt overrides — these win over dynamic template rendering
  *                 system?: scalar|Param|null, // Default: null
  *                 searchFilterParam?: scalar|Param|null, // Default: null
@@ -2557,6 +2560,18 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         response_key?: scalar|Param|null, // key if API returns an object response, e.g. dummyjson returns {'products': [...]}
  *     }>,
  * }
+ * @psalm-type SurvosApiGridConfig = array{
+ *     stimulus_controller?: scalar|Param|null, // The stimulus controller to use, should extend @survos/api-grid/api-grid // Default: "@survos/api-grid/api-grid"
+ *     grid_stimulus_controller?: scalar|Param|null, // Default: "@survos/api-grid/grid"
+ *     meiliHost?: scalar|Param|null, // Default: "%env(MEILI_SERVER)%"
+ *     meiliKey?: scalar|Param|null, // Default: "%env(MEILI_API_KEY)%"
+ *     meiliPrefix?: scalar|Param|null, // Default: "%env(MEILI_PREFIX)%"
+ *     passLocale?: bool|Param, // Default: false
+ *     maxValuesPerFacet?: int|Param, // https://www.meilisearch.com/docs/reference/api/settings#faceting-object // Default: 1000
+ * }
+ * @psalm-type SurvosInspectionConfig = array{
+ *     debug?: bool|Param, // Default: false
+ * }
  * @psalm-type ImgproxyConfig = array{
  *     host?: scalar|Param|null,
  *     media_url?: scalar|Param|null,
@@ -2613,7 +2628,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type SurvosDataConfig = array{
  *     data_dir?: scalar|Param|null, // Default: "%env(APP_DATA_DIR)%"
- *     dataset_root?: scalar|Param|null, // Default: "data"
+ *     dataset_root?: scalar|Param|null, // Default: "work"
  *     pixie_root?: scalar|Param|null, // Default: "pixie"
  *     runs_root?: scalar|Param|null, // Default: "runs"
  *     cache_root?: scalar|Param|null, // Default: "cache"
@@ -2721,6 +2736,61 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     ignore_not_found?: bool|Param, // Ignore error when an icon is not found. Set to 'true' to fail silently. // Default: false
  * }
+ * @psalm-type McpConfig = array{
+ *     app?: scalar|Param|null, // Default: "app"
+ *     version?: scalar|Param|null, // Default: "0.0.1"
+ *     description?: scalar|Param|null, // Default: null
+ *     icons?: list<array{ // Default: []
+ *         src?: scalar|Param|null,
+ *         mime_type?: scalar|Param|null, // Default: null
+ *         sizes?: list<scalar|Param|null>,
+ *     }>,
+ *     website_url?: scalar|Param|null, // Default: null
+ *     pagination_limit?: int|Param, // Default: 50
+ *     instructions?: scalar|Param|null, // Default: null
+ *     client_transports?: array{
+ *         stdio?: bool|Param, // Default: false
+ *         http?: bool|Param, // Default: false
+ *     },
+ *     discovery?: array{
+ *         scan_dirs?: list<scalar|Param|null>,
+ *         exclude_dirs?: list<scalar|Param|null>,
+ *     },
+ *     http?: array{
+ *         path?: scalar|Param|null, // Default: "/_mcp"
+ *         session?: array{
+ *             store?: "file"|"memory"|"cache"|Param, // Default: "file"
+ *             directory?: scalar|Param|null, // Default: "%kernel.cache_dir%/mcp-sessions"
+ *             cache_pool?: scalar|Param|null, // Default: "cache.mcp.sessions"
+ *             prefix?: scalar|Param|null, // Default: "mcp-"
+ *             ttl?: int|Param, // Default: 3600
+ *         },
+ *     },
+ * }
+ * @psalm-type KnpuOauth2ClientConfig = array{
+ *     http_client?: scalar|Param|null, // Service id of HTTP client to use (must implement GuzzleHttp\ClientInterface) // Default: null
+ *     http_client_options?: array{
+ *         timeout?: int|Param,
+ *         proxy?: scalar|Param|null,
+ *         verify?: bool|Param, // Use only with proxy option set
+ *     },
+ *     clients?: array<string, array<string, mixed>>,
+ * }
+ * @psalm-type SurvosAuthConfig = array{
+ *     providers?: array<string, array{ // Default: []
+ *         type?: scalar|Param|null, // Default: null
+ *         client_id?: scalar|Param|null, // Default: null
+ *         client_secret?: scalar|Param|null, // Default: null
+ *         scopes?: list<scalar|Param|null>,
+ *         redirect_route?: scalar|Param|null, // Default: null
+ *         redirect_params?: list<scalar|Param|null>,
+ *         use_state?: bool|Param|null, // Default: null
+ *     }>,
+ *     new_user_redirect_route?: scalar|Param|null, // Default: "oauth_profile"
+ *     production_url_base?: scalar|Param|null, // Default: null
+ *     user_provider?: scalar|Param|null, // Default: null
+ *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -2758,12 +2828,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     ai?: AiConfig,
  *     survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     survos_js_twig?: SurvosJsTwigConfig,
+ *     survos_api_grid?: SurvosApiGridConfig,
+ *     survos_inspection?: SurvosInspectionConfig,
  *     imgproxy?: ImgproxyConfig,
  *     survos_data?: SurvosDataConfig,
  *     survos_import?: SurvosImportConfig,
  *     knp_menu?: KnpMenuConfig,
  *     survos_tabler?: SurvosTablerConfig,
  *     ux_icons?: UxIconsConfig,
+ *     mcp?: McpConfig,
+ *     knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *     survos_auth?: SurvosAuthConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2807,12 +2882,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         survos_api_grid?: SurvosApiGridConfig,
+ *         survos_inspection?: SurvosInspectionConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
+ *         mcp?: McpConfig,
+ *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *         survos_auth?: SurvosAuthConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -2851,12 +2931,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         survos_api_grid?: SurvosApiGridConfig,
+ *         survos_inspection?: SurvosInspectionConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
+ *         mcp?: McpConfig,
+ *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *         survos_auth?: SurvosAuthConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -2898,12 +2983,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
+ *         survos_api_grid?: SurvosApiGridConfig,
+ *         survos_inspection?: SurvosInspectionConfig,
  *         imgproxy?: ImgproxyConfig,
  *         survos_data?: SurvosDataConfig,
  *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
+ *         mcp?: McpConfig,
+ *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
+ *         survos_auth?: SurvosAuthConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

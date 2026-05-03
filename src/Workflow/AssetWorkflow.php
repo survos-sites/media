@@ -7,6 +7,7 @@ use App\Ai\AssetAiTask;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Service\AssetRegistry;
 use App\Service\EdgeAnalysisService;
+use App\Service\IiifManifestService;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
 use App\Entity\AssetPath;
@@ -15,6 +16,7 @@ use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\UserRepository;
 use App\Service\ArchiveService;
+use App\Service\AiToolsOcrService;
 use App\Service\AtomicFileWriter;
 use App\Service\AssetPreviewService;
 use App\Service\VariantPlan;
@@ -49,6 +51,7 @@ use Symfony\Component\Workflow\Event\TransitionEvent;
 use Symfony\Component\Workflow\WorkflowInterface;
 use Symfony\Contracts\EventDispatcher\Event;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Survos\StateBundle\Exception\UnrecoverableMessageException;
 use Twig\Environment as TwigEnvironment;
 use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
 use App\Service\OcrService;
@@ -59,6 +62,8 @@ use App\Workflow\VariantFlowDefinition as VWF;
 class AssetWorkflow
 {
     const THUMBHASH_PRESET = 'small';
+    private const CANONICAL_MAX_EDGE = 3000;
+    private const CANONICAL_WEBP_QUALITY = 82;
     private ?float $sourceCooldownUntil = null;
     /** @var array<string, AiTaskInterface> */
     private array $aiTaskHandlers = [];
@@ -88,15 +93,21 @@ class AssetWorkflow
         private readonly int                                   $source529CooldownMs,
         #[Autowire('%env(int:SERVICE_HTTP_TIMEOUT_SECONDS)%')]
         private readonly int                                   $serviceHttpTimeoutSeconds,
+        #[Autowire('%env(bool:AI_PAID_TOOLS_ENABLED)%')]
+        private readonly bool                                  $paidAiToolsEnabled,
         #[Autowire('%kernel.project_dir%/public/temp')]
         private string                                         $tempDir,
+        #[Autowire('%env(default:media_canonical_dir_default:MEDIA_CANONICAL_DIR)%')]
+        private readonly string                                $canonicalDir,
         private readonly EntityManagerInterface                $entityManager,
         private readonly AsyncQueueLocator                     $asyncQueueLocator,
         private readonly VariantPlan                           $plan,
         private readonly StorageService $storageService,
         private readonly AssetRegistry $assetRegistry,
+        private readonly IiifManifestService $iiifManifestService,
         private readonly EdgeAnalysisService $edgeAnalysisService,
         private readonly OcrService $ocrService,
+        private readonly AiToolsOcrService $aiToolsOcrService,
         private readonly TwigEnvironment $twig,
         private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
@@ -214,11 +225,11 @@ class AssetWorkflow
         $asset->storageKey = $path;
         // only AFTER we have a storage key, so it uses the s3 image for the thumb
         $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
-         if ($asset->tempFilename) {
+         if ($asset->localCanonicalFilename) {
              // keep files during testing locally
-//             unlink($asset->tempFilename);
+//             unlink($asset->localCanonicalFilename);
          }
-         $asset->tempFilename = null;
+         $asset->localCanonicalFilename = null;
 
          // Archive marks the end of the asset lifecycle for this worker
          $this->em->flush();
@@ -235,6 +246,170 @@ class AssetWorkflow
         $this->em->flush();
     }
 
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_LOCAL_OCR)]
+    public function onLocalOcr(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        $sourceUrl = $this->preferredLocalOcrUrl($asset);
+        if ($sourceUrl === null) {
+            $this->logger->warning('Local OCR skipped for {id}: no source URL', ['id' => $asset->id]);
+            return;
+        }
+
+        $analysis = $this->aiToolsOcrService->analyzeUrl($sourceUrl);
+        if (!is_array($analysis) || $analysis === []) {
+            $this->logger->warning('Local OCR returned no result for {id}', ['id' => $asset->id]);
+            return;
+        }
+
+        $asset->localOcrStatus = isset($analysis['status']) && is_numeric($analysis['status'])
+            ? (int) $analysis['status']
+            : null;
+        $asset->localOcrError = is_string($analysis['error'] ?? null) ? $analysis['error'] : null;
+
+        if (($analysis['ok'] ?? true) !== true) {
+            $asset->context ??= [];
+            $asset->context['local_ocr'] = $analysis;
+            $this->em->flush();
+            return;
+        }
+
+        $ocr = $analysis['ocr'] ?? [];
+        if (!is_array($ocr)) {
+            $ocr = [];
+        }
+
+        $asset->context ??= [];
+        $asset->context['local_ocr'] = $analysis;
+        if (isset($ocr['text']) && is_string($ocr['text']) && trim($ocr['text']) !== '') {
+            $asset->context['ocr'] = mb_substr($ocr['text'], 0, 20000);
+            $asset->context['ocr_chars'] = mb_strlen($asset->context['ocr']);
+        }
+
+        $asset->localOcrText = is_string($ocr['text'] ?? null) ? trim((string) $ocr['text']) : null;
+        $asset->localOcrConfidence = isset($ocr['mean_confidence']) && is_numeric($ocr['mean_confidence'])
+            ? (float) $ocr['mean_confidence']
+            : null;
+        $asset->localOcrPrimaryType = is_string($analysis['primary_type'] ?? null) ? $analysis['primary_type'] : null;
+        $asset->localOcrSourceUrl = $sourceUrl;
+        $asset->localOcrProvider = 'ai-tools';
+        $asset->localOcrModel = 'tesseract';
+        $asset->localOcrAt = new \DateTimeImmutable();
+        $asset->localOcrStatus = 200;
+        $asset->localOcrError = null;
+
+        if ($asset->aiDocumentType === null && is_string($asset->localOcrPrimaryType) && $asset->localOcrPrimaryType !== '') {
+            $asset->aiDocumentType = $asset->localOcrPrimaryType;
+        }
+
+        $tasks = $this->localOcrNextTasks($analysis);
+        if ($tasks !== []) {
+            $asset->aiQueue = array_values(array_unique(array_merge($asset->aiQueue, $tasks)));
+        }
+
+        $this->em->flush();
+    }
+
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_FETCH_IIIF)]
+    public function onFetchIiif(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+
+        $hints = is_array($asset->sourceMeta) ? $asset->sourceMeta : [];
+        $manifestRef = $hints['iiif_manifest'] ?? $hints['iiifManifest'] ?? null;
+
+        if ($manifestRef === null || $manifestRef === '') {
+            return;
+        }
+
+        try {
+            $cachedManifest = $asset->iiifManifestEntity?->manifestJson;
+            if (!isset($hints['iiif_manifest_json']) && is_array($cachedManifest) && $cachedManifest !== []) {
+                $hints['iiif_manifest_json'] = $cachedManifest;
+            }
+
+            if (is_string($manifestRef) && !isset($hints['iiif_manifest_json'])) {
+                $tmpFile = tempnam(sys_get_temp_dir(), 'iiif_manifest_');
+                if ($tmpFile === false) {
+                    throw new RuntimeException('Unable to allocate temporary file for IIIF fetch.');
+                }
+
+                try {
+                    $this->downloadUrl($manifestRef, $tmpFile);
+                    $json = file_get_contents($tmpFile);
+                    if ($json !== false) {
+                        $decoded = json_decode($json, true);
+                        if (is_array($decoded)) {
+                            $hints['iiif_manifest_json'] = $decoded;
+                        }
+                    }
+                } finally {
+                    if (is_file($tmpFile)) {
+                        @unlink($tmpFile);
+                    }
+                }
+            }
+
+            $hints = $this->iiifManifestService->attachFromContextHints($asset, $hints);
+            $asset->sourceMeta = array_replace($asset->sourceMeta ?? [], $hints);
+
+            $metadataMap = $this->iiifMetadataMap($asset->iiifManifestEntity?->manifestJson ?? null);
+
+            // Fill canonical source metadata conservatively: only when empty.
+            if (!isset($asset->sourceMeta['dcterms:title']) || trim((string) $asset->sourceMeta['dcterms:title']) === '') {
+                $title = trim((string) ($asset->iiifManifestEntity?->label ?? ''));
+                if ($title === '') {
+                    $title = $this->firstIiifValue($metadataMap, ['title']);
+                }
+                if ($title !== '') {
+                    $asset->sourceMeta['dcterms:title'] = $title;
+                }
+            }
+
+            if (!isset($asset->sourceMeta['dcterms:description']) || trim((string) $asset->sourceMeta['dcterms:description']) === '') {
+                $description = $this->firstIiifValue($metadataMap, ['description', 'summary', 'abstract']);
+                if ($description !== '') {
+                    $asset->sourceMeta['dcterms:description'] = $description;
+                }
+            }
+
+            // Keep parsed IIIF facets in sourceMeta for indexing/debug.
+            $asset->sourceMeta ??= [];
+            if (!isset($asset->sourceMeta['iiif_subjects'])) {
+                $subjects = $this->iiifValues($metadataMap, ['subject', 'subjects', 'topic', 'topics']);
+                if ($subjects !== []) {
+                    $asset->sourceMeta['iiif_subjects'] = $subjects;
+                }
+            }
+            if (!isset($asset->sourceMeta['iiif_keywords'])) {
+                $keywords = $this->iiifValues($metadataMap, ['keyword', 'keywords']);
+                if ($keywords !== []) {
+                    $asset->sourceMeta['iiif_keywords'] = $keywords;
+                }
+            }
+
+            // Once IIIF metadata is available, prefer a deterministic IIIF-derived thumbnail
+            // over any earlier fallback/insecure value.
+            $iiifThumb = $this->extractUrlFromMixed($asset->sourceMeta['iiif_thumbnail_url'] ?? null)
+                ?? $this->extractUrlFromMixed($asset->sourceMeta['thumbnail_url'] ?? null)
+                ?? $this->iiifThumbnailUrl($asset);
+
+            if (is_string($iiifThumb) && $iiifThumb !== '') {
+                $asset->smallUrl = $iiifThumb;
+            }
+
+            $this->em->flush();
+        } catch (UnrecoverableMessageException $e) {
+            $asset->sourceMeta ??= [];
+            $asset->sourceMeta['iiif_error'] = $e->getMessage();
+            $this->logger->warning('Skipping IIIF manifest fetch for {id}: {message}', [
+                'id' => $asset->id,
+                'message' => $e->getMessage(),
+            ]);
+            $this->em->flush();
+        }
+    }
+
         /**
      * @throws FilesystemException
      * @throws TransportExceptionInterface
@@ -243,6 +418,7 @@ class AssetWorkflow
     public function onDownload(TransitionEvent $event): void
     {
         $asset = $this->getAsset($event);
+        $downloadUrl = null;
         $url = $asset->originalUrl;
 
 //        $url = 'https://ciim-public-media-s3.s3.eu-west-2.amazonaws.com/ramm/41_2005_3_2.jpg';
@@ -270,8 +446,36 @@ class AssetWorkflow
         // path will change if there is an extension mismatch!
         // Download to a process-local temp file (not persisted)
         $tmpFile = tempnam(sys_get_temp_dir(), 'asset_');
+        $uploadPath = $tmpFile;
         try {
-            $this->downloadUrl($url, $tmpFile);
+            $downloadCandidates = $this->downloadCandidates($asset);
+            $lastError = null;
+            foreach ($downloadCandidates as $candidateUrl) {
+                try {
+                    $this->downloadUrl($candidateUrl, $tmpFile);
+                    $downloadUrl = $candidateUrl;
+                    break;
+                } catch (UnrecoverableMessageException|\Throwable $e) {
+                    $lastError = $e;
+                    $this->logger->warning('Download candidate failed for {id}: {url} ({error})', [
+                        'id' => $asset->id,
+                        'url' => $candidateUrl,
+                        'error' => $e->getMessage(),
+                    ]);
+                    continue;
+                }
+            }
+
+            if ($downloadUrl === null) {
+                if ($lastError instanceof \Throwable) {
+                    throw $lastError;
+                }
+                throw new RuntimeException(sprintf('No downloadable URL candidates for asset %s', $asset->id));
+            }
+
+            $asset->context ??= [];
+            $asset->context['download_url'] = $downloadUrl;
+
             if (!is_file($tmpFile) || filesize($tmpFile) === 0) {
                 throw new RuntimeException(sprintf('Downloaded zero-byte payload for asset %s', $asset->id));
             }
@@ -279,6 +483,14 @@ class AssetWorkflow
             // no network calls! Only what we need while we have local
             // Inspect local file once: size, mime, dimensions, exif (when applicable)
             $this->processLocalFile($tmpFile, $asset);
+            $asset->context ??= [];
+            $asset->context['source_probe'] = [
+                'mime' => $asset->mime,
+                'width' => $asset->width,
+                'height' => $asset->height,
+                'bytes' => $asset->size,
+                'url' => $downloadUrl,
+            ];
             $this->applyEdgeAnalysisFromLocalFile($asset, $tmpFile);
 
             // Normalize extension based on detected mime type
@@ -290,6 +502,7 @@ class AssetWorkflow
                 $tmpFile = $renamed;
                 $asset->ext = $detectedExt;
             }
+            $uploadPath = $tmpFile;
 
             // tasks[] controls which analysis steps to run for this asset.
             // Sent by ssai in context hints; defaults to all tasks if absent.
@@ -329,11 +542,25 @@ class AssetWorkflow
                 }
             }
 
+            // Build canonical payload while we still have local bytes.
+            $uploadPath = $this->buildCanonicalAsset($asset, $tmpFile);
+
+            // Persist local canonical/small derivatives for shared AI-tools access.
+            $uploadPath = $this->persistLocalDerivatives($asset, $uploadPath);
+
             // Archive to S3 — now after all local analysis is done
-            $this->uploadToArchiveFromPath($asset, $tmpFile);
+            $this->uploadToArchiveFromPath($asset, $uploadPath);
         } finally {
             if (is_file($tmpFile)) {
-                @unlink($tmpFile);
+                unlink($tmpFile);
+            }
+            if (
+                is_string($uploadPath)
+                && $uploadPath !== $tmpFile
+                && $uploadPath !== $asset->localCanonicalFilename
+                && is_file($uploadPath)
+            ) {
+                unlink($uploadPath);
             }
         }
 
@@ -355,7 +582,7 @@ class AssetWorkflow
         $this->em->flush();
 
         $transitionName = $event->getTransition()->getName();
-        if (in_array($transitionName, [WF::TRANSITION_QUEUE_AI, WF::TRANSITION_AI_TASK], true) && !$asset->aiLocked) {
+        if (in_array($transitionName, [WF::TRANSITION_QUEUE_AI, WF::TRANSITION_AI_TASK, WF::TRANSITION_LOCAL_OCR], true) && !$asset->aiLocked) {
             if (!empty($asset->aiQueue) && $this->assetWorkflow->can($asset, WF::TRANSITION_AI_TASK)) {
                 $this->dispatchTransition($asset, WF::TRANSITION_AI_TASK);
             } elseif (empty($asset->aiQueue) && $this->assetWorkflow->can($asset, WF::TRANSITION_AI_DONE)) {
@@ -411,18 +638,28 @@ class AssetWorkflow
         }
 
         if (empty($asset->context['thumbhash']) && $asset->archiveUrl) {
-            $this->logger->info('onLocalAnalyze: thumbhash missing, fetching from archive URL (fallback)');
-            [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
-            $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
-            $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
-            unset($pixels);
+            $localForThumbhash = $this->localImagePath($asset, preferSmall: true);
+            if (is_string($localForThumbhash) && $localForThumbhash !== '') {
+                $this->logger->info('onLocalAnalyze: thumbhash missing, using local small derivative');
+                [$tw, $th, $pixels] = $this->resizeForThumbHash($localForThumbhash, 100);
+                $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+                $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
+                unset($pixels);
+            } else {
+                $this->logger->info('onLocalAnalyze: thumbhash missing, fetching from archive URL (fallback)');
+                [$tw, $th, $pixels] = $this->assetPreviewService->resizeForThumbHashFromUrl($asset->archiveUrl);
+                $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
+                $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
+                unset($pixels);
+            }
         }
 
         if (empty($asset->context['colors']) && $asset->archiveUrl) {
+            $localForPalette = $this->localImagePath($asset, preferSmall: true);
             $this->assetPreviewService->maybeComputePaletteAndPhash(
                 $asset,
                 self::THUMBHASH_PRESET,
-                $asset->archiveUrl
+                $localForPalette ?? $asset->archiveUrl
             );
         }
 
@@ -514,6 +751,7 @@ class AssetWorkflow
 
         $inputs = array_filter([
             'image_url' => $imageUrl,
+            'image_path' => $this->localImagePath($asset, preferSmall: $taskName === AssetAiTask::ENRICH_FROM_THUMBNAIL->value),
             'mime' => $asset->mime ?? null,
         ], static fn ($value) => $value !== null);
 
@@ -557,14 +795,14 @@ class AssetWorkflow
     /** @return array{url: ?string, source: string} */
     private function preferredFullImageUrl(Asset $asset): array
     {
-        $iiifFullUrl = $this->iiifFullUrl($asset);
-        if ($iiifFullUrl !== null) {
-            return ['url' => $iiifFullUrl, 'source' => 'iiif_full'];
-        }
-
         $archiveUrl = $this->effectiveArchiveUrl($asset);
         if ($archiveUrl !== null) {
             return ['url' => $archiveUrl, 'source' => 'archive_url'];
+        }
+
+        $iiifFullUrl = $this->iiifFullUrl($asset);
+        if ($iiifFullUrl !== null) {
+            return ['url' => $iiifFullUrl, 'source' => 'iiif_full'];
         }
 
         if ($asset->originalUrl !== '') {
@@ -617,7 +855,7 @@ class AssetWorkflow
 
     private function iiifThumbnailUrl(Asset $asset): ?string
     {
-        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        $iiifBase = $asset->iiifManifestEntity?->imageBase ?? $asset->sourceMeta['iiif_base'] ?? null;
         if (!is_string($iiifBase) || $iiifBase === '') {
             return null;
         }
@@ -756,6 +994,46 @@ class AssetWorkflow
         }
     }
 
+    private function preferredLocalOcrUrl(Asset $asset): ?string
+    {
+        $localPath = $this->localImagePath($asset);
+        if (is_string($localPath) && $localPath !== '') {
+            return 'file://' . $localPath;
+        }
+
+        foreach ([$asset->archiveUrl, $asset->originalUrl, $asset->smallUrl] as $candidate) {
+            if (is_string($candidate) && filter_var($candidate, FILTER_VALIDATE_URL)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /** @param array<string, mixed> $analysis */
+    private function localOcrNextTasks(array $analysis): array
+    {
+        if (!$this->paidAiToolsEnabled) {
+            return [];
+        }
+
+        $primaryType = strtolower(trim((string) ($analysis['primary_type'] ?? '')));
+        $typedLikely = (bool) ($analysis['typed_likely'] ?? false);
+        $handwrittenLikely = (bool) ($analysis['handwritten_likely'] ?? false);
+        $hasTextLikely = (bool) ($analysis['has_text_likely'] ?? false);
+
+        if (
+            $typedLikely
+            || $handwrittenLikely
+            || $hasTextLikely
+            || in_array($primaryType, ['document', 'text_page', 'handwritten_note', 'tag_or_label'], true)
+        ) {
+            return [AssetAiTask::OCR_MISTRAL->value];
+        }
+
+        return [AssetAiTask::ENRICH_FROM_THUMBNAIL->value];
+    }
+
     /** @return array<string, array> */
     private function indexedPriorResults(Asset $asset): array
     {
@@ -782,12 +1060,214 @@ class AssetWorkflow
 
     private function iiifFullUrl(Asset $asset): ?string
     {
-        $iiifBase = $asset->sourceMeta['iiif_base'] ?? null;
+        $iiifBase = $asset->iiifManifestEntity?->imageBase ?? $asset->sourceMeta['iiif_base'] ?? null;
         if (!is_string($iiifBase) || $iiifBase === '') {
             return null;
         }
 
         return rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+    }
+
+    /** @return list<string> */
+    private function downloadCandidates(Asset $asset): array
+    {
+        $candidates = [];
+        $iiifBase = $asset->iiifManifestEntity?->imageBase ?? $asset->sourceMeta['iiif_base'] ?? null;
+
+        if (is_string($iiifBase) && $iiifBase !== '' && !$this->looksLikePdf($asset->originalUrl)) {
+            $candidates[] = rtrim($iiifBase, '/') . '/full/' . self::CANONICAL_MAX_EDGE . ',/0/default.jpg';
+            $candidates[] = rtrim($iiifBase, '/') . '/full/max/0/default.jpg';
+        }
+
+        if ($asset->originalUrl !== '') {
+            $candidates[] = $asset->originalUrl;
+        }
+
+        return array_values(array_unique(array_filter($candidates, static fn(string $url): bool => filter_var($url, FILTER_VALIDATE_URL) !== false)));
+    }
+
+    private function looksLikePdf(string $url): bool
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        return strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
+    private function localImagePath(Asset $asset, bool $preferSmall = false): ?string
+    {
+        $candidates = $preferSmall
+            ? [$asset->localSmallFilename, $asset->localCanonicalFilename]
+            : [$asset->localCanonicalFilename, $asset->localSmallFilename];
+
+        foreach ($candidates as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private function persistLocalDerivatives(Asset $asset, string $canonicalInputPath): string
+    {
+        if (!is_dir($this->canonicalDir) && !mkdir($this->canonicalDir, 0775, true) && !is_dir($this->canonicalDir)) {
+            throw new RuntimeException(sprintf('Unable to create canonical dir: %s', $this->canonicalDir));
+        }
+
+        $ext = $asset->ext ?: 'bin';
+        $canonicalPath = rtrim($this->canonicalDir, '/') . '/' . $asset->id . '.canonical.' . $ext;
+        if (!copy($canonicalInputPath, $canonicalPath)) {
+            throw new RuntimeException(sprintf('Failed to persist canonical file for asset %s', $asset->id));
+        }
+
+        $asset->localCanonicalFilename = $canonicalPath;
+        $asset->context ??= [];
+        $asset->context['local_canonical_filename'] = $canonicalPath;
+        $asset->context['canonical_probe'] = [
+            'mime' => $asset->mime,
+            'width' => $asset->width,
+            'height' => $asset->height,
+            'bytes' => filesize($canonicalPath) ?: null,
+            'path' => $canonicalPath,
+        ];
+
+        if (str_starts_with((string) $asset->mime, 'image/')) {
+            $smallPath = rtrim($this->canonicalDir, '/') . '/' . $asset->id . '.small.jpg';
+            try {
+                $img = new \Imagick($canonicalPath);
+                $img->thumbnailImage(1024, 1024, true);
+                $img->setImageFormat('jpg');
+                $img->setImageCompressionQuality(85);
+                $img->writeImage($smallPath);
+                $img->clear();
+                $asset->localSmallFilename = $smallPath;
+                $asset->context['local_small_filename'] = $smallPath;
+                $dims = getimagesize($smallPath);
+                $asset->context['small_probe'] = [
+                    'mime' => 'image/jpeg',
+                    'width' => is_array($dims) ? ($dims[0] ?? null) : null,
+                    'height' => is_array($dims) ? ($dims[1] ?? null) : null,
+                    'bytes' => filesize($smallPath) ?: null,
+                    'path' => $smallPath,
+                ];
+            } catch (\Throwable $e) {
+                $this->logger->warning('Failed creating local small derivative for {id}: {error}', [
+                    'id' => $asset->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $canonicalPath;
+    }
+
+    /** @param array<string,mixed>|null $manifest */
+    private function iiifMetadataMap(?array $manifest): array
+    {
+        if (!is_array($manifest)) {
+            return [];
+        }
+
+        $metadata = $manifest['metadata'] ?? null;
+        if (!is_array($metadata)) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($metadata as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+
+            $label = $this->extractIiifLabel($entry['label'] ?? null);
+            if ($label === '') {
+                continue;
+            }
+
+            $values = $this->extractIiifValues($entry['value'] ?? null);
+            if ($values === []) {
+                continue;
+            }
+
+            $key = strtolower($label);
+            $map[$key] = array_values(array_unique(array_merge($map[$key] ?? [], $values)));
+        }
+
+        return $map;
+    }
+
+    private function extractIiifLabel(mixed $label): string
+    {
+        if (is_string($label)) {
+            return trim($label);
+        }
+
+        if (!is_array($label)) {
+            return '';
+        }
+
+        foreach (['none', 'en'] as $lang) {
+            $value = $label[$lang] ?? null;
+            if (is_array($value) && isset($value[0]) && is_string($value[0])) {
+                return trim($value[0]);
+            }
+        }
+
+        foreach ($label as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return trim($value);
+            }
+            if (is_array($value) && isset($value[0]) && is_string($value[0])) {
+                return trim($value[0]);
+            }
+        }
+
+        return '';
+    }
+
+    /** @return list<string> */
+    private function extractIiifValues(mixed $value): array
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            return $trimmed === '' ? [] : [$trimmed];
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($value as $item) {
+            $out = array_merge($out, $this->extractIiifValues($item));
+        }
+
+        return array_values(array_unique(array_filter(array_map('trim', $out), static fn(string $v): bool => $v !== '')));
+    }
+
+    /** @param array<string,list<string>> $metadataMap */
+    private function firstIiifValue(array $metadataMap, array $keys): string
+    {
+        foreach ($keys as $key) {
+            $values = $metadataMap[strtolower($key)] ?? [];
+            if ($values !== []) {
+                return (string) $values[0];
+            }
+        }
+
+        return '';
+    }
+
+    /** @param array<string,list<string>> $metadataMap
+     *  @return list<string>
+     */
+    private function iiifValues(array $metadataMap, array $keys): array
+    {
+        $out = [];
+        foreach ($keys as $key) {
+            $out = array_merge($out, $metadataMap[strtolower($key)] ?? []);
+        }
+
+        return array_values(array_unique(array_filter(array_map('trim', $out), static fn(string $v): bool => $v !== '')));
     }
 
     private function effectiveArchiveUrl(Asset $asset): ?string
@@ -826,6 +1306,7 @@ class AssetWorkflow
             'asset_id' => $asset->id,
             'task' => $taskName,
             'image_url' => $inputs['image_url'] ?? null,
+            'image_path' => $inputs['image_path'] ?? null,
             'image_source' => $imageSource,
             'requested_image_preference' => $taskOverride['image_source_preference'] ?? null,
             'requested_model' => $taskOverride['model'] ?? null,
@@ -837,6 +1318,8 @@ class AssetWorkflow
                 'small_url' => $asset->smallUrl,
                 'archive_url' => $archiveUrl,
                 'stored_archive_url' => $storedArchiveUrl,
+                'local_canonical_filename' => $asset->localCanonicalFilename,
+                'local_small_filename' => $asset->localSmallFilename,
                 'original_url' => $asset->originalUrl,
             ],
             'iiif_manifest' => $asset->sourceMeta['iiif_manifest'] ?? null,
@@ -1045,6 +1528,86 @@ class AssetWorkflow
             'ext' => $asset->ext
         ];
 
+    }
+
+    private function buildCanonicalAsset(Asset $asset, string $sourcePath): string
+    {
+        $mime = is_string($asset->mime) ? trim($asset->mime) : '';
+        if ($mime === '' || !str_starts_with($mime, 'image/')) {
+            return $sourcePath;
+        }
+
+        try {
+            $image = new \Imagick($sourcePath);
+
+            // Keep animated/multi-frame payloads untouched for now.
+            if ($image->getNumberImages() > 1) {
+                $image->clear();
+                $image->destroy();
+                return $sourcePath;
+            }
+
+            $width = $image->getImageWidth();
+            $height = $image->getImageHeight();
+            $maxEdge = max($width, $height);
+            if ($maxEdge <= 0) {
+                $image->clear();
+                $image->destroy();
+                return $sourcePath;
+            }
+
+            $resized = false;
+            if ($maxEdge > self::CANONICAL_MAX_EDGE) {
+                $image->resizeImage(
+                    self::CANONICAL_MAX_EDGE,
+                    self::CANONICAL_MAX_EDGE,
+                    \Imagick::FILTER_LANCZOS,
+                    1,
+                    true
+                );
+                $resized = true;
+            }
+
+            $canonicalPath = $sourcePath . '.canonical.webp';
+            $image->stripImage();
+            $image->setImageFormat('webp');
+            $image->setOption('webp:method', '6');
+            $image->setImageCompressionQuality(self::CANONICAL_WEBP_QUALITY);
+            $image->writeImage($canonicalPath);
+            $image->clear();
+            $image->destroy();
+
+            if (!is_file($canonicalPath) || filesize($canonicalPath) === 0) {
+                return $sourcePath;
+            }
+
+            $sourceSize = filesize($sourcePath) ?: 0;
+            $canonicalSize = filesize($canonicalPath) ?: 0;
+            if (!$resized && $sourceSize > 0 && $canonicalSize > $sourceSize) {
+                @unlink($canonicalPath);
+                return $sourcePath;
+            }
+
+            $this->processLocalFile($canonicalPath, $asset);
+            $asset->ext = 'webp';
+            $asset->context ??= [];
+            $asset->context['canonical'] = [
+                'format' => 'webp',
+                'quality' => self::CANONICAL_WEBP_QUALITY,
+                'max_edge' => self::CANONICAL_MAX_EDGE,
+                'resized' => $resized,
+                'bytes' => $canonicalSize,
+            ];
+
+            return $canonicalPath;
+        } catch (\Throwable $e) {
+            $this->logger->warning('Canonical build failed for {id}: {error}', [
+                'id' => $asset->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $sourcePath;
+        }
     }
 
     private function resizeForThumbHash(string $imagePath, int $size = 100): array

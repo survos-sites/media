@@ -23,9 +23,15 @@ class AssetFlow
     #[Place(
         initial: true,
         info: 'Registered/added',
-        next: [self::TRANSITION_DOWNLOAD]
+        next: [self::TRANSITION_FETCH_IIIF, self::TRANSITION_DOWNLOAD]
     )]
     public const PLACE_NEW = 'new';
+
+    #[Place(
+        info: 'Registered/added',
+        next: [self::TRANSITION_DOWNLOAD]
+    )]
+    public const PLACE_IIIF = 'iiif';
 
     #[Place(
         info: 'Fetched to temp; MIME sniffed/probed',
@@ -33,7 +39,13 @@ class AssetFlow
     )]
     public const PLACE_DOWNLOADED = 'downloaded';
 
-//    #[Place(
+    #[Place(
+        info: 'Ocr/confidence from local Tesseract',
+//        next: [self::TRANSITION_ANALYZE]
+    )]
+    public const PLACE_LOCAL_OCR = 'local_ocr';
+
+    //    #[Place(
 //        info: 'Basic checks passed (type/size/codec)',
 //        next: [self::TRANSITION_ANALYZE]
 //    )]
@@ -74,6 +86,26 @@ class AssetFlow
         next: [self::TRANSITION_DOWNLOAD_FAILED] # , self::TRANSITION_ARCHIVE]
     )]
     public const TRANSITION_DOWNLOAD = 'download';
+
+    #[Transition(
+        from: [self::PLACE_NEW, self::PLACE_DOWNLOADED, self::PLACE_FAILED, self::PLACE_LOCAL_OCR, self::PLACE_IIIF],
+        to: self::PLACE_AI_READY,
+        info: 'Local OCR',
+        description: 'Run local OCR confidence pass and queue follow-up AI tasks',
+        async: true,
+        next: [self::TRANSITION_AI_TASK]
+    )]
+    public const TRANSITION_LOCAL_OCR = 'local_ocr';
+
+    #[Transition(
+        from: [self::PLACE_NEW, self::PLACE_IIIF],
+        to: self::PLACE_IIIF,
+        info: 'Fetch IIIF manifest',
+        description: 'So download is optional',
+        async: true,
+        next: [self::TRANSITION_DOWNLOAD]
+    )]
+    public const TRANSITION_FETCH_IIIF = 'iiif';
 
     #[Transition(
         from: self::PLACE_DOWNLOADED,

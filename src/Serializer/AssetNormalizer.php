@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Serializer;
 
 use App\Entity\Asset;
+use App\Service\AssetRegistry;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareInterface;
 use Symfony\Component\Serializer\Normalizer\NormalizerAwareTrait;
 use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
@@ -25,6 +27,11 @@ use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
 final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInterface
 {
     use NormalizerAwareTrait;
+
+    public function __construct(
+        private readonly AssetRegistry $assetRegistry,
+    ) {
+    }
 
     private const ALREADY_CALLED = 'ASSET_NORMALIZER_ALREADY_CALLED';
 
@@ -52,7 +59,30 @@ final class AssetNormalizer implements NormalizerInterface, NormalizerAwareInter
 
         // Merge: computed AI fields go in as top-level keys.
         // They will not collide with real columns because we've dropped the flat ones.
-        return array_merge($data, $ai, $enrichment);
+        $data = array_merge($data, $ai, $enrichment);
+
+        if (!isset($data['aiOcrText']) || $data['aiOcrText'] === null || $data['aiOcrText'] === '') {
+            $data['aiOcrText'] = $object->localOcrText ?? null;
+        }
+
+        $signedSmall = $this->assetRegistry->imgProxyUrl($object, MediaUrlGenerator::PRESET_SMALL);
+        if (is_string($signedSmall) && $signedSmall !== '') {
+            $data['smallUrl'] = $signedSmall;
+            $data['thumb'] = $signedSmall;
+        }
+
+        $sourceMeta = is_array($object->sourceMeta) ? $object->sourceMeta : [];
+        $data['iiifManifest'] = $object->iiifManifestEntity?->manifestUrl ?? ($sourceMeta['iiif_manifest'] ?? null);
+        $data['iiifBase'] = $object->iiifManifestEntity?->imageBase ?? ($sourceMeta['iiif_base'] ?? null);
+        $data['iiifThumb'] = $object->iiifManifestEntity?->thumbnailUrl
+            ?? ($sourceMeta['iiif_thumbnail_url'] ?? ($sourceMeta['thumbnail_url'] ?? null));
+        $data['iiifLabel'] = $object->iiifManifestEntity?->label ?? null;
+        $data['iiifSource'] = $object->iiifManifestEntity?->source ?? null;
+        $data['iiifSubjects'] = $sourceMeta['iiif_subjects'] ?? [];
+        $data['iiifKeywords'] = $sourceMeta['iiif_keywords'] ?? [];
+        $data['mediaRecordId'] = $object->mediaRecord?->id;
+
+        return $data;
     }
 
     /**

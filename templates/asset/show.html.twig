@@ -3,8 +3,8 @@
 {% block title %}{{ asset.aiTitle ?? asset.id }}{% endblock %}
 {% set iiifParam = app.request.query.get('iiif')|default(false) %}
 {% set useIiif = iiifParam in ['1', 'true', 'yes', 'on'] %}
-{% set zoomImageUrl = asset.originalUrl ?? computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl %}
-{% set zoomFallbackUrl = computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl ?? null %}
+{% set zoomImageUrl = computedPreviewUrl ?? computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl ?? asset.originalUrl %}
+{% set zoomFallbackUrl = computedArchiveUrl ?? asset.archiveUrl ?? asset.smallUrl ?? asset.originalUrl ?? null %}
 {% set enrichment = asset.mediaEnrichmentDto %}
 {% set taskResults = asset.aiCompleted|default([]) %}
 {% if taskResults is empty and asset.context is defined and asset.context.aiTaskResults is defined and asset.context.aiTaskResults is iterable %}
@@ -70,7 +70,7 @@
           {% if useIiif %}
             <twig:iiif:viewer
               manifestUrl="{{ path('iiif_manifest', {id: asset.id}) }}"
-              tileSourceUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
+              infoUrl="{{ path('iiif_image_info', {id: asset.id}) }}"
               options="{{ {
 
               } | json_encode(constant('JSON_FORCE_OBJECT')) }}"
@@ -94,6 +94,13 @@
           {% endif %}
         </div>
         <div class="card-footer small text-muted">
+          {% if computedPreviewUrl %}
+            <div class="mb-2">
+              <div><strong>Preview source:</strong> {{ computedPreviewSource|default('n/a') }}</div>
+              <div style="font-size:0.65rem;word-break:break-all;">{{ computedPreviewSourceUrl|default('') }}</div>
+              <div style="font-size:0.65rem;word-break:break-all;">{{ computedPreviewUrl }}</div>
+            </div>
+          {% endif %}
           {% if useIiif %}
             {{ path('iiif_image_info', {id: asset.id}) }}
             {{ path('iiif_manifest', {id: asset.id}) }}
@@ -120,7 +127,15 @@
           <table class="table table-sm table-borderless mb-0">
             <tr><th>ID</th><td><code>{{ asset.id }}</code></td></tr>
             <tr><th>MIME</th><td>{{ asset.mime|default('—') }}</td></tr>
+            <tr><th>Dimensions</th><td>{% if asset.width and asset.height %}{{ asset.width }} × {{ asset.height }} px{% else %}—{% endif %}</td></tr>
+            <tr><th>Bytes</th><td>{{ asset.size|bytes }}</td></tr>
             <tr><th>Created</th><td>{{ asset.createdAt|date('Y-m-d H:i') }}</td></tr>
+            {% if asset.context.source_probe is defined %}
+            <tr><th>Source Probe</th><td>{{ asset.context.source_probe.width|default('?') }} × {{ asset.context.source_probe.height|default('?') }} px · {{ asset.context.source_probe.bytes|default(null)|bytes }}</td></tr>
+            {% endif %}
+            {% if asset.context.canonical_probe is defined %}
+            <tr><th>Canonical Probe</th><td>{{ asset.context.canonical_probe.width|default('?') }} × {{ asset.context.canonical_probe.height|default('?') }} px · {{ asset.context.canonical_probe.bytes|default(null)|bytes }}</td></tr>
+            {% endif %}
             {% if asset.storageKey %}
             <tr><th>Storage Key</th><td><code class="small">{{ asset.storageKey }}</code></td></tr>
             {% endif %}
@@ -194,6 +209,8 @@
         {# ── Source Metadata ──────────────────────────────────────────────────── #}
         <div id="{{ tabId }}-source_metadata" class="tab-pane" role="tabpanel">
           {% set ctx = asset.sourceMeta %}
+          {% set manifestJson = ctx.iiif_manifest_json|default(null) %}
+          {% set ctxForTable = ctx|filter((v, k) => k != 'iiif_manifest_json') %}
           {% if ctx %}
             <div class="card">
               <div class="card-header d-flex justify-content-between align-items-center">
@@ -203,43 +220,40 @@
                 {% endif %}
               </div>
               <div class="card-body small p-2">
-                <twig:SourceMetadata :ctx="asset.sourceMeta ?? {}" />
-                {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
-                  <tr>
-                    <th class="text-muted fw-normal pe-3">Source</th>
-                    <td><a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener">{{ ctx['dcterms:source']|slice(0,60) }}{% if ctx['dcterms:source']|length > 60 %}…{% endif %}</a></td>
-                  </tr>
-                {% endif %}
-                {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
-                  <tr>
-                    <th class="text-muted fw-normal pe-3">IIIF Manifest</th>
-                    <td><a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">manifest ↗</a></td>
-                  </tr>
-                {% endif %}
-                {% if ctx.iiif_base is defined and ctx.iiif_base %}
-                  <tr>
-                    <th class="text-muted fw-normal pe-3">Thumbnail</th>
-                    <td>
-                      <a href="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" target="_blank" rel="noopener">
-                        <img src="{{ ctx.iiif_base }}/full/!200,200/0/default.jpg" alt="thumbnail" style="max-width:120px;max-height:120px;border-radius:4px;" loading="lazy">
-                      </a>
-                      <div class="text-muted mt-1" style="font-size:0.65rem;word-break:break-all;">{{ ctx.iiif_base }}</div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th class="text-muted fw-normal pe-3">IIIF sizes</th>
-                    <td class="d-flex gap-1 flex-wrap">
-                      {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'medium': '!800,800', 'max': 'max'} %}
-                        <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg" target="_blank" rel="noopener" class="btn btn-xs btn-ghost-secondary">{{ label }}</a>
+                <twig:SourceMetadata :ctx="ctxForTable" />
+
+                <div class="border-top pt-2 mt-2">
+                  <div class="d-flex flex-wrap gap-2">
+                    {% if ctx['dcterms:source'] is defined and ctx['dcterms:source'] %}
+                      <a href="{{ ctx['dcterms:source'] }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">Source ↗</a>
+                    {% endif %}
+                    {% if ctx.iiif_manifest is defined and ctx.iiif_manifest %}
+                      <a href="{{ ctx.iiif_manifest }}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">Manifest ↗</a>
+                    {% endif %}
+                    {% if ctx.iiif_base is defined and ctx.iiif_base %}
+                      {% for label, size in {'thumb': '!200,200', 'small': '!400,400', 'max': 'max'} %}
+                        <a href="{{ ctx.iiif_base }}/full/{{ size }}/0/default.jpg" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary">{{ label }}</a>
                       {% endfor %}
-                    </td>
-                  </tr>
-                {% endif %}
-                {% if ctx.source_ark is defined and ctx.source_ark %}
-                  <tr>
-                    <th class="text-muted fw-normal pe-3">ARK</th>
-                    <td><code>{{ ctx.source_ark }}</code></td>
-                  </tr>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <details class="mt-3" data-controller="json-viewer">
+                  <summary class="text-muted">Raw source metadata JSON</summary>
+                  <div class="mt-2">
+                    <andypf-json-viewer data-json-viewer-target="viewer" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                    <script type="application/json" data-json-viewer-target="payload">{{ ctx|json_encode|raw }}</script>
+                  </div>
+                </details>
+
+                {% if manifestJson %}
+                  <details class="mt-3" data-controller="json-viewer">
+                    <summary class="text-muted">IIIF manifest JSON</summary>
+                    <div class="mt-2">
+                      <andypf-json-viewer data-json-viewer-target="viewer" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                      <script type="application/json" data-json-viewer-target="payload">{{ manifestJson|json_encode|raw }}</script>
+                    </div>
+                  </details>
                 {% endif %}
               </div>
             </div>
@@ -552,6 +566,21 @@ prompt:
             <summary class="small text-muted mb-2">asset dump (dev only)</summary>
             {% guard function dump %}{{ dump(asset) }}{% endguard %}
           </details>
+          <div class="card mt-3">
+            <div class="card-header"><h4 class="card-title mb-0">Raw Source Data</h4></div>
+            <div class="card-body" data-controller="json-viewer">
+              <div class="mb-3">
+                <div class="small text-muted mb-1">sourceMeta</div>
+                <andypf-json-viewer data-json-viewer-target="viewer" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                <script type="application/json" data-json-viewer-target="payload">{{ asset.sourceMeta|default({})|json_encode|raw }}</script>
+              </div>
+              <div>
+                <div class="small text-muted mb-1">context</div>
+                <andypf-json-viewer data-json-viewer-target="viewer" expanded="1" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+                <script type="application/json" data-json-viewer-target="payload">{{ asset.context|default({})|json_encode|raw }}</script>
+              </div>
+            </div>
+          </div>
         </div>
         {% endif %}
 
@@ -627,6 +656,11 @@ prompt:
       transition: transform 0.08s linear;
       user-select: none;
       -webkit-user-drag: none;
+    }
+
+    .iiif-viewer > [data-controller*="iiif-viewer"] {
+      position: relative;
+      min-height: 70vh;
     }
   </style>
 {% endblock %}

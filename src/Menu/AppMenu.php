@@ -51,7 +51,11 @@ final class AppMenu implements KnpMenuHelperInterface
         $options = $event->options;
         $this->add($menu, 'app_homepage');
 //        $this->add($menu, 'asset_browse', label: 'Assets');
-        $this->add($menu, 'meili_insta', ['indexName' => 'asset'], label: 'Assets');
+        $this->add($menu, 'meili_insta', ['indexName' => 'asset'], label: 'Search Assets');
+        $this->add($menu, 'app_browse_assets', label: 'Browse Assets');
+        $this->add($menu, 'meili_insta', ['indexName' => 'mediarecord'], label: 'Search Records');
+        $this->add($menu, 'media_record_browse', label: 'Browse Records');
+        $this->add($menu, 'iiif_browse', label: 'Browse IIIF');
         $this->add($menu, 'asset_task_registry', label: 'AI Tasks');
         $this->add($menu, 'survos_state_workflow_dashboard', label: 'Summary');
         $subMenu = $this->addSubmenu($menu, 'dispatch');

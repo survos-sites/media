@@ -42,6 +42,14 @@ ai:
                 text: 'You are an expert document classifier. Return structured JSON only.'
             tools: false
 
+        # ── Image analysis / routing ──────────────────────────────────────────
+        analysis:
+            platform: 'ai.platform.mistral'
+            model: 'mistral-small-latest'
+            prompt:
+                text: 'You are a museum image analyst. Return structured JSON only.'
+            tools: false
+
         # ── Description (basic + context) ─────────────────────────────────────
         # gpt-4o-mini balances vision quality with cost for descriptive tasks.
         description:

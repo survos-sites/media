@@ -11,6 +11,7 @@ use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\AiPipelineBundle\Task\AiTaskRegistry;
+use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -100,11 +101,19 @@ final class AssetController extends AbstractController
         ]);
     }
 
+    /** API Grid view. */
+    #[Route('/grid', name: 'browse_grid')]
+    public function browseGrid(Request $request): Response
+    {
+        return $this->render('asset/browse-grid.html.twig');
+    }
+
     /** Detail page for a single asset with AI task runner UI. */
-    #[Route('/{id}', name: 'show')]
+    #[Route('/{id}', name: 'show', requirements: ['id' => '[0-9a-f]{16}'], options: ['expose' => true])]
     public function show(Asset $asset): Response
     {
         $computedArchiveUrl = $asset->storageKey ? $this->assetRegistry->s3Url($asset) : null;
+        $computedPreview = $this->assetRegistry->imgProxyDebug($asset, MediaUrlGenerator::PRESET_LARGE);
 
         // Index completed results for template convenience
         $completedMap = [];
@@ -118,6 +127,9 @@ final class AssetController extends AbstractController
             'taskMeta'     => $this->taskMeta(),
             'completedMap' => $completedMap,
             'computedArchiveUrl' => $computedArchiveUrl,
+            'computedPreviewUrl' => $computedPreview['url'],
+            'computedPreviewSource' => $computedPreview['source'],
+            'computedPreviewSourceUrl' => $computedPreview['source_url'],
             'pipelines'    => [
                 'quick' => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::quickScanPipeline()),
                 'full'  => array_map(fn(AssetAiTask $t) => $t->value, AssetAiTask::fullEnrichmentPipeline()),

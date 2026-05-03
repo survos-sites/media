@@ -239,18 +239,18 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
         if ($payload->wait) {
             $this->asyncQueueLocator->sync = true; // overwrite what's in the config
         }
-        $nextTransition = AssetFlow::TRANSITION_DOWNLOAD;
+        $nextTransition = AssetFlow::TRANSITION_FETCH_IIIF;
 
         foreach ($listing as $asset) {
-            $this->logger->warning("Dispatching download for {$asset->id} \n");
+            $this->logger->warning("Dispatching " . $nextTransition . "  for {$asset->id} \n");
             $msg = new TransitionMessage(
                 $asset->id,
                 Asset::class,
-                AssetFlow::TRANSITION_DOWNLOAD,
+                $nextTransition,
                 workflow: AssetFlow::WORKFLOW_NAME,
                 context: [
                     'wait' => $payload->wait,
-                    'liip' => $payload->filters,
+//                    'liip' => $payload->filters,
 //                    'mediaCallbackUrl' => $payload->mediaCallbackUrl,
 //                    'thumbCallbackUrl' => $payload->thumbCallbackUrl,
                 ]

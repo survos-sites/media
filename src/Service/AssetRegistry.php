@@ -5,8 +5,10 @@ namespace App\Service;
 
 use App\Entity\Asset;
 use App\Entity\AssetPath;
+use App\Entity\MediaRecord;
 use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
+use App\Repository\MediaRecordRepository;
 use App\Workflow\AssetFlow;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
@@ -25,6 +27,7 @@ final class AssetRegistry
         private readonly EntityManagerInterface $entityManager,
         private readonly AssetRepository $assetRepository,
         private readonly AssetPathRepository $assetPathRepository,
+        private readonly MediaRecordRepository $mediaRecordRepository,
         private AsyncQueueLocator $asyncQueueLocator,
         #[Target(AssetFlow::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
         private MessageBusInterface $messageBus,
@@ -39,6 +42,7 @@ final class AssetRegistry
         private readonly string        $imgproxyKey,
         #[Autowire('%survos_media.imgproxy.salt%')]
         private readonly string        $imgproxySalt,
+        private readonly MediaUrlGenerator $mediaUrlGenerator,
 
     ) {
     }
@@ -58,7 +62,8 @@ final class AssetRegistry
             $asset->clients[] = $client;
         }
 
-        // Merge source metadata from the caller into sourceMeta (non-destructive)
+        // Merge source metadata from the caller into sourceMeta (non-destructive).
+        // IIIF manifest attachment is intentionally deferred to async workflow.
         if ($contextHints !== []) {
             $asset->sourceMeta ??= [];
             foreach ($contextHints as $key => $value) {
@@ -67,6 +72,8 @@ final class AssetRegistry
                 }
             }
         }
+
+        $this->attachMediaRecord($asset, $contextHints, $originalUrl);
 
         $flush && $this->flush();
 
@@ -81,12 +88,13 @@ final class AssetRegistry
     public function dispatch(Asset $asset): void
     {
         // trigger download
-        if ($this->assetWorkflow->can($asset, AssetFlow::TRANSITION_DOWNLOAD))
+        $nextTransition = AssetFlow::TRANSITION_FETCH_IIIF;
+        if ($this->assetWorkflow->can($asset, $nextTransition))
         {
             // dispatch a download request
             $message = new TransitionMessage($asset->id,
                 $asset::class,
-                AssetFlow::TRANSITION_DOWNLOAD,
+                $nextTransition,
                 AssetFlow::WORKFLOW_NAME);
             $stamps = $this->asyncQueueLocator->stamps($message);
             $this->messageBus->dispatch(
@@ -102,39 +110,175 @@ final class AssetRegistry
     {
         return sprintf("%s/%s/%s", $this->s3Endpoint, $this->s3Bucket, $asset->storageKey);
     }
-    public function imgProxyUrl(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): ?string
+
+    /** @param array<string,mixed> $contextHints */
+    private function attachMediaRecord(Asset $asset, array $contextHints, string $originalUrl): void
     {
-        // Redirect to imgproxy for now (no byte streaming or caching yet)
-        $presetDef = MediaUrlGenerator::PRESETS[$preset];
-        [$width, $height] = $presetDef['size'];
-
-        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
-            $this->imgproxyKey,
-            $this->imgproxySalt
-        )->with(
-            new \Mperonnet\ImgProxy\Options\Resize($presetDef['resize']),
-            new \Mperonnet\ImgProxy\Options\Width($width),
-            new \Mperonnet\ImgProxy\Options\Height($height),
-            new \Mperonnet\ImgProxy\Options\Quality($presetDef['quality']),
-        );
-
-        if (isset($presetDef['dpr'][0])) {
-//            $builder = $builder->with(new \Mperonnet\ImgProxy\Options\Dpr($presetDef['dpr'][0]));
+        $recordKey = $this->deriveMediaRecordKey($contextHints, $originalUrl);
+        if ($recordKey === null) {
+            return;
         }
 
+        $record = $this->mediaRecordRepository->findOneByRecordKey($recordKey);
+        if (!$record instanceof MediaRecord) {
+            $record = new MediaRecord($recordKey);
+            $this->entityManager->persist($record);
+        }
+
+        if ($asset->mediaRecord?->id !== $record->id) {
+            $record->addAsset($asset);
+        }
+
+        $record->sourceMeta ??= [];
+        $record->sourceMeta['first_asset_id'] ??= $asset->id;
+        $record->sourceMeta['page_count'] = $record->childCount;
+
+        $filename = $this->filenameFromUrl($originalUrl);
+        if (is_string($filename) && $filename !== '') {
+            $record->sourceMeta['filename'] ??= $filename;
+            $record->sourceMeta['extension'] ??= $this->extensionFromFilename($filename);
+        }
+
+        if ($record->label === null) {
+            $label = $contextHints['dcterms:title']
+                ?? $contextHints['title']
+                ?? null;
+            if (is_string($label) && trim($label) !== '') {
+                $record->label = trim($label);
+            }
+        }
+
+        if ($record->sourceMeta === null && $contextHints !== []) {
+            $record->sourceMeta = $contextHints;
+        } elseif ($contextHints !== []) {
+            foreach ($contextHints as $key => $value) {
+                if (!isset($record->sourceMeta[$key])) {
+                    $record->sourceMeta[$key] = $value;
+                }
+            }
+        }
+
+        $record->sourceUrl ??= $originalUrl;
+
+        if ($this->looksLikePdfUrl($originalUrl)) {
+            $record->sourceUrl ??= $originalUrl;
+            $record->sourceMime ??= 'application/pdf';
+        }
+
+        if ($record->sourceMime === null && is_string($asset->mime) && $asset->mime !== '') {
+            $record->sourceMime = $asset->mime;
+        }
+    }
+
+    /** @param array<string,mixed> $contextHints */
+    private function deriveMediaRecordKey(array $contextHints, string $originalUrl): ?string
+    {
+        $explicitRecordKey = $contextHints['media_record_key'] ?? null;
+        $isPdf = $this->looksLikePdfUrl($originalUrl);
+
+        // Current policy: auto-create MediaRecord only for PDFs.
+        // Non-PDF grouping requires explicit media_record_key from caller.
+        if (!$isPdf && (!is_string($explicitRecordKey) || trim($explicitRecordKey) === '')) {
+            return null;
+        }
+
+        foreach (['media_record_key', 'record_key', 'source_ark', 'code', 'dcterms:identifier', 'identifier'] as $key) {
+            $value = $contextHints[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return $this->normalizeRecordKey($value);
+            }
+        }
+
+        $iiifManifest = $contextHints['iiif_manifest'] ?? $contextHints['iiifManifest'] ?? null;
+        if (is_string($iiifManifest) && trim($iiifManifest) !== '') {
+            $base = preg_replace('{/manifest/?$}i', '', trim($iiifManifest));
+            if (is_string($base) && $base !== '') {
+                return $this->normalizeRecordKey($base);
+            }
+        }
+
+        if ($isPdf) {
+            $stem = $this->recordStemFromUrl($originalUrl);
+            return $stem !== null ? $this->normalizeRecordKey('urlstem:' . $stem) : null;
+        }
+
+        return null;
+    }
+
+    private function normalizeRecordKey(string $raw): ?string
+    {
+        $normalized = strtolower(trim($raw));
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        if (!is_string($normalized) || $normalized === '') {
+            return null;
+        }
+
+        return substr($normalized, 0, 191);
+    }
+
+    private function recordStemFromUrl(string $url): ?string
+    {
+        $host = (string) (parse_url($url, PHP_URL_HOST) ?? '');
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        if ($path === '') {
+            return null;
+        }
+
+        $stem = preg_replace('/\.[a-z0-9]{2,8}$/i', '', $path);
+        if (!is_string($stem) || $stem === '') {
+            return null;
+        }
+
+        $stem = preg_replace('/(?:[_-](?:p|page)?)\d{1,4}$/i', '', $stem) ?? $stem;
+        return $host !== '' ? $host . $stem : $stem;
+    }
+
+    private function looksLikePdfUrl(string $url): bool
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        return strtolower((string) pathinfo($path, PATHINFO_EXTENSION)) === 'pdf';
+    }
+
+    private function filenameFromUrl(string $url): ?string
+    {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        $filename = basename($path);
+
+        return $filename !== '' ? $filename : null;
+    }
+
+    private function extensionFromFilename(string $filename): ?string
+    {
+        $ext = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+        return $ext !== '' ? $ext : null;
+    }
+
+    public function imgProxyUrl(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): ?string
+    {
+        return $this->imgProxyDebug($asset, $preset)['url'];
+    }
+
+    /** @return array{url: ?string, source: string, source_url: ?string} */
+    public function imgProxyDebug(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): array
+    {
         // if the asset has been stored on OUR s3, then use it, much faster.
         if ($asset->storageKey) {
             $source = $this->s3Url($asset);
+            $sourceLabel = 's3_url';
+        } elseif (is_string($asset->archiveUrl) && $asset->archiveUrl !== '') {
+            $source = $asset->archiveUrl;
+            $sourceLabel = 'archive_url';
         } else {
             $source = $asset->originalUrl;
-            $builder = $builder->usePlain();
+            $sourceLabel = 'original_url';
         }
-        $path = $builder->url($source, $presetDef['format']);
-//        $url = $builder->usePlain()->url($src);
-// Example: /9SaGqJILqstFsWthdP/dpr:2/q:90/w:300/h:400/plain/http://example.com/image.jpg
 
-        $imgproxyUrl = rtrim($this->imgproxyBaseUrl, '/') . $path;
-        return $imgproxyUrl;
+        $imgproxyUrl = $this->mediaUrlGenerator->resizeRemote($source, 0, 0, $preset);
+        return [
+            'url' => $imgproxyUrl,
+            'source' => $sourceLabel,
+            'source_url' => $source,
+        ];
 
     }
 
@@ -174,6 +318,8 @@ final class AssetRegistry
 
         if ($asset->storageKey) {
             $source = $this->s3Url($asset);
+        } elseif (is_string($asset->archiveUrl) && $asset->archiveUrl !== '') {
+            $source = $asset->archiveUrl;
         } else {
             $source = $asset->originalUrl;
             $builder = $builder->usePlain();

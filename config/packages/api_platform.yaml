@@ -1,5 +1,5 @@
 api_platform:
-    title: Asyc Image Server API
+    title: Mediary API
     version: 1.0.0
     formats:
         jsonld: ['application/ld+json']
