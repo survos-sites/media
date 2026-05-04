@@ -669,10 +669,10 @@ prompt:
   {{ parent() }}
   <script type="module">
     import 'htmx.org';
-    import { Popover } from 'bootstrap';
+    import * as tabler from '@tabler/core';
 
     document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
-      new Popover(el, { html: false });
+      new tabler.bootstrap.Popover(el, { html: false });
     });
 
     {% if not useIiif %}

@@ -1,77 +1,13 @@
 {% extends "@SurvosTabler/layout/base.html.twig" %}
 
-        {% block stylesheets %}
-{#            <link rel="stylesheet" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">#}
-            <link rel="stylesheet" href="{{ asset('bundles/survosmeili/style.css') }}">
-            {{ parent() }}
-            {#            <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials">#}
-        {% endblock %}
-
-{#        {% block javascripts %}#}
-{#        {% endblock %}#}
+{% block stylesheets %}
+    <link rel="stylesheet" href="{{ asset('bundles/survosmeili/style.css') }}">
+    {{ parent() }}
+{% endblock %}
 
 {% block javascripts %}
     {{ parent() }}
 {#    {{ block('check') }}#}
-{% endblock %}
-
-{% block navbar_end %}
-    {{ component('tabler:menu', {type: NAVBAR_END, caller: _self}) }}
-{% endblock %}
-
-{% block navbar_search %}
-    {{ component('tabler:menu', {type: SEARCH, caller: _self}) }}
-{% endblock %}
-
-{% block navbar_menu %}
-<header class="navbar-expand-md">
-    <div class="collapse navbar-collapse" id="navbar-menu">
-        <div class="navbar">
-            <div class="{{ containerClass }}">
-                <div class="row flex-column flex-md-row flex-fill align-items-center">
-                    <div class="col">
-                        {{ component('tabler:menu', {type: NAVBAR_MENU, caller: _self}) }}
-                    </div>
-                    <div class="col col-md-auto">
-                        {{ component('tabler:menu', {type: NAVBAR_MENU_END, caller: _self}) }}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</header>
-{% endblock %}
-
-{% block sidebar %}
-<aside class="navbar navbar-vertical navbar-expand-lg{% if layout == 'navbar-dark' %} navbar-dark{% endif %}">
-    <div class="container-fluid">
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar-menu" aria-controls="sidebar-menu" aria-expanded="false" aria-label="Toggle sidebar">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-
-        {% block sidebar_brand %}
-        {% set id = tabler_identity ?? {} %}
-        <h1 class="navbar-brand navbar-brand-autodark">
-            <a href="{{ id.homepage_route is defined and id.homepage_route ? path(id.homepage_route) : (id.homepage_url is defined and id.homepage_url ? id.homepage_url : path('app_homepage')) }}">
-                {% if id.logo_small ?? id.logo %}
-                    <img src="{{ id.logo_small ?? id.logo }}" class="navbar-brand-image" height="32" alt="{{ id.title|default('') }}">
-                {% else %}
-                    {{ ux_icon('tabler:brand-tabler', {height: 32}) }}
-                {% endif %}
-                <span class="ms-2">{{ (id.abbr ?? id.title ?? 'Tabler')|raw }}</span>
-            </a>
-        </h1>
-        {% endblock %}
-
-        <div class="collapse navbar-collapse" id="sidebar-menu">
-            {{ component('tabler:menu', {type: SIDEBAR, caller: _self}) }}
-        </div>
-    </div>
-</aside>
-{% endblock %}
-
-{% block page_actions %}
-    {{ component('tabler:menu', {type: PAGE_ACTIONS, caller: _self}) }}
 {% endblock %}
 
 

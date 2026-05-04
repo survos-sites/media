@@ -161,18 +161,6 @@
             "var/storage/.gitignore"
         ]
     },
-    "mezcalito/imgproxy-bundle": {
-        "version": "0.5",
-        "recipe": {
-            "repo": "github.com/symfony/recipes-contrib",
-            "branch": "main",
-            "version": "0.5",
-            "ref": "4edbd0003f8f68eaa8e995b9221aaae992d60f6a"
-        },
-        "files": [
-            "config/packages/imgproxy.yaml"
-        ]
-    },
     "nelmio/cors-bundle": {
         "version": "2.5",
         "recipe": {
@@ -230,6 +218,9 @@
     "survos/api-grid-bundle": {
         "version": "1.5.508"
     },
+    "survos/atlas-bundle": {
+        "version": "2.0.217"
+    },
     "survos/auth-bundle": {
         "version": "2.0.184"
     },
@@ -279,6 +270,9 @@
     },
     "survos/ez-bundle": {
         "version": "2.0.61"
+    },
+    "survos/field-bundle": {
+        "version": "2.0.217"
     },
     "survos/google-sheets-bundle": {
         "version": "1.5.529"

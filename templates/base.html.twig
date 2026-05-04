@@ -1,5 +1,5 @@
 {% extends app.request.headers.get('_page_content_only', app.request.query.get('_page_content_only'))
-    ? "@SurvosBootstrap/_content_only.html.twig":
+    ? "content_only.html.twig":
     "layout.html.twig"
 %}
 
@@ -14,7 +14,5 @@
 {% endblock %}
 
     {% block stylesheets %}
-        {# @todo: switch to easyadmin #}
-{#        <link rel="stylesheet" type="text/css" href="{{ asset('bundles/survosbootstrap/bootstrap/style.css') }}">#}
         {{ parent() }}
     {% endblock %}

@@ -7,16 +7,16 @@
 <h1>{{ class }}</h1>
 
 {% set columns = [
-    col('id'),
-    col('label'),
-    col('filename'),
-    col(name: 'extension', browsable: true),
-    col(name: 'sourceMime', browsable: true),
-    col(name: 'pageCount', sortable: true),
+    col(name: 'id'),
+    col(name: 'label'),
+    col(name: 'filename'),
+    col(name: 'extension'),
+    col(name: 'sourceMime'),
+    col(name: 'pageCount'),
     col(name: 'firstPage', sortable: false),
-    col(name: 'childCount', sortable: true),
-    col(name: 'marking', browsable: true),
-    col(name: 'createdAt', sortable: true),
+    col(name: 'childCount'),
+    col(name: 'marking'),
+    col(name: 'createdAt'),
 ] %}
 
 <twig:api_grid

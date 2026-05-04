@@ -364,15 +364,8 @@ return [
     'ms' => [
         'version' => '2.1.3',
     ],
-    'bootstrap' => [
-        'version' => '5.3.8',
-    ],
     '@popperjs/core' => [
         'version' => '2.11.8',
-    ],
-    'bootstrap/dist/css/bootstrap.min.css' => [
-        'version' => '5.3.8',
-        'type' => 'css',
     ],
     'side-channel' => [
         'version' => '1.1.0',

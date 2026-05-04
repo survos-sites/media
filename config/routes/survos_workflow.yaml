@@ -1,3 +1,3 @@
-survos_state:
-  resource: '@SurvosStateBundle/config/routes.yaml'
-  prefix: '/state'
+# SurvosStateBundle auto-registers its controller routes via
+# Survos\CoreBundle\Traits\HasConfigurableRoutes. This duplicate legacy import
+# is intentionally disabled.

@@ -59,6 +59,16 @@ ai:
                 text: 'You are a museum archivist generating visual descriptions and keyword lists. Return structured JSON only.'
             tools: false
 
+        # ── Single-pass thumbnail enrichment ─────────────────────────────────
+        # Used by EnrichFromThumbnailTask to produce title, description,
+        # keywords, people/places, and classification from one thumbnail call.
+        thumbnail_enrich:
+            platform: 'ai.platform.openai'
+            model: 'gpt-4o-mini'
+            prompt:
+                text: 'You are a museum archivist enriching collection thumbnails with concise structured metadata. Return structured JSON only.'
+            tools: false
+
         # ── Metadata extraction, NER, title generation, summarization ─────────
         # gpt-4o-mini handles structured extraction well at low cost.
         # Switch to gpt-4o for collections where precision matters more than cost.
