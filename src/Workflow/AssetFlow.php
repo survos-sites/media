@@ -35,9 +35,15 @@ class AssetFlow
 
     #[Place(
         info: 'Fetched to temp; MIME sniffed/probed',
-        next: [self::TRANSITION_ANALYZE]
+        next: [self::TRANSITION_TRIAGE, self::TRANSITION_ANALYZE]
     )]
     public const PLACE_DOWNLOADED = 'downloaded';
+
+    #[Place(
+        info: 'Triage observations recorded (caption, ocr_text, keywords from ai-tools /v1/responses)',
+        next: [self::TRANSITION_ANALYZE]
+    )]
+    public const PLACE_TRIAGED = 'triaged';
 
     #[Place(
         info: 'Ocr/confidence from local Tesseract',
@@ -138,8 +144,32 @@ class AssetFlow
     )]
     public const TRANSITION_INVALID = 'invalid_file';
 
+    /**
+     * Triage = FREE local observation. Calls ai-tools /v1/responses with model=auto:
+     * Florence-2 (caption + ocr_text + dense region tags) plus Tesseract for
+     * dense documents. Result is an Observation[] envelope persisted on the asset.
+     *
+     * Distinct from {@see TRANSITION_ANALYZE}: triage extracts media-derived
+     * facts (free, local Python). Analyze computes mathematical visual features
+     * (blurhash/palette/pHash/probe — also free, local C/PHP).
+     *
+     * Paid VLM dispatch USED to live somewhere around here; it has been
+     * relocated entirely to consumer applications, which now operate text-only
+     * on triage's Observation[] output. Do not reintroduce vision-LLM calls
+     * into either triage or analyze without a deliberate scope discussion.
+     */
     #[Transition(
         from: self::PLACE_DOWNLOADED,
+        to: self::PLACE_TRIAGED,
+        info: 'Triage',
+        description: 'Call ai-tools /v1/responses model=auto; persist Observation[] (caption, ocr_text, keywords).',
+        async: true,
+        next: [self::TRANSITION_ANALYZE],
+    )]
+    public const TRANSITION_TRIAGE = 'triage';
+
+    #[Transition(
+        from: [self::PLACE_DOWNLOADED, self::PLACE_TRIAGED],
         to: self::PLACE_ANALYZED,
         info: 'Analyze',
         description: 'Compute blurhash/thumbhash, color palette, pHash, media probe',

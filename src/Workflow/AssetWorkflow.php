@@ -16,6 +16,7 @@ use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\UserRepository;
 use App\Service\ArchiveService;
+use App\Service\AiToolsObserveService;
 use App\Service\AiToolsOcrService;
 use App\Service\AtomicFileWriter;
 use App\Service\AssetPreviewService;
@@ -108,6 +109,7 @@ class AssetWorkflow
         private readonly EdgeAnalysisService $edgeAnalysisService,
         private readonly OcrService $ocrService,
         private readonly AiToolsOcrService $aiToolsOcrService,
+        private readonly AiToolsObserveService $aiToolsObserveService,
         private readonly TwigEnvironment $twig,
         private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
@@ -308,6 +310,72 @@ class AssetWorkflow
         }
 
         $this->em->flush();
+    }
+
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_TRIAGE)]
+    public function onTriage(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        if (!$asset->mime || !str_starts_with($asset->mime, 'image/')) {
+            $this->logger->info('Skipping triage for non-image asset {id} ({mime})', [
+                'id' => $asset->id,
+                'mime' => $asset->mime,
+            ]);
+            return;
+        }
+
+        $imageUrl = $this->preferredTriageImageUrl($asset);
+        if ($imageUrl === null) {
+            throw new RuntimeException(sprintf('No triage image URL available for asset %s.', $asset->id));
+        }
+
+        $startedAt = microtime(true);
+        $payload = $this->aiToolsObserveService->observeImage($imageUrl, 'auto');
+        $claims = is_array($payload['claims'] ?? null) ? $payload['claims'] : [];
+        $run = is_array($payload['run'] ?? null) ? $payload['run'] : [];
+
+        $asset->context ??= [];
+        $asset->context['triage'] = [
+            'ok' => true,
+            'source_url' => $imageUrl,
+            'schema_version' => $payload['schema_version'] ?? null,
+            'claims' => $claims,
+            'run' => $run,
+            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+        ];
+
+        $classification = $this->firstClaimValue($claims, 'observe:classification');
+        if ($classification !== null) {
+            $asset->localOcrPrimaryType = $classification;
+            $asset->aiDocumentType = $classification;
+        }
+
+        $text = $this->longestClaimValue($claims, 'observe:text');
+        if ($text !== null && trim($text) !== '') {
+            $asset->localOcrText = mb_substr(trim($text), 0, 20000);
+            $asset->context['ocr'] = $asset->localOcrText;
+            $asset->context['ocr_chars'] = mb_strlen($asset->localOcrText);
+        }
+
+        $asset->localOcrSourceUrl = $imageUrl;
+        $asset->localOcrProvider = 'ai-tools';
+        $asset->localOcrModel = is_string($run['model'] ?? null) ? $run['model'] : 'auto';
+        $asset->localOcrAt = new \DateTimeImmutable();
+        $asset->localOcrStatus = 200;
+        $asset->localOcrError = null;
+
+        $this->recordCompletedTask($asset, 'triage', [
+            'schema_version' => $payload['schema_version'] ?? null,
+            'claims' => $claims,
+            'run' => $run,
+            'source_url' => $imageUrl,
+        ]);
+
+        $this->logger->info('Asset triage recorded {count} claims for {id}', [
+            'count' => count($claims),
+            'id' => $asset->id,
+        ]);
     }
 
     #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_FETCH_IIIF)]
@@ -1008,6 +1076,53 @@ class AssetWorkflow
         }
 
         return null;
+    }
+
+    private function preferredTriageImageUrl(Asset $asset): ?string
+    {
+        $localPath = $this->localImagePath($asset);
+        if (is_string($localPath) && $localPath !== '') {
+            return $localPath;
+        }
+
+        ['url' => $url] = $this->preferredFullImageUrl($asset);
+
+        return $url;
+    }
+
+    /** @param list<array<string, mixed>> $claims */
+    private function firstClaimValue(array $claims, string $predicate): ?string
+    {
+        foreach ($claims as $claim) {
+            if (($claim['predicate'] ?? null) === $predicate && is_scalar($claim['value'] ?? null)) {
+                $value = trim((string) $claim['value']);
+                return $value !== '' ? $value : null;
+            }
+        }
+
+        return null;
+    }
+
+    /** @param list<array<string, mixed>> $claims */
+    private function longestClaimValue(array $claims, string $predicate): ?string
+    {
+        $longest = null;
+        foreach ($claims as $claim) {
+            if (($claim['predicate'] ?? null) !== $predicate || !is_scalar($claim['value'] ?? null)) {
+                continue;
+            }
+
+            $value = trim((string) $claim['value']);
+            if ($value === '') {
+                continue;
+            }
+
+            if ($longest === null || mb_strlen($value) > mb_strlen($longest)) {
+                $longest = $value;
+            }
+        }
+
+        return $longest;
     }
 
     /** @param array<string, mixed> $analysis */
