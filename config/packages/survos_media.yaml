@@ -3,10 +3,6 @@ survos_media:
     default_locale:       en
     cache_ttl:            3600
     sais_integration:     true
-    imgproxy:
-        base_url:             'https://imgproxy.survos.com'
-        key:                  '%env(IMGPROXY_KEY)%'
-        salt:                 '%env(IMGPROXY_SALT)%'
     media_server:
         host:                 'https://media.wip'
         apiKey:               null

@@ -50,16 +50,8 @@ final class AppController extends AbstractController
     #[Route('/browse-assets', name: 'app_browse_assets')]
     public function browseAssets(): Response
     {
-        return $this->render('app/browse-assets.html.twig', [
-            'class' => Asset::class,
-            'apiCall' => $this->generateUrl('_api_/assets{._format}_get_collection', ['_format' => 'jsonld']),
-            'columns' => [
-                'id',
-                'title',
-                'mime',
-                ['name' => 'marking', 'browsable' => true],
-                'createdAt',
-            ],
+        return $this->redirectToRoute('meili_insta', [
+            'indexName' => 'asset',
         ]);
     }
 

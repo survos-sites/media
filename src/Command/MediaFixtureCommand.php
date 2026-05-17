@@ -38,8 +38,6 @@ final class MediaFixtureCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly AssetRepository $assetRepository,
-        private readonly AssetAiTaskRunner $runner,
-        private readonly AiTaskRegistry $taskRegistry,
         #[Autowire('%kernel.project_dir%')]
         private readonly string $projectDir,
     ) {

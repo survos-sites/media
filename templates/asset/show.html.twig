@@ -512,7 +512,6 @@
                   </button>
                 </form>
               {% endfor %}
-              <a href="{{ path('asset_task_registry') }}" class="btn btn-sm btn-ghost-secondary">View task registry →</a>
             </div>
             {% if asset.aiQueue|length > 0 %}
               <div class="card-footer small text-muted">Queue: {{ asset.aiQueue|join(' → ') }}</div>

@@ -1,3 +1,0 @@
-# SurvosCrawlerBundle auto-registers its controller routes via
-# Survos\CoreBundle\Traits\HasConfigurableRoutes. Configure the prefix in
-# config/packages/survos_crawler.yaml with route_prefix if needed.

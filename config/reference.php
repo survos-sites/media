@@ -1599,7 +1599,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     dd?: bool|Param, // Default: true
  * }
  * @psalm-type SurvosSimpleDatatablesConfig = array{
- *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables/table"
+ *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables-bundle/table"
  *     per_page?: bool|Param, // Default: 10
  *     searchable?: bool|Param, // Default: true
  *     fixed_height?: scalar|Param|null, // Default: true
@@ -2109,6 +2109,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  * }
  * @psalm-type SurvosMeiliConfig = array{
+ *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/meili"
  *     core_name?: scalar|Param|null, // Default: "core"
  *     enabled?: bool|Param, // Default: true
  *     meiliUiUrl?: scalar|Param|null, // Base URL of the Meilisearch UI (riccox). Used to generate per-index links. Override via MEILI_UI_URL env var. // Default: "http://127.0.0.1:24900/ins/0"
@@ -2209,17 +2211,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     default_locale?: scalar|Param|null, // Default: "en"
  *     cache_ttl?: scalar|Param|null, // Default: 3600
  *     sais_integration?: bool|Param, // Default: true
- *     imgproxy?: array{
- *         base_url?: scalar|Param|null, // Default: "https://imgproxy.survos.com"
- *         key?: scalar|Param|null, // Default: "%env(IMGPROXY_KEY)%"
- *         salt?: scalar|Param|null, // Default: "%env(IMGPROXY_SALT)%"
- *     },
  *     media_server?: array{
  *         host?: scalar|Param|null, // Default: "https://media.wip"
  *         apiKey?: scalar|Param|null, // Default: null
  *         resize_path?: scalar|Param|null, // Default: "/media/{preset}/{id}"
  *     },
- *     presets?: array<string, array{ // Default: {"small":{"resize":"fill","width":192,"height":192},"medium":{"resize":"fit","width":400,"height":400},"large":{"resize":"fit","width":800,"height":800}}
+ *     presets?: array<string, array{ // Default: {"small":{"resize":"fill","width":192,"height":192},"medium":{"resize":"fit","width":400,"height":400},"large":{"resize":"fit","width":800,"height":800},"ai":{"resize":"fit","width":512,"height":512},"thumb":{"resize":"fit","width":300,"height":300}}
  *         resize?: scalar|Param|null, // Default: "fit"
  *         width?: int|Param,
  *         height?: int|Param,
@@ -2691,10 +2688,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         store?: string|Param, // Service name of store // Default: "Symfony\\AI\\Store\\StoreInterface"
  *     }>,
  * }
- * @psalm-type SurvosAiPipelineConfig = array{
- *     store_dir?: scalar|Param|null, // Directory for JsonFileResultStore output. // Default: "%kernel.project_dir%/var/ai-results"
- *     disabled_tasks?: list<scalar|Param|null>,
- * }
  * @psalm-type SurvosJsTwigConfig = array{
  *     debug?: bool|Param, // Default: false
  *     version?: scalar|Param|null, // Default: 1
@@ -2711,29 +2704,29 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     }>,
  * }
  * @psalm-type SurvosApiGridConfig = array{
+ *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: ""
  *     stimulus_controller?: scalar|Param|null, // The stimulus controller to use, should extend @survos/api-grid/api-grid // Default: "@survos/api-grid/api-grid"
- *     grid_stimulus_controller?: scalar|Param|null, // Default: "@survos/api-grid/grid"
  *     meiliHost?: scalar|Param|null, // Default: "%env(MEILI_SERVER)%"
  *     meiliKey?: scalar|Param|null, // Default: "%env(MEILI_API_KEY)%"
  *     meiliPrefix?: scalar|Param|null, // Default: "%env(MEILI_PREFIX)%"
+ *     meili_provider?: bool|Param, // Register MeiliSearchStateProvider as a global api_platform.state_provider. Only enable when Meili is configured and entities should be served from it. // Default: false
  *     passLocale?: bool|Param, // Default: false
  *     maxValuesPerFacet?: int|Param, // https://www.meilisearch.com/docs/reference/api/settings#faceting-object // Default: 1000
  * }
  * @psalm-type SurvosDataConfig = array{
  *     data_dir?: scalar|Param|null, // Default: "%env(APP_DATA_DIR)%"
  *     dataset_root?: scalar|Param|null, // Default: "work"
- *     pixie_root?: scalar|Param|null, // Default: "pixie"
+ *     artifact_root?: scalar|Param|null, // Default: "artifacts"
  *     runs_root?: scalar|Param|null, // Default: "runs"
  *     cache_root?: scalar|Param|null, // Default: "cache"
  *     zips_root?: scalar|Param|null, // Default: "%env(ZIPS_DIR)%"
  *     default_object_filename?: scalar|Param|null, // Default: "obj.jsonl"
+ *     providers?: list<scalar|Param|null>,
  *     tenant_database_prefix?: scalar|Param|null, // Default: ""
  *     tenants?: array<string, array{ // Default: []
  *         database?: scalar|Param|null, // Default: null
  *     }>,
- * }
- * @psalm-type SurvosImportConfig = array{
- *     dir?: scalar|Param|null, // The default directory for data files // Default: "data"
  * }
  * @psalm-type KnpMenuConfig = array{
  *     providers?: array{
@@ -2855,7 +2848,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     http?: array{
  *         path?: scalar|Param|null, // Default: "/_mcp"
  *         session?: array{
- *             store?: "file"|"memory"|"cache"|Param, // Default: "file"
+ *             store?: "file"|"memory"|"cache"|"framework"|Param, // Default: "file"
  *             directory?: scalar|Param|null, // Default: "%kernel.cache_dir%/mcp-sessions"
  *             cache_pool?: scalar|Param|null, // Default: "cache.mcp.sessions"
  *             prefix?: scalar|Param|null, // Default: "mcp-"
@@ -2888,6 +2881,28 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     production_url_base?: scalar|Param|null, // Default: null
  *     user_provider?: scalar|Param|null, // Default: null
  *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
+ * }
+ * @psalm-type SurvosFieldConfig = array{
+ *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: ""
+ * }
+ * @psalm-type SurvosImgproxyConfig = array{
+ *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: ""
+ *     host?: scalar|Param|null, // Default: "%env(default::IMGPROXY_HOST)%"
+ *     key?: scalar|Param|null, // Default: "%env(default::IMGPROXY_KEY)%"
+ *     salt?: scalar|Param|null, // Default: "%env(default::IMGPROXY_SALT)%"
+ *     presets?: array<string, array{ // Default: {"ai":{"width":512,"height":512,"resize":"fit"},"ai_thumbnail":{"width":512,"height":512,"resize":"fit"},"ai_hires":{"width":2048,"height":2048,"resize":"fit"},"thumb":{"width":300,"height":300,"resize":"fit"},"small":{"width":192,"height":192,"resize":"fit"},"medium":{"width":600,"height":400,"resize":"fit"},"large":{"width":1600,"height":1600,"resize":"fit"}}
+ *         width?: int|Param,
+ *         height?: int|Param,
+ *         resize?: scalar|Param|null, // Default: "fit"
+ *     }>,
+ * }
+ * @psalm-type SurvosClaimsConfig = array{
+ *     list_predicates?: list<scalar|Param|null>,
+ * }
+ * @psalm-type SurvosAiWorkflowConfig = array{
+ *     disabled_tasks?: list<scalar|Param|null>,
  * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
@@ -2924,17 +2939,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     survos_doc?: SurvosDocConfig,
  *     survos_media?: SurvosMediaConfig,
  *     ai?: AiConfig,
- *     survos_ai_pipeline?: SurvosAiPipelineConfig,
  *     survos_js_twig?: SurvosJsTwigConfig,
  *     survos_api_grid?: SurvosApiGridConfig,
  *     survos_data?: SurvosDataConfig,
- *     survos_import?: SurvosImportConfig,
  *     knp_menu?: KnpMenuConfig,
  *     survos_tabler?: SurvosTablerConfig,
  *     ux_icons?: UxIconsConfig,
  *     mcp?: McpConfig,
  *     knpu_oauth2_client?: KnpuOauth2ClientConfig,
  *     survos_auth?: SurvosAuthConfig,
+ *     survos_field?: SurvosFieldConfig,
+ *     survos_imgproxy?: SurvosImgproxyConfig,
+ *     survos_claims?: SurvosClaimsConfig,
+ *     survos_ai_workflow?: SurvosAiWorkflowConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2976,17 +2993,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_doc?: SurvosDocConfig,
  *         survos_media?: SurvosMediaConfig,
  *         ai?: AiConfig,
- *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
  *         survos_data?: SurvosDataConfig,
- *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
  *         mcp?: McpConfig,
  *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
  *         survos_auth?: SurvosAuthConfig,
+ *         survos_field?: SurvosFieldConfig,
+ *         survos_imgproxy?: SurvosImgproxyConfig,
+ *         survos_claims?: SurvosClaimsConfig,
+ *         survos_ai_workflow?: SurvosAiWorkflowConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -3023,17 +3042,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_doc?: SurvosDocConfig,
  *         survos_media?: SurvosMediaConfig,
  *         ai?: AiConfig,
- *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
  *         survos_data?: SurvosDataConfig,
- *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
  *         mcp?: McpConfig,
  *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
  *         survos_auth?: SurvosAuthConfig,
+ *         survos_field?: SurvosFieldConfig,
+ *         survos_imgproxy?: SurvosImgproxyConfig,
+ *         survos_claims?: SurvosClaimsConfig,
+ *         survos_ai_workflow?: SurvosAiWorkflowConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -3073,17 +3094,19 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_doc?: SurvosDocConfig,
  *         survos_media?: SurvosMediaConfig,
  *         ai?: AiConfig,
- *         survos_ai_pipeline?: SurvosAiPipelineConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
  *         survos_data?: SurvosDataConfig,
- *         survos_import?: SurvosImportConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
  *         mcp?: McpConfig,
  *         knpu_oauth2_client?: KnpuOauth2ClientConfig,
  *         survos_auth?: SurvosAuthConfig,
+ *         survos_field?: SurvosFieldConfig,
+ *         survos_imgproxy?: SurvosImgproxyConfig,
+ *         survos_claims?: SurvosClaimsConfig,
+ *         survos_ai_workflow?: SurvosAiWorkflowConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

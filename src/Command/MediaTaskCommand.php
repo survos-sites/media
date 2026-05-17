@@ -52,7 +52,6 @@ final class MediaTaskCommand
         private readonly AssetRepository $assetRepository,
         private readonly AssetAiTaskRunner $runner,
         private readonly EntityManagerInterface $entityManager,
-        private readonly AiTaskRegistry $taskRegistry,
         #[Target(WF::WORKFLOW_NAME)]
         private readonly WorkflowInterface $assetWorkflow,
     ) {

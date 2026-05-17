@@ -10,7 +10,7 @@ use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\AiPipelineBundle\Task\AiTaskRegistry;
+use Survos\AiWorkflowBundle\Task\TaskRegistry;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,7 +30,7 @@ final class AssetController extends AbstractController
         private readonly AssetAiTaskRunner $runner,
         private readonly AssetRegistry $assetRegistry,
         private readonly EntityManagerInterface $em,
-        private readonly AiTaskRegistry $taskRegistry,
+        private readonly TaskRegistry $taskRegistry,
         private readonly AsyncQueueLocator $asyncQueueLocator,
         private readonly \Symfony\Component\Messenger\MessageBusInterface $bus,
     ) {

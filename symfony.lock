@@ -212,8 +212,8 @@
             "config/packages/stof_doctrine_extensions.yaml"
         ]
     },
-    "survos/ai-pipeline-bundle": {
-        "version": "dev-main"
+    "survos/ai-workflow-bundle": {
+        "version": "2.2.5"
     },
     "survos/api-grid-bundle": {
         "version": "1.5.508"
@@ -226,6 +226,9 @@
     },
     "survos/babel-bundle": {
         "version": "2.0.5"
+    },
+    "survos/claims-bundle": {
+        "version": "2.2.5"
     },
     "survos/code-bundle": {
         "version": "2.0.61"
@@ -280,8 +283,8 @@
     "survos/iiif-bundle": {
         "version": "1.0.0"
     },
-    "survos/import-bundle": {
-        "version": "2.0.142"
+    "survos/imgproxy-bundle": {
+        "version": "2.0.0"
     },
     "survos/inspection-bundle": {
         "version": "2.0.182"
