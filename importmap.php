@@ -27,6 +27,14 @@ return [
     '@survos/js-twig/generated/fos_routes.js' => [
         'path' => './var/js_twig_bundle/generated/fos_routes.js',
     ],
+    '@survos/meili/styles/chat.css' => [
+        'path' => './vendor/survos/meili-bundle/assets/styles/chat.css',
+        'type' => 'css',
+    ],
+    '@survos/simple-datatables/style.css' => [
+        'path' => './vendor/survos/simple-datatables-bundle/assets/style.css',
+        'type' => 'css',
+    ],
     '@symfony/stimulus-bundle' => [
         'path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js',
     ],
@@ -100,46 +108,46 @@ return [
         'version' => '2.3.6',
     ],
     'datatables.net-bs5' => [
-        'version' => '2.3.7',
+        'version' => '3.0.0-beta.2',
     ],
     'jquery' => [
         'version' => '4.0.0',
     ],
     'datatables.net' => [
-        'version' => '2.3.7',
+        'version' => '3.0.0-beta.1',
     ],
     'datatables.net-bs5/css/dataTables.bootstrap5.min.css' => [
-        'version' => '2.3.7',
+        'version' => '3.0.0-beta.2',
         'type' => 'css',
     ],
     'datatables.net-buttons-bs5' => [
-        'version' => '3.2.6',
+        'version' => '4.0.0-beta.1',
     ],
     'datatables.net-buttons' => [
-        'version' => '3.2.6',
+        'version' => '4.0.0-beta.1',
     ],
     'datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' => [
-        'version' => '3.2.6',
+        'version' => '4.0.0-beta.1',
         'type' => 'css',
     ],
     'datatables.net-responsive-bs5' => [
-        'version' => '3.0.8',
+        'version' => '4.0.0-beta.1',
     ],
     'datatables.net-responsive' => [
-        'version' => '3.0.8',
+        'version' => '4.0.0-beta.1',
     ],
     'datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' => [
-        'version' => '3.0.8',
+        'version' => '4.0.0-beta.1',
         'type' => 'css',
     ],
     'datatables.net-scroller-bs5' => [
-        'version' => '2.4.3',
+        'version' => '3.0.0-beta.1',
     ],
     'datatables.net-scroller' => [
-        'version' => '2.4.3',
+        'version' => '3.0.0-beta.1',
     ],
     'datatables.net-scroller-bs5/css/scroller.bootstrap5.min.css' => [
-        'version' => '2.4.3',
+        'version' => '3.0.0-beta.1',
         'type' => 'css',
     ],
     'datatables.net-searchpanes-bs5' => [
@@ -153,23 +161,23 @@ return [
         'type' => 'css',
     ],
     'datatables.net-searchbuilder-bs5' => [
-        'version' => '1.8.4',
+        'version' => '2.0.0-beta.1',
     ],
     'datatables.net-searchbuilder' => [
-        'version' => '1.8.4',
+        'version' => '2.0.0-beta.1',
     ],
     'datatables.net-searchbuilder-bs5/css/searchBuilder.bootstrap5.min.css' => [
-        'version' => '1.8.4',
+        'version' => '2.0.0-beta.1',
         'type' => 'css',
     ],
     'datatables.net-select-bs5' => [
-        'version' => '3.1.3',
+        'version' => '4.0.0-beta.1',
     ],
     'datatables.net-select' => [
-        'version' => '3.1.3',
+        'version' => '4.0.0-beta.1',
     ],
     'datatables.net-select-bs5/css/select.bootstrap5.min.css' => [
-        'version' => '3.1.3',
+        'version' => '4.0.0-beta.1',
         'type' => 'css',
     ],
     'd3-array' => [
@@ -656,13 +664,13 @@ return [
         'version' => '0.5.20',
     ],
     'datatables.net-columncontrol' => [
-        'version' => '1.2.1',
+        'version' => '2.0.0-beta.1',
     ],
     'datatables.net-columncontrol-bs5' => [
-        'version' => '1.2.1',
+        'version' => '2.0.0-beta.1',
     ],
     'datatables.net-columncontrol-bs5/css/columnControl.bootstrap5.min.css' => [
-        'version' => '1.2.1',
+        'version' => '2.0.0-beta.1',
         'type' => 'css',
     ],
     '@stimulus-components/timeago' => [
@@ -676,5 +684,29 @@ return [
     ],
     'chart.js' => [
         'version' => '3.9.1',
+    ],
+    'datatables.net-columncontrol-bs5/css/columnControl.bootstrap5.css' => [
+        'version' => '2.0.0-beta.1',
+        'type' => 'css',
+    ],
+    'datatables.net-bs5/css/dataTables.bootstrap5.css' => [
+        'version' => '3.0.0-beta.2',
+        'type' => 'css',
+    ],
+    'datatables.net-buttons-bs5/css/buttons.bootstrap5.css' => [
+        'version' => '4.0.0-beta.1',
+        'type' => 'css',
+    ],
+    'datatables.net-responsive-bs5/css/responsive.bootstrap5.css' => [
+        'version' => '4.0.0-beta.1',
+        'type' => 'css',
+    ],
+    'datatables.net-searchbuilder-bs5/css/searchBuilder.bootstrap5.css' => [
+        'version' => '2.0.0-beta.1',
+        'type' => 'css',
+    ],
+    'datatables.net-select-bs5/css/select.bootstrap5.css' => [
+        'version' => '4.0.0-beta.1',
+        'type' => 'css',
     ],
 ];

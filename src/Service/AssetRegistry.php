@@ -12,6 +12,7 @@ use App\Repository\MediaRecordRepository;
 use App\Workflow\AssetFlow;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
+use Survos\ImgproxyBundle\Service\ImgproxyUrlBuilder;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Message\TransitionMessage;
 use Survos\StateBundle\Service\AsyncQueueLocator;
@@ -36,12 +37,7 @@ final class AssetRegistry
 
         #[Autowire('%env(AWS_S3_BUCKET_NAME)%')]
         private readonly string        $archiveBucket,
-        #[Autowire('%survos_media.imgproxy_base_url%')]
-        private readonly string        $imgproxyBaseUrl,
-        #[Autowire('%survos_media.imgproxy.key%')]
-        private readonly string        $imgproxyKey,
-        #[Autowire('%survos_media.imgproxy.salt%')]
-        private readonly string        $imgproxySalt,
+        private readonly ImgproxyUrlBuilder $imgproxyUrlBuilder,
         private readonly MediaUrlGenerator $mediaUrlGenerator,
 
     ) {
@@ -273,7 +269,7 @@ final class AssetRegistry
             $sourceLabel = 'original_url';
         }
 
-        $imgproxyUrl = $this->mediaUrlGenerator->resizeRemote($source, 0, 0, $preset);
+        $imgproxyUrl = $this->imgproxyUrlBuilder->resizePreset($source, $preset);
         return [
             'url' => $imgproxyUrl,
             'source' => $sourceLabel,
@@ -290,31 +286,20 @@ final class AssetRegistry
         bool $bestFit = false,
         ?string $effect = null
     ): string {
-        $options = [];
+        $parts = [];
 
         if ($crop !== null) {
             [$x, $y, $w, $h] = $crop;
-            $options[] = new \Mperonnet\ImgProxy\Options\Crop(
-                $w,
-                $h,
-                \Mperonnet\ImgProxy\Options\Gravity::northWest((float) $x, (float) $y)
-            );
+            $parts[] = sprintf('cr:%d:%d:nowe:%s:%s', $w, $h, rtrim(number_format((float) $x, 4, '.', ''), '0'), rtrim(number_format((float) $y, 4, '.', ''), '0'));
         }
 
         if ($resizeW || $resizeH) {
-            $options[] = new \Mperonnet\ImgProxy\Options\Resize($bestFit ? 'fit' : 'fill');
-            $options[] = new \Mperonnet\ImgProxy\Options\Width($resizeW ?? 0);
-            $options[] = new \Mperonnet\ImgProxy\Options\Height($resizeH ?? 0);
+            $parts[] = sprintf('rs:%s:%d:%d:0', $bestFit ? 'fit' : 'fill', $resizeW ?? 0, $resizeH ?? 0);
         }
 
         if ($effect === 'grayscale') {
-            $options[] = new \Mperonnet\ImgProxy\Options\Monochrome();
+            $parts[] = 'mc:1';
         }
-
-        $builder = \Mperonnet\ImgProxy\UrlBuilder::signed(
-            $this->imgproxyKey,
-            $this->imgproxySalt
-        )->with(...$options);
 
         if ($asset->storageKey) {
             $source = $this->s3Url($asset);
@@ -322,11 +307,8 @@ final class AssetRegistry
             $source = $asset->archiveUrl;
         } else {
             $source = $asset->originalUrl;
-            $builder = $builder->usePlain();
         }
 
-        $path = $builder->url($source, 'jpg');
-
-        return rtrim($this->imgproxyBaseUrl, '/') . $path;
+        return $this->imgproxyUrlBuilder->buildUrl($source, implode('/', $parts) ?: 'rs:fit:0:0:0');
     }
 }

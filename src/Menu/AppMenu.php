@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Menu;
 
 use Survos\TablerBundle\Event\MenuEvent;
-use Survos\TablerBundle\Service\MenuService;
 use Survos\TablerBundle\Traits\KnpMenuHelperInterface;
 use Survos\TablerBundle\Traits\KnpMenuHelperTrait;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -19,7 +18,6 @@ final class AppMenu implements KnpMenuHelperInterface
 
     public function __construct(
         #[Autowire('%kernel.environment%')] protected string $env,
-        private MenuService $menuService,
         private Security $security,
         private ?AuthorizationCheckerInterface $authorizationChecker = null
     ) {
@@ -28,7 +26,15 @@ final class AppMenu implements KnpMenuHelperInterface
     public function appAuthMenu(MenuEvent $event): void
     {
         $menu = $event->getMenu();
-        $this->menuService->addAuthMenu($menu);
+
+        if ($this->security->getUser()) {
+            $this->add($menu, 'app_logout', label: 'Logout', icon: 'logout');
+
+            return;
+        }
+
+        $this->add($menu, 'app_login', label: 'Login', icon: 'login');
+        $this->add($menu, 'app_register', label: 'Register', icon: 'user-plus');
     }
 
     #[AsEventListener(event: MenuEvent::NAVBAR_MENU)]
@@ -47,7 +53,6 @@ final class AppMenu implements KnpMenuHelperInterface
         $this->add($recordsMenu, 'meili_insta', ['indexName' => 'mediarecord'], label: 'Search Records');
 
         $this->add($menu, 'iiif_browse', label: 'IIIF', icon: 'iiif');
-        $this->add($menu, 'asset_task_registry', label: 'AI Tasks', icon: 'robot');
         $this->add($menu, 'survos_state_workflow_dashboard', label: 'Summary', icon: 'summary');
 
         $dispatchMenu = $this->addSubmenu($menu, 'Dispatch', icon: 'dispatch');

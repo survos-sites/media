@@ -15,17 +15,3 @@ services:
     App\:
         resource: '../src/'
 
-    # ── AI task pipeline ──────────────────────────────────────────────────────
-    # AiTaskInterface implementations are auto-tagged as ai_pipeline.task by
-    # SurvosAiPipelineBundle (via autoconfiguration). We also collect them here
-    # for the Doctrine-aware AssetAiTaskRunner.
-    _instanceof:
-        Survos\AiPipelineBundle\Task\AiTaskInterface:
-            tags: ['ai_pipeline.task']
-
-    App\Workflow\AssetWorkflow:
-        arguments:
-            $taskServices: !tagged_iterator ai_pipeline.task
-
-    App\Controller\AiRegistryController:
-        tags: ['controller.service_arguments']

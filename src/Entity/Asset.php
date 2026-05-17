@@ -11,7 +11,8 @@ use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-use Survos\MeiliBundle\Metadata\Facet;
+use Survos\FieldBundle\Attribute\Field;
+use Survos\FieldBundle\Enum\Widget;
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\MediaBundle\Util\MediaIdentity;
@@ -66,6 +67,7 @@ class Asset implements MarkingInterface, \Stringable
     /** Primary key: 16-char lowercase hex xxh3(originalUrl). */
     #[ORM\Id]
     #[ORM\Column(type: Types::STRING, length: 16)]
+    #[Field(searchable: true, sortable: true, order: 10, width: '8rem')]
     public string $id {
         set {
             if (\strlen($value) !== 16) {
@@ -76,21 +78,25 @@ class Asset implements MarkingInterface, \Stringable
     }
 
     #[Groups(['asset.read'])]
+    #[Field(searchable: true, sortable: true, order: 30, width: '24rem', group: 'Content')]
     public ?string $title { get => $this->sourceMeta['dcterms:title'] ?? null; }
     #[Groups(['asset.read'])]
+    #[Field(searchable: true, visible: false, order: 35, group: 'Content')]
     public ?string $description { get => $this->sourceMeta['dcterms:description'] ?? null; }
     #[Groups(['asset.read'])]
+    #[Field(searchable: true, filterable: true, widget: Widget::Select, facet: true, visible: false, order: 70, group: 'Content')]
     public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? $this->sourceMeta['iiif_subjects'] ?? null; }
 
     #[Groups(['asset.read'])]
-    #[Facet()]
+    #[Field(filterable: true, widget: Widget::Select, facet: true, order: 60, group: 'Content')]
     public ?string $type { get => $this->sourceMeta['dcterms:type'] ?? null; }
 
     #[Groups(['asset.read'])]
-    #[Facet()]
+    #[Field(filterable: true, widget: Widget::Select, facet: true, visible: false, order: 80, group: 'Rights')]
     public ?string $reuse { get => $this->sourceMeta['reuse_allowed'] ?? null; }
 
     #[Groups(['asset.read'])]
+    #[Field(order: 20, width: '88px')]
     public ?string $thumb {
         get => $this->smallUrl
             ?? $this->iiifManifestEntity?->thumbnailUrl
@@ -99,10 +105,11 @@ class Asset implements MarkingInterface, \Stringable
     }
 
     #[Groups(['asset.read'])]
-    #[Facet()]
+    #[Field(filterable: true, widget: Widget::Select, facet: true, visible: false, order: 90, group: 'Source')]
     public ?string $publisher { get => $this->sourceMeta['dcterms:publisher'] ?? null; }
 
     #[Groups(['asset.read'])]
+    #[Field(searchable: true, visible: false, order: 100, group: 'Source')]
     public ?string $filename {
         get {
             $path = (string) (parse_url($this->originalUrl, PHP_URL_PATH) ?? '');
@@ -112,7 +119,7 @@ class Asset implements MarkingInterface, \Stringable
     }
 
     #[Groups(['asset.read'])]
-    #[Facet()]
+    #[Field(filterable: true, widget: Widget::Select, facet: true, visible: false, order: 110, group: 'Source')]
     public ?string $mediaRecordId { get => $this->mediaRecord?->id; }
 
     /** Fast non-cryptographic content hash (xxh3 of bytes). */
@@ -134,11 +141,13 @@ class Asset implements MarkingInterface, \Stringable
     /** Original MIME type (image/*, audio/*, video/*). */
     #[ORM\Column(type: Types::STRING, nullable: true)]
     #[Groups(['asset.read'])]
+    #[Field(filterable: true, widget: Widget::Select, facet: true, order: 50, group: 'File')]
     public ?string $mime = null;
 
     /** Bytes of original file. */
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     #[Groups(['asset.read'])]
+    #[Field(sortable: true, filterable: true, widget: Widget::Range, visible: false, order: 130, group: 'File')]
     public ?int $size = null {
         set {
             if ($value !== null && $value < 0) {
@@ -151,6 +160,7 @@ class Asset implements MarkingInterface, \Stringable
     /** Dimensions (for images/videos when known). */
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
     #[Groups(['asset.read'])]
+    #[Field(sortable: true, filterable: true, widget: Widget::Range, visible: false, order: 140, group: 'Dimensions')]
     public ?int $width = null {
         set {
             if ($value !== null && $value < 0) {
@@ -162,6 +172,7 @@ class Asset implements MarkingInterface, \Stringable
 
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
     #[Groups(['asset.read'])]
+    #[Field(sortable: true, filterable: true, widget: Widget::Range, visible: false, order: 150, group: 'Dimensions')]
     public ?int $height = null {
         set {
             if ($value !== null && $value < 0) {
@@ -316,11 +327,13 @@ class Asset implements MarkingInterface, \Stringable
     /** URL of archived original (object storage) */
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['asset.read'])] // for now, maybe removed after debugging
+    #[Field(visible: false, order: 210, group: 'Storage')]
     public ?string $archiveUrl = null;
 
     private ?string $smallUrlOverride = null;
 
     #[Groups(['asset.read'])]
+    #[Field(visible: false, order: 25, group: 'File')]
     public ?string $smallUrl {
         get => $this->smallUrlOverride
             ?? $this->iiifManifestEntity?->thumbnailUrl
@@ -343,7 +356,7 @@ class Asset implements MarkingInterface, \Stringable
     /** Optional original extension hint (jpg, mp4, …). */
     #[ORM\Column(type: Types::STRING, length: 12, nullable: true)]
     #[Groups(['asset.read'])]
-    #[Facet()]
+    #[Field(filterable: true, widget: Widget::Select, facet: true, order: 55, group: 'File')]
     public ?string $ext = null;
 
     /** Variant map (preset => url/info). */
@@ -355,6 +368,8 @@ class Asset implements MarkingInterface, \Stringable
 
     /** Ingest timestamp. */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    #[Groups(['asset.read'])]
+    #[Field(sortable: true, filterable: true, widget: Widget::Date, order: 170, format: 'datetime', group: 'Workflow')]
     public \DateTimeImmutable $createdAt;
 
     /** Soft delete. */
