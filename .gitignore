@@ -40,3 +40,5 @@ shared
 .castor.stub.php
 .DS_Store
 .env.prod
+config.bat
+node_modules
