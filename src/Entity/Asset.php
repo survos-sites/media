@@ -47,10 +47,10 @@ use Symfony\Component\Serializer\Attribute\Groups;
     filterable: ['mime', 'clients', 'marking',
         'ext', 'type', 'publisher', 'reuse',
 //        'aiDocumentType', 'aiDocumentSubtype',
-        'subjects',
+        'subjects', 'classification',
 //                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
     ],
-    searchable: ['title', 'description', 'filename', 'subjects', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
+    searchable: ['title', 'description', 'filename', 'subjects', 'classification', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
                   'aiPeople', 'aiPlaces', 'aiSubjects'],
     persisted: new Fields(
         groups: ['asset.read'],
@@ -93,6 +93,20 @@ class Asset implements MarkingInterface, \Stringable
     #[Groups(['asset.read'])]
     #[Field(searchable: true, filterable: true, widget: Widget::Select, facet: true, visible: false, order: 70, group: 'Content')]
     public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? $this->sourceMeta['iiif_subjects'] ?? null; }
+
+    /**
+     * imgproxy /info classification labels (e.g. "Person", "Dress") — the cheapest
+     * automatic subject signal we get. Will become claims; surfaced now so it's
+     * searchable/facetable in Meili. Reads the cached /info blob.
+     */
+    #[Groups(['asset.read'])]
+    #[Field(searchable: true, filterable: true, widget: Widget::Select, facet: true, order: 72, group: 'Content')]
+    public ?array $classification {
+        get => array_values(array_filter(array_map(
+            static fn ($c) => is_array($c) ? ($c['name'] ?? null) : null,
+            $this->context['info']['classification'] ?? []
+        ))) ?: null;
+    }
 
     #[Groups(['asset.read'])]
     #[Field(filterable: true, widget: Widget::Select, facet: true, order: 60, group: 'Content')]
