@@ -17,9 +17,6 @@ survos_crawler:
         - 'media_symfony_crud_index'
         #registration require the buolt User to have the cdoe and approx set ...
         - 'app_register'
-        #ignore cache routes
-        - 'liip_imagine_filter_runtime'
-        - 'liip_imagine_filter'
         #temp ignore media show route
         - 'media_show'
     paths_to_ignore :
@@ -31,9 +28,6 @@ survos_crawler:
         #/tools is for mcp
         - '/tools*'
         - '/inspection*'
-        #/media/cache/
-        - '/media/cache/*'
-        - 'media/cache/*'
         - 'media/browse/*'
         - '/media/browse/*'
         - 'media/index*'

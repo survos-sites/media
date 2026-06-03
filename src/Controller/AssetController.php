@@ -38,7 +38,7 @@ final class AssetController extends AbstractController
 
     private function taskMeta(): array
     {
-        return $this->taskRegistry->getMeta();
+        return $this->taskRegistry->allMeta();
     }
 
     /** Browse grid — most recent first, simple pagination. */
@@ -97,7 +97,7 @@ final class AssetController extends AbstractController
             'limit'      => $limit,
             'types'      => $types,
             'filter'     => compact('type', 'marking', 'search'),
-            'markings'   => ['new', 'downloaded', 'analyzed', 'complete', 'ai_ready', 'failed'],
+            'markings'   => ['new', 'archived', 'informed', 'triaged', 'analyzed', 'complete', 'ai_ready', 'failed'],
         ]);
     }
 
@@ -108,12 +108,18 @@ final class AssetController extends AbstractController
         return $this->render('asset/browse-grid.html.twig');
     }
 
+    #[Route('/search', name: 'search')]
+    public function search(): Response
+    {
+        return $this->render('asset/search.html.twig');
+    }
+
     /** Detail page for a single asset with AI task runner UI. */
     #[Route('/{id}', name: 'show', requirements: ['id' => '[0-9a-f]{16}'], options: ['expose' => true])]
     public function show(Asset $asset): Response
     {
         $computedArchiveUrl = $asset->storageKey ? $this->assetRegistry->s3Url($asset) : null;
-        $computedPreview = $this->assetRegistry->imgProxyDebug($asset, MediaUrlGenerator::PRESET_LARGE);
+        $computedPreview = $this->assetRegistry->imgProxyDebug($asset, 'display');
 
         // Index completed results for template convenience
         $completedMap = [];
@@ -126,6 +132,8 @@ final class AssetController extends AbstractController
             'tasks'        => array_keys($this->taskRegistry->getTaskMap()),
             'taskMeta'     => $this->taskMeta(),
             'completedMap' => $completedMap,
+            'claimSubjectType' => Asset::class,
+            'claimSubjectId' => $asset->id,
             'computedArchiveUrl' => $computedArchiveUrl,
             'computedPreviewUrl' => $computedPreview['url'],
             'computedPreviewSource' => $computedPreview['source'],

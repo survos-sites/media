@@ -3,9 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Asset;
-use App\Entity\AssetPath;
 use App\Entity\File;
-use App\Entity\Variant;
 use App\Form\ProcessPayloadType;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;

@@ -4,6 +4,6 @@ survos_media:
     cache_ttl:            3600
     sais_integration:     true
     media_server:
-        host:                 'https://media.wip'
+        host:                 'https://mediary.wip'
         apiKey:               null
         resize_path:          '/media/{preset}/{id}'

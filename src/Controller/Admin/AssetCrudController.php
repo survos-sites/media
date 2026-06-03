@@ -172,7 +172,7 @@ class AssetCrudController extends BaseCrudController
         yield TextField::new('marking');                     // Status/workflow state
         yield IntegerField::new('statusCode');               // HTTP status, from ORIGINAL
 //        yield AssociationField::new('user');                 // Owner/user
-        yield TextField::new('mime');                 // actual, from downloaded file
+        yield TextField::new('mime');                 // actual, from source info
 //        yield TextField::new('root');                        // Storage root, now user
         yield UrlField::new('originalUrl'); // ->onlyOnDetail();                  // Source URL
 //        yield ArrayField::new('resized')->onlyOnDetail();

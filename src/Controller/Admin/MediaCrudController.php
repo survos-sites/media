@@ -4,7 +4,6 @@ namespace App\Controller\Admin;
 
 use App\Entity\Media;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
-use Survos\CoreBundle\Entity\RouteParametersInterface;
 use Survos\EzBundle\Controller\AbstractEzCrudController;
 use Survos\EzBundle\Field\LinkedTextField;
 

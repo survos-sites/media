@@ -99,7 +99,7 @@ onVariantResize()
         $this->unlinkLocalPath($localOrigPath);
     }
 ```
-[View source](sais/blob/main/src/Workflow/VariantWorkflow.php#L44-L125)
+[View source](media/blob/main/src/Workflow/VariantWorkflow.php#L42-L123)
 
 ### resize.Completed
 
@@ -147,6 +147,6 @@ public function onVariantResizeCompleted(CompletedEvent $event): void
     }
 }
 ```
-[View source](sais/blob/main/src/Workflow/VariantWorkflow.php#L132-L168)
+[View source](media/blob/main/src/Workflow/VariantWorkflow.php#L130-L166)
 
 

@@ -4,9 +4,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Asset;
-use App\Entity\AssetPath;
 use App\Entity\MediaRecord;
-use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\MediaRecordRepository;
 use App\Workflow\AssetFlow;
@@ -27,7 +25,6 @@ final class AssetRegistry
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly AssetRepository $assetRepository,
-        private readonly AssetPathRepository $assetPathRepository,
         private readonly MediaRecordRepository $mediaRecordRepository,
         private AsyncQueueLocator $asyncQueueLocator,
         #[Target(AssetFlow::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
@@ -105,6 +102,17 @@ final class AssetRegistry
     public function s3Url(Asset $asset)
     {
         return sprintf("%s/%s/%s", $this->s3Endpoint, $this->s3Bucket, $asset->storageKey);
+    }
+
+    /**
+     * s3:// source URL for imgproxy (IMGPROXY_USE_S3=true). Distinct from
+     * s3Url(), which is the public HTTP URL for browsers. imgproxy fetches the
+     * master directly from our bucket via its own S3 client — no external GET,
+     * no nesting.
+     */
+    public function s3SourceUrl(Asset $asset): string
+    {
+        return sprintf('s3://%s/%s', $this->s3Bucket, $asset->storageKey);
     }
 
     /** @param array<string,mixed> $contextHints */
@@ -254,13 +262,27 @@ final class AssetRegistry
         return $this->imgProxyDebug($asset, $preset)['url'];
     }
 
+    /**
+     * Translate media-bundle preset names (small/medium/large/ai) to the
+     * imgproxy-bundle vocabulary (tiny/thumb/observe/display/archive). The two
+     * only overlap on "thumb"; without this a media preset like "small" reaches
+     * resizePreset() and throws "Unknown imgproxy preset".
+     */
+    private const IMGPROXY_PRESET_ALIASES = [
+        'small'  => 'thumb',
+        'medium' => 'display',
+        'large'  => 'archive',
+        'ai'     => 'observe',
+    ];
+
     /** @return array{url: ?string, source: string, source_url: ?string} */
     public function imgProxyDebug(Asset $asset, string $preset = MediaUrlGenerator::PRESET_SMALL): array
     {
         // if the asset has been stored on OUR s3, then use it, much faster.
         if ($asset->storageKey) {
-            $source = $this->s3Url($asset);
-            $sourceLabel = 's3_url';
+            // imgproxy reads our master directly from museado (IMGPROXY_USE_S3).
+            $source = $this->s3SourceUrl($asset);
+            $sourceLabel = 's3_source';
         } elseif (is_string($asset->archiveUrl) && $asset->archiveUrl !== '') {
             $source = $asset->archiveUrl;
             $sourceLabel = 'archive_url';
@@ -269,6 +291,18 @@ final class AssetRegistry
             $sourceLabel = 'original_url';
         }
 
+        // Never derive a preset from another imgproxy URL — that double-encodes
+        // (imgproxy fetching imgproxy). Fall back to the original master.
+        $imgproxyHost = rtrim((string) $this->imgproxyUrlBuilder->host, '/');
+        if ($imgproxyHost !== '' && is_string($source) && str_starts_with($source, $imgproxyHost)) {
+            $source = $asset->originalUrl;
+            $sourceLabel = 'original_url';
+        }
+
+        $preset = self::IMGPROXY_PRESET_ALIASES[$preset] ?? $preset;
+        if (!$this->imgproxyUrlBuilder->hasPreset($preset)) {
+            $preset = 'thumb';
+        }
         $imgproxyUrl = $this->imgproxyUrlBuilder->resizePreset($source, $preset);
         return [
             'url' => $imgproxyUrl,

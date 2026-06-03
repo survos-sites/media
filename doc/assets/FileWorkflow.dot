@@ -3,14 +3,18 @@ digraph workflow {
   node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
   edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
 
-  place_file [label=<<B>file</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place file: "];
-  place_listing [label=<<B>listing</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place listing: "];
+  place_new_dir [label=<<B>new_dir</B><BR/><BR/>Then: <U>list</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new_dir: "];
+  place_new_file [label=<<B>new_file</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new_file: "];
+  place_dir_has_listing [label=<<B>dir_has_listing</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place dir_has_listing: "];
   place_downloaded [label=<<B>downloaded</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place downloaded: "];
-  place_dir [label=<<B>dir</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place dir: "];
-  transition_list [label=<<B>list</B>>, shape="box" regular="" xlabel="Transition list: "];
-  transition_download [label=<<B>download</B>>, shape="box" regular="" xlabel="Transition download: "];
-  place_dir -> transition_list [style="solid", comment="dir"];
-  transition_list -> place_listing [style="solid"];
-  place_file -> transition_download [style="solid", comment="file"];
+  place_file_has_meta [label=<<B>file_has_meta</B>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place file_has_meta: "];
+  transition_list [label=<<B>list</B><BR/>async: >, shape="box" regular="" xlabel="Transition list: "];
+  transition_download [label=<<B>download</B><BR/>async: >, shape="box" regular="" xlabel="Transition download: "];
+  transition_meta [label=<<B>meta</B><BR/><I>Use s3 client to fetch metadata</I><BR/>async: >, shape="box" regular="" xlabel="Transition meta: "];
+  place_new_dir -> transition_list [style="solid", comment="new_dir"];
+  transition_list -> place_dir_has_listing [style="solid"];
+  place_new_file -> transition_download [style="solid", comment="new_file"];
   transition_download -> place_downloaded [style="solid"];
+  place_new_file -> transition_meta [style="solid", comment="new_file"];
+  transition_meta -> place_file_has_meta [style="solid"];
 }

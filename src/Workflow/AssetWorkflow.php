@@ -10,9 +10,6 @@ use App\Service\EdgeAnalysisService;
 use App\Service\IiifManifestService;
 use \RuntimeException as RuntimeException;
 use App\Entity\Asset;
-use App\Entity\AssetPath;
-use App\Entity\Variant;
-use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\UserRepository;
 use App\Service\ArchiveService;
@@ -20,7 +17,6 @@ use App\Service\AiToolsObserveService;
 use App\Service\AiToolsOcrService;
 use App\Service\AtomicFileWriter;
 use App\Service\AssetPreviewService;
-use App\Service\VariantPlan;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
@@ -31,6 +27,8 @@ use Psr\Log\LoggerInterface;
 use Survos\AiPipelineBundle\Task\AiTaskInterface;
 use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
+use Survos\ImgproxyBundle\Service\ImgproxyUrlBuilder;
+use Symfony\Component\HttpClient\Response\StreamWrapper;
 use App\Util\ImageProbe;
 use Survos\StateBundle\Attribute\Workflow;
 use Survos\StateBundle\Message\TransitionMessage;
@@ -57,12 +55,11 @@ use Twig\Environment as TwigEnvironment;
 use Survos\GoogleSheetsBundle\Service\GoogleDriveService;
 use App\Service\OcrService;
 use App\Workflow\AssetFlow as WF;
-use App\Workflow\VariantFlowDefinition as VWF;
 
 //#[Workflow(name: WF::WORKFLOW_NAME, supports: [Asset::class])]
 class AssetWorkflow
 {
-    const THUMBHASH_PRESET = 'small';
+    const THUMBHASH_PRESET = 'thumb';
     private const CANONICAL_MAX_EDGE = 3000;
     private const CANONICAL_WEBP_QUALITY = 82;
     private ?float $sourceCooldownUntil = null;
@@ -78,18 +75,13 @@ class AssetWorkflow
         private MessageBusInterface          $messageBus,
         private EntityManagerInterface                          $em,
         private AssetRepository                                 $assetRepo,
-        private AssetPathRepository                             $assetPathRepo,
         private readonly FilesystemOperator                     $localStorage,
         private readonly LoggerInterface                        $logger,
         private readonly HttpClientInterface                    $httpClient,
         private UserRepository                                  $userRepository,
-//        #[Target(TWF::WORKFLOW_NAME)] private WorkflowInterface $thumbWorkflow,
-        #[Target(VWF::WORKFLOW_NAME)] private WorkflowInterface $variantWorkflow,
         #[Target(WF::WORKFLOW_NAME)] private WorkflowInterface $assetWorkflow,
         private SerializerInterface                            $serializer,
         private NormalizerInterface                            $normalizer,
-        #[Autowire('%env(SAIS_API_ENDPOINT)%')]
-        private string                                         $apiEndpoint,
         #[Autowire('%env(int:SERVICE_529_COOLDOWN_MS)%')]
         private readonly int                                   $source529CooldownMs,
         #[Autowire('%env(int:SERVICE_HTTP_TIMEOUT_SECONDS)%')]
@@ -102,9 +94,9 @@ class AssetWorkflow
         private readonly string                                $canonicalDir,
         private readonly EntityManagerInterface                $entityManager,
         private readonly AsyncQueueLocator                     $asyncQueueLocator,
-        private readonly VariantPlan                           $plan,
         private readonly StorageService $storageService,
         private readonly AssetRegistry $assetRegistry,
+        private readonly ImgproxyUrlBuilder $imgproxyUrlBuilder,
         private readonly IiifManifestService $iiifManifestService,
         private readonly EdgeAnalysisService $edgeAnalysisService,
         private readonly OcrService $ocrService,
@@ -212,32 +204,6 @@ class AssetWorkflow
 
         $this->uploadToArchiveFromPath($asset, $localPath);
         $this->em->flush();
-    }
-
-//    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
-    public function onArchive(TransitionEvent $event): void
-    {
-        return; // no-op, everything now in download.
-        $asset = $this->getAsset($event);
-
-
-        // if archived we don't need the temp file.
-
-        $asset->storageBackend = 'archive';
-        $asset->storageKey = $path;
-        // only AFTER we have a storage key, so it uses the s3 image for the thumb
-        $asset->smallUrl = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
-         if ($asset->localCanonicalFilename) {
-             // keep files during testing locally
-//             unlink($asset->localCanonicalFilename);
-         }
-         $asset->localCanonicalFilename = null;
-
-         // Archive marks the end of the asset lifecycle for this worker
-         $this->em->flush();
-//         $this->em->detach($asset);
-         gc_collect_cycles();
-
     }
 
     #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_AI_TASK)]
@@ -482,160 +448,262 @@ class AssetWorkflow
      * @throws FilesystemException
      * @throws TransportExceptionInterface
      */
-    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_DOWNLOAD)]
-    public function onDownload(TransitionEvent $event): void
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_ARCHIVE)]
+    public function onArchive(TransitionEvent $event): void
     {
         $asset = $this->getAsset($event);
-        $downloadUrl = null;
+        if ($this->archiveStorage === null) {
+            throw new RuntimeException('archiveStorage (museado) is not configured.');
+        }
+
+        // Already in our bucket? (e.g. old-pipeline assets under orig/, or a prior
+        // run). Reuse the existing object — no re-download, no re-upload. /info
+        // then runs against s3://museado/{storageKey} as usual.
+        if (is_string($asset->storageKey) && $asset->storageKey !== ''
+            && $this->archiveStorage->fileExists($asset->storageKey)
+        ) {
+            $asset->storageBackend ??= 'archive';
+            $asset->archiveUrl ??= $this->assetRegistry->s3Url($asset);
+            $asset->statusCode = 200;
+            $this->logger->info('archive[{id}]: already in bucket → reuse {key} (no download, no upload)', [
+                'id' => $asset->id,
+                'key' => $asset->storageKey,
+            ]);
+            $this->em->flush();
+            return;
+        }
+
         $url = $asset->originalUrl;
 
-//        $url = 'https://ciim-public-media-s3.s3.eu-west-2.amazonaws.com/ramm/41_2005_3_2.jpg';
-//        $url = 'https://coleccion.museolarco.org/public/uploads/ML038975/ML038975a_1733785969.webp';
-//        $asset->setOriginalUrl($url);
-        // we use the original extension
-
-        $uri = parse_url($url, PHP_URL_PATH);
-        $ext = pathinfo($uri, PATHINFO_EXTENSION);
-
-        if (empty($ext)) {
-            $ext = 'tmp'; // Will be corrected after download based on actual mime type
+        // Stream the source master straight into museado — constant memory, no
+        // local copy, no re-encode (bytes verbatim, so any embedded metadata is
+        // preserved). imgproxy then reads it via s3://, so no downstream call
+        // ever hits the origin server again.
+        $response = $this->httpClient->request('GET', $url, [
+            'timeout' => $this->serviceHttpTimeoutSeconds,
+        ]);
+        $status = $response->getStatusCode();
+        $asset->statusCode = $status;
+        if ($status !== 200) {
+            throw new RuntimeException(sprintf('Source returned HTTP %d for asset %s (%s)', $status, $asset->id, $url));
         }
+
+        $headers = $response->getHeaders();
+        $contentType = $headers['content-type'][0] ?? null;
+        if (is_string($contentType) && $contentType !== '') {
+            $asset->mime = trim(explode(';', $contentType)[0]);
+        }
+
+        // Extension for the storage key: prefer the detected mime, else the URL.
+        $ext = null;
+        if (is_string($asset->mime) && str_contains((string) $asset->mime, '/')) {
+            try {
+                $ext = MediaKeyService::extensionFromMime($asset->mime);
+            } catch (\Throwable) {
+                $ext = null;
+            }
+        }
+        $ext = $ext ?: (strtolower(pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION)) ?: 'bin');
         $asset->ext = $ext;
 
-        $key = $this->archiveService->keyForUrl($asset->originalUrl);
-        $path = basename($this->archiveService->payloadPath($key, $ext));
-
-        if (!is_dir($this->tempDir)) {
-            mkdir($this->tempDir, 0777, true);
-        }
-        assert($path, "Missing $path");
-        $tempFile = $this->tempDir . '/' . str_replace('/', '-', $path);
-        $asset->statusCode = 200;
-        // path will change if there is an extension mismatch!
-        // Download to a process-local temp file (not persisted)
-        $tmpFile = tempnam(sys_get_temp_dir(), 'asset_');
-        $uploadPath = $tmpFile;
+        // Buffer the source: the S3 adapter must seek (size/multipart) and we need
+        // to sha256 the bytes for the content-addressed key. php://temp stays in
+        // memory up to 8MB, then spills to disk (bounded memory).
+        $httpStream = StreamWrapper::createResource($response, $this->httpClient);
+        $buffer = fopen('php://temp/maxmemory:' . (8 * 1024 * 1024), 'r+b');
+        $key = null;
+        $bytes = null;
         try {
-            $downloadCandidates = $this->downloadCandidates($asset);
-            $lastError = null;
-            foreach ($downloadCandidates as $candidateUrl) {
-                try {
-                    $this->downloadUrl($candidateUrl, $tmpFile);
-                    $downloadUrl = $candidateUrl;
-                    break;
-                } catch (UnrecoverableMessageException|\Throwable $e) {
-                    $lastError = $e;
-                    $this->logger->warning('Download candidate failed for {id}: {url} ({error})', [
-                        'id' => $asset->id,
-                        'url' => $candidateUrl,
-                        'error' => $e->getMessage(),
-                    ]);
-                    continue;
-                }
+            // stream_copy_to_stream returns the ACTUAL bytes copied (int), or false
+            // on error — more reliable than the Content-Length header, which sources
+            // often omit (chunked).
+            $bytes = stream_copy_to_stream($httpStream, $buffer);
+            fclose($httpStream);
+            $httpStream = null;
+
+            if (!$bytes) { // null (unreached), false (stream error), or 0 (empty)
+                throw new RuntimeException(sprintf(
+                    'Downloaded zero bytes for asset %s from %s — refusing to archive an empty master.',
+                    $asset->id,
+                    $url
+                ));
             }
 
-            if ($downloadUrl === null) {
-                if ($lastError instanceof \Throwable) {
-                    throw $lastError;
-                }
-                throw new RuntimeException(sprintf('No downloadable URL candidates for asset %s', $asset->id));
-            }
-
+            // Content-addressed under orig/, matching the existing ~800k masters,
+            // so identical bytes dedup and we never re-upload. (Asset id stays the
+            // canonical xxh3-of-URL via MediaIdentity; only the storage path is
+            // content-derived.)
+            rewind($buffer);
+            $ctx = hash_init('sha256');
+            hash_update_stream($ctx, $buffer);
+            $sha = hash_final($ctx);
             $asset->context ??= [];
-            $asset->context['download_url'] = $downloadUrl;
+            $asset->context['sha256'] = $sha;
+            $key = sprintf('orig/%s/%s/%s.%s', substr($sha, 0, 2), substr($sha, 2, 2), $sha, $ext);
 
-            if (!is_file($tmpFile) || filesize($tmpFile) === 0) {
-                throw new RuntimeException(sprintf('Downloaded zero-byte payload for asset %s', $asset->id));
+            if (!$this->archiveStorage->fileExists($key)) {
+                rewind($buffer);
+                $this->archiveStorage->writeStream($key, $buffer, ['visibility' => Visibility::PUBLIC]);
+                $this->logger->info('archive[{id}]: UPLOADED {key} ({bytes} bytes) from {url}', [
+                    'id' => $asset->id, 'key' => $key, 'bytes' => $bytes, 'url' => $url,
+                ]);
+            } else {
+                $this->logger->info('archive[{id}]: dedup hit → {key} already present ({bytes} bytes), skipping upload', [
+                    'id' => $asset->id, 'key' => $key, 'bytes' => $bytes,
+                ]);
             }
-
-            // no network calls! Only what we need while we have local
-            // Inspect local file once: size, mime, dimensions, exif (when applicable)
-            $this->processLocalFile($tmpFile, $asset);
-            $asset->context ??= [];
-            $asset->context['source_probe'] = [
-                'mime' => $asset->mime,
-                'width' => $asset->width,
-                'height' => $asset->height,
-                'bytes' => $asset->size,
-                'url' => $downloadUrl,
-            ];
-            $this->applyEdgeAnalysisFromLocalFile($asset, $tmpFile);
-
-            // Normalize extension based on detected mime type
-            $detectedExt = ImageProbe::extFromMime($asset->mime);
-            $currentExt = pathinfo($tmpFile, PATHINFO_EXTENSION);
-            if ($detectedExt && $currentExt !== $detectedExt) {
-                $renamed = $tmpFile . '.' . $detectedExt;
-                rename($tmpFile, $renamed);
-                $tmpFile = $renamed;
-                $asset->ext = $detectedExt;
-            }
-            $uploadPath = $tmpFile;
-
-            // tasks[] controls which analysis steps to run for this asset.
-            // Sent by ssai in context hints; defaults to all tasks if absent.
-            $tasks = $asset->context['tasks'] ?? ['thumbhash', 'palette'];
-
-            // OCR — while the file is local, no second download needed
-            if (str_starts_with((string) $asset->mime, 'image/')) {
-                // Thumbhash — resize to ≤100px before extracting pixels (thumbhash max is 192x192)
-                if (in_array('thumbhash', $tasks, true)) {
-                    try {
-                        $img = new \Imagick($tmpFile);
-                        $img->thumbnailImage(100, 100, bestfit: true);
-                        $tw = $img->getImageWidth();
-                        $th = $img->getImageHeight();
-                        $pixels = [];
-                        $iter = $img->getPixelIterator();
-                        foreach ($iter as $row) {
-                            foreach ($row as $pixel) {
-                                $c = $pixel->getColor(2);
-                                $pixels[] = $c['r'];
-                                $pixels[] = $c['g'];
-                                $pixels[] = $c['b'];
-                                $pixels[] = $c['a'];
-                            }
-                        }
-                        $img->clear();
-                        $hash = Thumbhash::RGBAToHash($tw, $th, $pixels, 192, 192);
-                        $asset->context['thumbhash'] = Thumbhash::convertHashToString($hash);
-                        unset($pixels, $iter, $img);
-                    } catch (\Throwable $e) {
-                        $this->logger->warning('Thumbhash failed for {id}: {err}', ['id' => $asset->id, 'err' => $e->getMessage()]);
-                    }
-                }
-
-                if (in_array('palette', $tasks, true)) {
-                    $this->assetPreviewService->maybeComputePaletteAndPhash($asset, self::THUMBHASH_PRESET, $tmpFile);
-                }
-            }
-
-            // Build canonical payload while we still have local bytes.
-            $uploadPath = $this->buildCanonicalAsset($asset, $tmpFile);
-
-            // Persist local canonical/small derivatives for shared AI-tools access.
-            $uploadPath = $this->persistLocalDerivatives($asset, $uploadPath);
-
-            // Archive to S3 — now after all local analysis is done
-            $this->uploadToArchiveFromPath($asset, $uploadPath);
         } finally {
-            if (is_file($tmpFile)) {
-                unlink($tmpFile);
+            if (is_resource($httpStream)) {
+                fclose($httpStream);
             }
-            if (
-                is_string($uploadPath)
-                && $uploadPath !== $tmpFile
-                && $uploadPath !== $asset->localCanonicalFilename
-                && is_file($uploadPath)
-            ) {
-                unlink($uploadPath);
+            if (is_resource($buffer)) {
+                fclose($buffer);
             }
         }
 
-        // now we can save everything and move to the next step.
+        $asset->storageKey = $key;
+        $asset->storageBackend = 'archive';
+        // Master byte size — the actual bytes streamed (a real metric vs. derivatives).
+        $asset->size = $bytes;
+        $asset->archiveUrl = $this->assetRegistry->s3Url($asset); // public HTTP URL for browsers
+
         $this->em->flush();
     }
 
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_INFO)]
+    public function onInfo(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        // /info runs against the s3:// master once it's archived; falls back to
+        // the original URL only if the archive step hasn't run.
+        $source = $asset->storageKey
+            ? $this->assetRegistry->s3SourceUrl($asset)
+            : $asset->originalUrl;
+
+        $asset->context ??= [];
+        $asset->context['info_source'] = $source;
+        $this->logger->info('info[{id}]: /info source = {source}', [
+            'id' => $asset->id,
+            'source' => $source,
+        ]);
+
+        // imgproxy PRO /info against the s3:// master — one remote call, NO
+        // download to our server, NO nesting (the source is a real object in our
+        // bucket, never another imgproxy URL).
+        //
+        // The default response carries format, dimensions, mime_type, size, exif,
+        // iptc, xmp, orientation; we add perceptual hashes and ML analysis. Notes:
+        //  - blurhash needs TWO components (bh:x:y); a valueless token 404s.
+        //  - classify / detect_objects return labelled categories + face boxes.
+        //
+        // Store the raw blob for audit/debug, and promote stable technical
+        // metadata to first-class Asset columns for filtering, IIIF, and search.
+        $info = $this->imgproxyUrlBuilder->info($source, [
+            'size',
+            'format',
+            'dimensions',
+            'thumb_hash',
+            'blurhash:4:3',
+            'perceptual_hash',
+            'average',
+            'dominant_colors',
+            'detect_objects:1',
+            'classify:5',
+        ]);
+
+        $asset->context ??= [];
+        $asset->context['info'] = $info;
+        $asset->context['info_source'] = $source;
+        $asset->context['info_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        $asset->statusCode = 200;
+        $this->applyInfoMetadata($asset, $info);
+
+        $this->em->flush();
+    }
+
+    /** @param array<string, mixed> $info */
+    private function applyInfoMetadata(Asset $asset, array $info): void
+    {
+        $dimensions = is_array($info['dimensions'] ?? null) ? $info['dimensions'] : [];
+        $width = $this->infoPositiveInt($info, 'width')
+            ?? $this->infoPositiveInt($dimensions, 'width')
+            ?? $this->infoPositiveInt($dimensions, 0);
+        $height = $this->infoPositiveInt($info, 'height')
+            ?? $this->infoPositiveInt($dimensions, 'height')
+            ?? $this->infoPositiveInt($dimensions, 1);
+
+        if ($width !== null && $height !== null) {
+            $asset->width = $width;
+            $asset->height = $height;
+        }
+
+        $size = $this->infoPositiveInt($info, 'size');
+        if ($size !== null) {
+            $asset->size = $size;
+        }
+
+        $mime = $this->infoString($info, 'mime_type') ?? $this->infoString($info, 'mime');
+        $format = $this->infoString($info, 'format');
+        if ($mime === null && $format !== null) {
+            $mime = $this->mimeFromFormat($format);
+        }
+        if ($mime !== null) {
+            $asset->mime = $mime;
+        }
+
+        if ($mime !== null) {
+            try {
+                $asset->ext = MediaKeyService::extensionFromMime($mime);
+                return;
+            } catch (\Throwable) {
+            }
+        }
+
+        if ($format !== null) {
+            $asset->ext = match (strtolower($format)) {
+                'jpeg' => 'jpg',
+                'tiff' => 'tif',
+                default => strtolower($format),
+            };
+        }
+    }
+
+    /** @param array<mixed> $values */
+    private function infoPositiveInt(array $values, int|string $key): ?int
+    {
+        if (!array_key_exists($key, $values) || !is_numeric($values[$key])) {
+            return null;
+        }
+
+        $value = (int) $values[$key];
+        return $value > 0 ? $value : null;
+    }
+
+    /** @param array<string, mixed> $values */
+    private function infoString(array $values, string $key): ?string
+    {
+        $value = $values[$key] ?? null;
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+        return $value !== '' ? $value : null;
+    }
+
+    private function mimeFromFormat(string $format): ?string
+    {
+        return match (strtolower(trim($format))) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'avif' => 'image/avif',
+            'tif', 'tiff' => 'image/tiff',
+            'svg' => 'image/svg+xml',
+            default => null,
+        };
+    }
 
     /**
      *

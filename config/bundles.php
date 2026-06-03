@@ -15,7 +15,6 @@ return [
     League\FlysystemBundle\FlysystemBundle::class => ['all' => true],
     Survos\StorageBundle\SurvosStorageBundle::class => ['all' => true],
     Symfony\UX\TwigComponent\TwigComponentBundle::class => ['all' => true],
-    Survos\CoreBundle\SurvosCoreBundle::class => ['all' => true],
     Survos\SimpleDatatables\SurvosSimpleDatatablesBundle::class => ['all' => true],
     Knp\Bundle\TimeBundle\KnpTimeBundle::class => ['all' => true],
     Bizkit\VersioningBundle\BizkitVersioningBundle::class => ['all' => true],
@@ -59,4 +58,9 @@ return [
     Survos\ImgproxyBundle\SurvosImgproxyBundle::class => ['all' => true],
     Survos\ClaimsBundle\SurvosClaimsBundle::class => ['all' => true],
     Survos\AiWorkflowBundle\SurvosAiWorkflowBundle::class => ['all' => true],
+    Survos\Kit\SurvosKitBundle::class => ['all' => true],
+    Survos\ImportBundle\SurvosImportBundle::class => ['all' => true],
+    Survos\DatasetBundle\SurvosDatasetBundle::class => ['all' => true],
+    Symfony\UX\LiveComponent\LiveComponentBundle::class => ['all' => true],
+    Mezcalito\UxSearchBundle\MezcalitoUxSearchBundle::class => ['all' => true],
 ];

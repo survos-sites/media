@@ -25,11 +25,6 @@ security:
                 # where to redirect after logout
                 # target: app_any_route
 
-        # https://symfony.com/bundles/LiipImagineBundle/current/basic-usage.html#optimize-firewall-configuration
-        image_resolver:
-            pattern: ^/cache/resolve
-            security: false
-
             # activate different ways to authenticate
             # https://symfony.com/doc/current/security.html#the-firewall
 

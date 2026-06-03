@@ -5,7 +5,6 @@ namespace App\Controller\Admin;
 use App\Entity\File;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use Survos\CoreBundle\Entity\RouteParametersInterface;
 use Survos\EzBundle\Controller\AbstractEzCrudController;
 use Survos\EzBundle\Field\LinkedTextField;
 

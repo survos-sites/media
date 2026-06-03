@@ -1,0 +1,26 @@
+{% block content %}
+    <div {{ attributes.defaults({ class: 'ux-search-hits' }) }}>
+        {% if results.hits|length > 0 %}
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xxl-4 g-3">
+                {% for hit in results.hits %}
+                    {% set entity = hit.data %}
+                    <div class="col">
+                        {% if entity.originalUrl is defined %}
+                            {{ include('components/Mezcalito/UxSearch/_hit_asset.html.twig', { asset: entity }) }}
+                        {% else %}
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <pre class="small mb-0">{{ entity|json_encode(constant('JSON_PRETTY_PRINT')) }}</pre>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            {% block noResult %}
+                <div class="ux-search-hits__no-result">{{ 'no_result'|trans(domain='mezcalito_ux_search') }}</div>
+            {% endblock %}
+        {% endif %}
+    </div>
+{% endblock %}

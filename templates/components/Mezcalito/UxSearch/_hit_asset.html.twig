@@ -1,0 +1,58 @@
+{% set title = asset.aiTitle ?: asset.title ?: asset.filename ?: asset.id %}
+{% set summary = asset.aiDescription ?: asset.description ?: asset.aiOcrText %}
+{% set keywords = asset.aiKeywords|default([]) %}
+{% if keywords is not iterable %}
+    {% set keywords = [] %}
+{% endif %}
+
+<article class="card h-100 asset-search-card">
+    <a href="{{ path('asset_show', {id: asset.id}) }}" class="ratio ratio-4x3 bg-light d-flex align-items-center justify-content-center overflow-hidden">
+        {% if asset.smallUrl|default(asset.thumb) %}
+            <img
+                src="{{ asset.smallUrl|default(asset.thumb) }}"
+                alt="{{ title }}"
+                class="w-100 h-100 object-fit-contain"
+            >
+        {% else %}
+            <span class="text-muted small">{{ asset.mime|default('No preview') }}</span>
+        {% endif %}
+    </a>
+
+    <div class="card-body d-flex flex-column gap-2">
+        <div>
+            <div class="fw-semibold text-break">{{ title }}</div>
+            <div class="small text-muted font-monospace">{{ asset.id }}</div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-1">
+            <span class="badge bg-secondary-lt">{{ asset.marking }}</span>
+            {% if asset.mime %}
+                <span class="badge bg-blue-lt">{{ asset.mime }}</span>
+            {% endif %}
+            {% if asset.aiDocumentType %}
+                <span class="badge bg-purple-lt">{{ asset.aiDocumentType }}</span>
+            {% endif %}
+        </div>
+
+        {% if summary %}
+            <div class="small text-muted">{{ summary|u.truncate(180, '...') }}</div>
+        {% endif %}
+
+        {% if keywords %}
+            <div class="d-flex flex-wrap gap-1">
+                {% for keyword in keywords|slice(0, 6) %}
+                    <span class="badge text-bg-light">{{ keyword }}</span>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <div class="small text-muted mt-auto">
+            {% if asset.width and asset.height %}
+                {{ asset.width }} x {{ asset.height }}
+            {% endif %}
+            {% if asset.size %}
+                <span class="ms-2">{{ asset.size|bytes }}</span>
+            {% endif %}
+        </div>
+    </div>
+</article>

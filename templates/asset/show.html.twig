@@ -188,6 +188,7 @@
           <ul class="nav nav-tabs card-header-tabs" id="{{ tabId }}-nav" data-bs-toggle="tabs" role="tablist">
             <li class="nav-item"><a href="#{{ tabId }}-ocr"              class="nav-link active" data-bs-toggle="tab" data-tab-id="ocr">OCR</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-source_metadata"  class="nav-link" data-bs-toggle="tab" data-tab-id="source_metadata">Source Metadata</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-info"             class="nav-link" data-bs-toggle="tab" data-tab-id="info">Info</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-edge_analysis"    class="nav-link" data-bs-toggle="tab" data-tab-id="edge_analysis">Edge Analysis</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-ai_metadata"      class="nav-link" data-bs-toggle="tab" data-tab-id="ai_metadata">AI Metadata</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-ai_task_results"  class="nav-link" data-bs-toggle="tab" data-tab-id="ai_task_results">AI Task Results</a></li>
@@ -204,11 +205,11 @@
 
         {# ── OCR ──────────────────────────────────────────────────────────────── #}
         <div id="{{ tabId }}-ocr" class="tab-pane active show" role="tabpanel">
-          <twig:AiMetadata :results="asset.aiResults()" group="ocr" />
+          <twig:OcrClaimsPanel subjectType="{{ claimSubjectType }}" subjectId="{{ claimSubjectId }}" />
         </div>
         {# ── Source Metadata ──────────────────────────────────────────────────── #}
         <div id="{{ tabId }}-source_metadata" class="tab-pane" role="tabpanel">
-          {% set ctx = asset.sourceMeta %}
+          {% set ctx = asset.sourceMeta|default({}) %}
           {% set manifestJson = ctx.iiif_manifest_json|default(null) %}
           {% set ctxForTable = ctx|filter((v, k) => k != 'iiif_manifest_json') %}
           {% if ctx %}
@@ -220,7 +221,7 @@
                 {% endif %}
               </div>
               <div class="card-body small p-2">
-                <twig:SourceMetadata :ctx="ctxForTable" />
+                <twig:SourceClaims :ctx="ctxForTable" />
 
                 <div class="border-top pt-2 mt-2">
                   <div class="d-flex flex-wrap gap-2">
@@ -257,6 +258,25 @@
                 {% endif %}
               </div>
             </div>
+          {% endif %}
+        </div>
+
+        {# ── Info (imgproxy /info blob) ────────────────────────────────────────── #}
+        <div id="{{ tabId }}-info" class="tab-pane" role="tabpanel">
+          {% set info = asset.context.info|default(null) %}
+          {% if info %}
+            <p class="text-muted small mb-2">
+              Raw imgproxy <code>/info</code> response (run against the archive derivative).
+              {% if info.size is defined %}<span class="ms-2">Bytes: <strong>{{ info.size }}</strong> ({{ info.size|bytes }})</span>{% endif %}
+              {% if info.width is defined %}<span class="ms-2">{{ info.width }} × {{ info.height|default('?') }}</span>{% endif %}
+              {% if info.format is defined %}<span class="ms-2 badge bg-secondary">{{ info.format }}</span>{% endif %}
+            </p>
+            <div data-controller="json-viewer">
+              <andypf-json-viewer data-json-viewer-target="viewer" expanded="2" indent="2" show-data-types="false" theme="monokai" show-toolbar="true" show-size="true" show-copy="true"></andypf-json-viewer>
+              <script type="application/json" data-json-viewer-target="payload">{{ info|json_encode|raw }}</script>
+            </div>
+          {% else %}
+            <p class="text-muted">No <code>/info</code> data captured yet. Run the <code>info</code> workflow transition.</p>
           {% endif %}
         </div>
 
@@ -323,7 +343,12 @@
 
         {# ── AI Metadata ──────────────────────────────────────────────────────── #}
         <div id="{{ tabId }}-ai_metadata" class="tab-pane" role="tabpanel">
-          <twig:AiMetadata :results="asset.aiResults()" group="image" />
+          <twig:ClaimsList
+            subjectType="{{ claimSubjectType }}"
+            subjectId="{{ claimSubjectId }}"
+            predicates="dcterms:subject,foaf:Person,dcterms:spatial,ai:speculation,ai:organisation,dcterms:type,ai:highResGoal,ai:highResTarget"
+            layout="chips"
+          />
         </div>
 
         {# ── AI Task Results ──────────────────────────────────────────────────── #}

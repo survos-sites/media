@@ -19,12 +19,12 @@ onGuardList()
 public function onGuardList(GuardEvent $event): void
 {
     $file = $this->getFile($event);
-    if (!$file->getIsDir()) {
+    if (!$file->isDir) {
         $event->setBlocked(true, "only directories can be listed");
     }
 }
 ```
-[View source](sais/blob/main/src/Workflow/FileWorkflow.php#L29-L35)
+[View source](mediary/blob/main/src/Workflow/FileWorkflow.php#L29-L35)
 
 ### list.Transition
 
@@ -37,10 +37,11 @@ onList()
 public function onList(TransitionEvent $event): void
 {
     $file = $this->getFile($event);
-    $results = $this->storageService->syncDirectoryListing($file->getZoneId(), $file->getPath());
+    $results = $this->storageService->syncDirectoryListing($file->storageId, $file->path);
+    $this->storageService->dispatchDirectoryRequests($results);
 
 }
 ```
-[View source](sais/blob/main/src/Workflow/FileWorkflow.php#L38-L43)
+[View source](mediary/blob/main/src/Workflow/FileWorkflow.php#L38-L44)
 
 

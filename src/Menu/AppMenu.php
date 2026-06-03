@@ -46,7 +46,7 @@ final class AppMenu implements KnpMenuHelperInterface
 
         $assetsMenu = $this->addSubmenu($menu, 'Assets', icon: 'assets');
         $this->add($assetsMenu, 'app_browse_assets', label: 'Browse Assets');
-        $this->add($assetsMenu, 'meili_insta', ['indexName' => 'asset'], label: 'Search Assets');
+        $this->add($assetsMenu, 'asset_search', label: 'Search Assets');
 
         $recordsMenu = $this->addSubmenu($menu, 'Records', icon: 'records');
         $this->add($recordsMenu, 'media_record_browse', label: 'Browse Records');

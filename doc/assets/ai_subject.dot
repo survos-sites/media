@@ -1,0 +1,35 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>ai_subject</B>>
+  node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_new [label=<<B>new</B><BR/><I>Subject registered</I><BR/>bgColor: secondary<BR/><BR/>Then: <U>prepare</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new: The subject exists but has not been prepared for AI work."];
+  place_prepared [label=<<B>prepared</B><BR/><I>Prepared for AI work</I><BR/>bgColor: primary<BR/><BR/>Then: <U>observe</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place prepared: Source content, metadata, URLs, or normalized text are available for observation."];
+  place_observed [label=<<B>observed</B><BR/><I>Observed evidence exists</I><BR/>bgColor: primary<BR/><BR/>Then: <U>observe</U> <U>analyze</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place observed: Observation has produced neutral evidence. Additional observation tasks may still be queued on the subject."];
+  place_analyzed [label=<<B>analyzed</B><BR/><I>Analysis complete</I><BR/>bgColor: success<BR/><BR/>Then: <U>analyze</U> <U>review</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place analyzed: Application-level interpretation has been derived from observed evidence and context."];
+  place_reviewed [label=<<B>reviewed</B><BR/><I>Reviewed</I><BR/>bgColor: success<BR/><BR/>Then: <U>review</U> <U>publish</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place reviewed: Analysis has passed app-defined review, whether automatic policy checks or human approval."];
+  place_published [label=<<B>published</B><BR/><I>Published</I><BR/>bgColor: success>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place published: Analysis has been projected into app fields, indexes, exports, webhooks, or other public outputs."];
+  transition_prepare [label=<<B>prepare</B><BR/><I>Prepare Metadata/Image</I><BR/>async: >, shape="box" regular="" xlabel="Transition prepare: App-owned setup: fetch source, normalize content, create media variants, resolve URLs, or load metadata."];
+  transition_observe [label=<<B>observe</B><BR/><I>Observation Tasks</I><BR/>async: >, shape="box" regular="" xlabel="Transition observe: Generate neutral evidence from prepared content. For media this starts with low-res observation plus optional high-res reads; for text it may be summaries or structural facts."];
+  transition_analyze [label=<<B>analyze</B><BR/><I>Analyze from Text</I><BR/>async: >, shape="box" regular="" xlabel="Transition analyze: App-owned interpretation from observations and context. Does not inspect pixels or source content directly unless the app explicitly chooses that policy."];
+  transition_review [label=<<B>review</B><BR/><I>App-owned Review</I><BR/>async: >, shape="box" regular="" xlabel="Transition review: App-owned approval point after analysis. The app decides whether this is automatic, human, or skipped by policy."];
+  transition_publish [label=<<B>publish</B><BR/><I>Publish</I><BR/>async: >, shape="box" regular="" xlabel="Transition publish: App-owned projection into denormalized fields, search indexes, exports, webhooks, or other final outputs."];
+  place_new -> transition_prepare [style="solid", comment="new"];
+  transition_prepare -> place_prepared [style="solid"];
+  place_prepared -> transition_observe [style="solid", comment="prepared"];
+  transition_observe -> place_observed [style="solid"];
+  place_observed -> transition_observe [style="solid", comment="observed"];
+  transition_observe -> place_observed [style="solid"];
+  place_observed -> transition_analyze [style="solid", comment="observed"];
+  transition_analyze -> place_analyzed [style="solid"];
+  place_analyzed -> transition_analyze [style="solid", comment="analyzed"];
+  transition_analyze -> place_analyzed [style="solid"];
+  place_analyzed -> transition_review [style="solid", comment="analyzed"];
+  transition_review -> place_reviewed [style="solid"];
+  place_reviewed -> transition_review [style="solid", comment="reviewed"];
+  transition_review -> place_reviewed [style="solid"];
+  place_reviewed -> transition_publish [style="solid", comment="reviewed"];
+  transition_publish -> place_published [style="solid"];
+  place_published -> transition_publish [style="solid", comment="published"];
+  transition_publish -> place_published [style="solid"];
+}

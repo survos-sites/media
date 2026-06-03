@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Elasticsearch\Filter\OrderFilter;
@@ -10,8 +12,9 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use Survos\CoreBundle\Entity\RouteParametersInterface;
-use Survos\CoreBundle\Entity\RouteParametersTrait;
+use Survos\FieldBundle\Attribute\RouteIdentity;
+use Survos\FieldBundle\Entity\RouteIdentityTrait;
+use Survos\FieldBundle\Entity\RouteParametersInterface;
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\Tree\Traits\TreeTrait;
@@ -34,6 +37,7 @@ use ApiPlatform\Serializer\Filter\PropertyFilter;
 #[Gedmo\Tree(type: "nested")]
 #[ORM\Entity(repositoryClass: FileRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_STORAGE_PATH', fields: ['storage', 'path'])]
+#[RouteIdentity(field: 'id')]
 #[MeiliIndex(
     chats: ['meili_assistant'],
     persisted: new Fields(
@@ -47,7 +51,7 @@ class File implements \Stringable, TreeInterface, MarkingInterface,RouteParamete
 {
     use TreeTrait;
     use MarkingTrait;
-    use RouteParametersTrait;
+    use RouteIdentityTrait;
 
     #[ORM\Id]
     #[ORM\Column()]

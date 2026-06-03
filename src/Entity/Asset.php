@@ -6,7 +6,6 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\GetCollection;
 use Survos\MediaBundle\Dto\MediaEnrichment;
-use App\Entity\Variant;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -18,16 +17,24 @@ use Survos\MeiliBundle\Metadata\MeiliIndex;
 use Survos\MediaBundle\Util\MediaIdentity;
 use Survos\StateBundle\Traits\MarkingInterface;
 use Survos\StateBundle\Traits\MarkingTrait;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: \App\Repository\AssetRepository::class)]
 #[ORM\Table]
 #[ORM\Index(name: 'idx_asset_created_at', columns: ['created_at'])]
-#[ORM\Index(name: 'idx_asset_mime', columns: ['mime'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
 #[ORM\Index(name: 'idx_asset_media_record', columns: ['media_record_id'])]
+// Composite (facetColumn, id) indexes. The Mezcalito search facets run
+// `count(DISTINCT id) GROUP BY <col>`; without id in the index that forces a
+// full table sort per facet. Covering the PK makes each an index-only scan.
+// See https://github.com/Mezcalito/ux-search/issues/46
+#[ORM\Index(name: 'idx_asset_marking_id', columns: ['marking', 'id'])]
+#[ORM\Index(name: 'idx_asset_ai_doc_type_id', columns: ['ai_document_type', 'id'])]
+#[ORM\Index(name: 'idx_asset_mime_id', columns: ['mime', 'id'])]
+#[ORM\Index(name: 'idx_asset_ext_id', columns: ['ext', 'id'])]
+#[ORM\Index(name: 'idx_asset_size_id', columns: ['size', 'id'])]
+#[ORM\Index(name: 'idx_asset_width_id', columns: ['width', 'id'])]
+#[ORM\Index(name: 'idx_asset_height_id', columns: ['height', 'id'])]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
@@ -131,12 +138,6 @@ class Asset implements MarkingInterface, \Stringable
     public ?int $statusCode = null;
 
     public ?int $sizeInMegabytes { get => $this->size ? (int)($this->size / (1024*1024)) : null;}
-
-    /** Directory assignment under local.storage for Liip loader (3-hex dir). */
-    #[ORM\ManyToOne(targetEntity: AssetPath::class)]
-    #[ORM\JoinColumn(name: 'local_dir_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    public ?AssetPath $localDir = null;
-
 
     /** Original MIME type (image/*, audio/*, video/*). */
     #[ORM\Column(type: Types::STRING, nullable: true)]
@@ -359,13 +360,6 @@ class Asset implements MarkingInterface, \Stringable
     #[Field(filterable: true, widget: Widget::Select, facet: true, order: 55, group: 'File')]
     public ?string $ext = null;
 
-    /** Variant map (preset => url/info). */
-    /** Variants generated for this asset (e.g., liip presets, formats). */
-    #[ORM\OneToMany(mappedBy: 'asset', targetEntity: Variant::class, cascade: ['persist'], orphanRemoval: true)]
-    #[ORM\OrderBy(['preset' => 'ASC', 'format' => 'ASC'])]
-//    #[Groups(['asset.read'])]
-    public Collection $variants;
-
     /** Ingest timestamp. */
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
     #[Groups(['asset.read'])]
@@ -377,9 +371,7 @@ class Asset implements MarkingInterface, \Stringable
     public ?\DateTime $deletedAt = null;
 
     public int $resizedCount { get => count($this->resized??[]); }
-    public string $path { get =>
-        $this->localDir?->id . '/' . $this->id . '.' . $this->ext;
-    }
+    public string $path { get => $this->id . "." . $this->ext; }
 
 
     public function __construct(
@@ -391,7 +383,6 @@ class Asset implements MarkingInterface, \Stringable
         $this->id          = MediaIdentity::idFromOriginalUrl($this->originalUrl);
         $this->createdAt   = new \DateTimeImmutable();
         $this->marking     = WF::PLACE_NEW; // seed initial marking via workflow constant
-        $this->variants    = new ArrayCollection();
     }
 
 
@@ -404,32 +395,6 @@ class Asset implements MarkingInterface, \Stringable
     public function __toString()
     {
         return $this->id;
-    }
-
-//    public function getThumbnailUrl(): ?string
-//    {
-//        /** @var Variant $variant */
-//        foreach ($this->variants as $variant) {
-//            if ($variant->preset === 'small') {
-//                return $variant->url;
-//            }
-//        }
-//        return null;
-//
-//    }
-
-
-    public function addVariant(Variant $v): void
-    {
-        if (!$this->variants->contains($v)) {
-            $this->variants->add($v);
-            $v->asset = $this;
-        }
-    }
-
-    public function removeVariant(Variant $v): void
-    {
-        $this->variants->removeElement($v);
     }
 
     // ── Computed AI accessors (read from aiCompleted — no DB columns) ─────────

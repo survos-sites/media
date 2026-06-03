@@ -7,8 +7,8 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Gedmo\Tree\Entity\Repository\NestedTreeRepository;
-use Survos\CoreBundle\Traits\QueryBuilderHelperInterface;
-use Survos\CoreBundle\Traits\QueryBuilderHelperTrait;
+use Survos\FieldBundle\Repository\QueryBuilderHelperInterface;
+use Survos\FieldBundle\Repository\QueryBuilderHelperTrait;
 
 /**
  * @method File|null find($id, $lockMode = null, $lockVersion = null)

@@ -78,6 +78,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     tags?: TagsType,
  *     resource_tags?: TagsType,
  *     decorates?: string,
+ *     decorates_tag?: string,
  *     decoration_inner_name?: string,
  *     decoration_priority?: int,
  *     decoration_on_invalid?: 'exception'|'ignore'|null,
@@ -118,6 +119,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     stack: list<DefinitionType|AliasType|PrototypeType|array<class-string, ArgumentsType|null>>,
  *     public?: bool,
  *     deprecated?: DeprecationType,
+ *     decorates?: string,
+ *     decorates_tag?: string,
+ *     decoration_inner_name?: string,
+ *     decoration_priority?: int,
+ *     decoration_on_invalid?: 'exception'|'ignore'|null,
  * }
  * @psalm-type ServicesConfig = array{
  *     _defaults?: DefaultsType,
@@ -168,7 +174,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         allow_revalidate?: bool|Param,
  *         stale_while_revalidate?: int|Param,
  *         stale_if_error?: int|Param,
- *         terminate_on_cache_hit?: bool|Param,
+ *         terminate_on_cache_hit?: bool|Param, // Deprecated: Setting the "framework.http_cache.terminate_on_cache_hit.terminate_on_cache_hit" configuration option is deprecated. It will be removed in version 9.0.
  *     },
  *     esi?: bool|array{ // ESI configuration
  *         enabled?: bool|Param, // Default: false
@@ -188,7 +194,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         only_exceptions?: bool|Param, // Default: false
  *         only_main_requests?: bool|Param, // Default: false
  *         dsn?: scalar|Param|null, // Default: "file:%kernel.cache_dir%/profiler"
- *         collect_serializer_data?: true|Param, // Default: true
+ *         collect_serializer_data?: true|Param, // Deprecated: Setting the "framework.profiler.collect_serializer_data.collect_serializer_data" configuration option is deprecated. It will be removed in version 9.0. // Default: true
  *     },
  *     workflows?: bool|array{
  *         enabled?: bool|Param, // Default: false
@@ -340,6 +346,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             endpoint?: scalar|Param|null, // API endpoint for the NotCompromisedPassword Validator. // Default: null
  *         },
  *         disable_translation?: bool|Param, // Default: false
+ *         property_metadata_existence_check?: bool|Param, // When enabled, validateProperty() and validatePropertyValue() throw an exception if no metadata is found for the given property. // Default: false
  *         auto_mapping?: array<string, array{ // Default: []
  *             services?: list<scalar|Param|null>,
  *         }>,
@@ -396,6 +403,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             provider?: scalar|Param|null, // Overwrite the setting from the default provider for this adapter.
  *             early_expiration_message_bus?: scalar|Param|null,
  *             clearer?: scalar|Param|null,
+ *             marshaller?: scalar|Param|null, // The marshaller service to use for this pool.
  *         }>,
  *     },
  *     php_errors?: array{ // PHP errors handling configuration
@@ -420,9 +428,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     messenger?: bool|array{ // Messenger configuration
  *         enabled?: bool|Param, // Default: true
- *         routing?: array<string, string|array{ // Default: []
- *             senders?: list<scalar|Param|null>,
- *         }>,
+ *         routing?: array<string, string|list<scalar|Param|null>>,
  *         serializer?: array{
  *             default_serializer?: scalar|Param|null, // Service id to use as the default serializer for the transports. // Default: "messenger.transport.native_php_serializer"
  *             symfony_serializer?: array{
@@ -498,7 +504,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 enabled?: bool|Param, // Default: false
  *                 cache_pool?: string|Param, // The taggable cache pool to use for storing the responses. // Default: "cache.http_client"
  *                 shared?: bool|Param, // Indicates whether the cache is shared (public) or private. // Default: true
- *                 max_ttl?: int|Param, // The maximum TTL (in seconds) allowed for cached responses. Null means no cap. // Default: null
+ *                 max_ttl?: int|Param, // The maximum TTL (in seconds) allowed for cached responses. // Default: 86400
  *             },
  *             retry_failed?: bool|array{
  *                 enabled?: bool|Param, // Default: false
@@ -514,7 +520,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 jitter?: float|Param, // Randomness in percent (between 0 and 1) to apply to the delay. // Default: 0.1
  *             },
  *         },
- *         mock_response_factory?: scalar|Param|null, // The id of the service that should generate mock responses. It should be either an invokable or an iterable.
+ *         mock_response_factory?: scalar|Param|null, // `true` to always return empty 200 responses, or the id of the service to use to generate mock responses - which should be either an invokable or an iterable.
  *         scoped_clients?: array<string, string|array{ // Default: []
  *             scope?: scalar|Param|null, // The regular expression that the request URL must match before adding the other options. When none is provided, the base URI is used instead.
  *             base_uri?: scalar|Param|null, // The URI to resolve relative URLs, following rules in RFC 3985, section 2.
@@ -545,13 +551,14 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 md5?: mixed,
  *             },
  *             crypto_method?: scalar|Param|null, // The minimum version of TLS to accept; must be one of STREAM_CRYPTO_METHOD_TLSv*_CLIENT constants.
+ *             mock_response_factory?: scalar|Param|null, // `true` to always return empty 200 responses, `false` to disable mocking, or the id of the service to use to generate mock responses (invokable or iterable).
  *             extra?: array<string, mixed>,
  *             rate_limiter?: scalar|Param|null, // Rate limiter name to use for throttling requests. // Default: null
  *             caching?: bool|array{ // Caching configuration.
  *                 enabled?: bool|Param, // Default: false
  *                 cache_pool?: string|Param, // The taggable cache pool to use for storing the responses. // Default: "cache.http_client"
  *                 shared?: bool|Param, // Indicates whether the cache is shared (public) or private. // Default: true
- *                 max_ttl?: int|Param, // The maximum TTL (in seconds) allowed for cached responses. Null means no cap. // Default: null
+ *                 max_ttl?: int|Param, // The maximum TTL (in seconds) allowed for cached responses. // Default: 86400
  *             },
  *             retry_failed?: bool|array{
  *                 enabled?: bool|Param, // Default: false
@@ -635,6 +642,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                 interval?: scalar|Param|null, // Configures the rate interval. The value must be a number followed by "second", "minute", "hour", "day", "week" or "month" (or their plural equivalent).
  *                 amount?: int|Param, // Amount of tokens to add each interval. // Default: 1
  *             },
+ *             anchor_at?: scalar|Param|null, // Aligns the "fixed_window" policy to a calendar (e.g. "2024-01-05 00:00:00 UTC" combined with `interval: 1 month` resets the counter on the 5th of each month). UTC if not specified. // Default: null
  *         }>,
  *     },
  *     uid?: bool|array{ // Uid configuration
@@ -644,10 +652,12 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         name_based_uuid_namespace?: scalar|Param|null,
  *         time_based_uuid_version?: 7|6|1|Param, // Default: 7
  *         time_based_uuid_node?: scalar|Param|null,
+ *         uuid47_secret?: scalar|Param|null, // A high-entropy secret used by the "uuid47_transformer" service. Defaults to "kernel.secret". // Default: null
  *     },
  *     html_sanitizer?: bool|array{ // HtmlSanitizer configuration
  *         enabled?: bool|Param, // Default: false
  *         sanitizers?: array<string, array{ // Default: []
+ *             default_action?: "drop"|"block"|"allow"|Param, // Defines how the sanitizer must behave by default.
  *             allow_safe_elements?: bool|Param, // Allows "safe" elements and attributes. // Default: false
  *             allow_static_elements?: bool|Param, // Allows all static elements and attributes from the W3C Sanitizer API standard. // Default: false
  *             allow_elements?: array<string, mixed>,
@@ -671,6 +681,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     webhook?: bool|array{ // Webhook configuration
  *         enabled?: bool|Param, // Default: true
  *         message_bus?: scalar|Param|null, // The message bus to use. // Default: "messenger.default_bus"
+ *         event_header_name?: scalar|Param|null, // Default: "Webhook-Event"
+ *         id_header_name?: scalar|Param|null, // Default: "Webhook-Id"
+ *         signature_header_name?: scalar|Param|null, // Default: "Webhook-Signature"
+ *         signing_algorithm?: scalar|Param|null, // Default: "sha256"
  *         routing?: array<string, array{ // Default: []
  *             service?: scalar|Param|null,
  *             secret?: scalar|Param|null, // Default: ""
@@ -681,6 +695,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  *     json_streamer?: bool|array{ // JSON streamer configuration
  *         enabled?: bool|Param, // Default: false
+ *         default_options?: array{
+ *             include_null_properties?: bool|Param, // Encode the properties with null value // Default: false
+ *             ...<string, mixed>
+ *         },
  *     },
  * }
  * @psalm-type DoctrineConfig = array{
@@ -993,7 +1011,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     access_denied_url?: scalar|Param|null, // Default: null
  *     session_fixation_strategy?: "none"|"migrate"|"invalidate"|Param, // Default: "migrate"
  *     expose_security_errors?: \Symfony\Component\Security\Http\Authentication\ExposeSecurityLevel::None|\Symfony\Component\Security\Http\Authentication\ExposeSecurityLevel::AccountStatus|\Symfony\Component\Security\Http\Authentication\ExposeSecurityLevel::All|Param, // Default: "none"
- *     erase_credentials?: bool|Param, // Default: true
+ *     erase_credentials?: bool|Param, // Deprecated: Setting the "security.erase_credentials.erase_credentials" configuration option is deprecated. It will be removed in Symfony 9.0, as the "eraseCredentials()" method was removed in Symfony 8.0. // Default: true
  *     access_decision_manager?: array{
  *         strategy?: "affirmative"|"consensus"|"unanimous"|"priority"|Param,
  *         service?: scalar|Param|null,
@@ -1065,7 +1083,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *             path?: scalar|Param|null, // Default: "/logout"
  *             target?: scalar|Param|null, // Default: "/"
  *             invalidate_session?: bool|Param, // Default: true
- *             clear_site_data?: string|list<"*"|"cache"|"cookies"|"storage"|"executionContexts"|Param>,
+ *             clear_site_data?: string|list<"*"|"cache"|"cookies"|"storage"|"clientHints"|"executionContexts"|"prefetchCache"|"prerenderCache"|Param>,
  *             delete_cookies?: string|array<string, array{ // Default: []
  *                 path?: scalar|Param|null, // Default: null
  *                 domain?: scalar|Param|null, // Default: null
@@ -1223,6 +1241,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *                         cache?: array{
  *                             id?: scalar|Param|null, // Cache service id to use to cache the OIDC discovery configuration.
  *                         },
+ *                         enforce_key_usage_verification?: bool|Param, // When enabled (default), only keys explicitly designated for signature (via "use":"sig" or a "key_ops" entry containing "sign"/"verify") are accepted. When disabled, keys without any usage designation are also accepted; keys explicitly restricted to encryption are still rejected. // Default: true
  *                     },
  *                     claim?: scalar|Param|null, // Claim which contains the user identifier (e.g.: sub, email..). // Default: "sub"
  *                     audience?: scalar|Param|null, // Audience set in the token, for validation purpose.
@@ -1578,8 +1597,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     }>,
  * }
  * @psalm-type SurvosStorageConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/storage"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/storage"
  *     enabled?: bool|Param, // Default: true
  *     debug?: bool|Param, // Default: false
  * }
@@ -1593,10 +1612,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         enabled?: bool|Param, // Default: "%kernel.debug%"
  *         collect_components?: bool|Param, // Collect components instances // Default: true
  *     },
- * }
- * @psalm-type SurvosCoreConfig = array{
- *     enabled?: bool|Param, // Default: true
- *     dd?: bool|Param, // Default: true
  * }
  * @psalm-type SurvosSimpleDatatablesConfig = array{
  *     stimulus_controller?: scalar|Param|null, // Default: "@survos/simple-datatables-bundle/table"
@@ -1722,15 +1737,15 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     }>,
  * }
  * @psalm-type SurvosCommandConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/admin/commands"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/admin/commands"
  *     base_layout?: scalar|Param|null, // Default: null
  *     subdomain_variable?: scalar|Param|null, // Default: "subdomain"
  *     namespaces?: list<scalar|Param|null>,
  * }
  * @psalm-type SurvosStateConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/state"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/state"
  *     queue_prefix?: scalar|Param|null, // Default: ""
  *     base_layout?: scalar|Param|null, // Default: "base.html.twig"
  *     enable_dynamic_routing?: bool|Param, // Default: true
@@ -2079,8 +2094,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     }>,
  * }
  * @psalm-type SurvosCrawlerConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/crawler"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/crawler"
  *     users?: list<mixed>,
  *     routes_to_ignore?: list<mixed>,
  *     paths_to_ignore?: list<mixed>,
@@ -2109,8 +2124,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  * }
  * @psalm-type SurvosMeiliConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/meili"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/meili"
  *     core_name?: scalar|Param|null, // Default: "core"
  *     enabled?: bool|Param, // Default: true
  *     meiliUiUrl?: scalar|Param|null, // Base URL of the Meilisearch UI (riccox). Used to generate per-index links. Override via MEILI_UI_URL env var. // Default: "http://127.0.0.1:24900/ins/0"
@@ -2201,8 +2216,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     enabled?: bool|Param, // Default: true
  * }
  * @psalm-type SurvosDocConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/doc"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/doc"
  *     screenshow_endpoint?: scalar|Param|null, // Default: "%env(default::SCREENSHOW_ENDPOINT)%"
  *     user_provider?: scalar|Param|null, // Default: null
  *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
@@ -2704,8 +2719,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     }>,
  * }
  * @psalm-type SurvosApiGridConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: ""
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: ""
  *     stimulus_controller?: scalar|Param|null, // The stimulus controller to use, should extend @survos/api-grid/api-grid // Default: "@survos/api-grid/api-grid"
  *     meiliHost?: scalar|Param|null, // Default: "%env(MEILI_SERVER)%"
  *     meiliKey?: scalar|Param|null, // Default: "%env(MEILI_API_KEY)%"
@@ -2713,20 +2728,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     meili_provider?: bool|Param, // Register MeiliSearchStateProvider as a global api_platform.state_provider. Only enable when Meili is configured and entities should be served from it. // Default: false
  *     passLocale?: bool|Param, // Default: false
  *     maxValuesPerFacet?: int|Param, // https://www.meilisearch.com/docs/reference/api/settings#faceting-object // Default: 1000
- * }
- * @psalm-type SurvosDataConfig = array{
- *     data_dir?: scalar|Param|null, // Default: "%env(APP_DATA_DIR)%"
- *     dataset_root?: scalar|Param|null, // Default: "work"
- *     artifact_root?: scalar|Param|null, // Default: "artifacts"
- *     runs_root?: scalar|Param|null, // Default: "runs"
- *     cache_root?: scalar|Param|null, // Default: "cache"
- *     zips_root?: scalar|Param|null, // Default: "%env(ZIPS_DIR)%"
- *     default_object_filename?: scalar|Param|null, // Default: "obj.jsonl"
- *     providers?: list<scalar|Param|null>,
- *     tenant_database_prefix?: scalar|Param|null, // Default: ""
- *     tenants?: array<string, array{ // Default: []
- *         database?: scalar|Param|null, // Default: null
- *     }>,
  * }
  * @psalm-type KnpMenuConfig = array{
  *     providers?: array{
@@ -2848,7 +2849,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     http?: array{
  *         path?: scalar|Param|null, // Default: "/_mcp"
  *         session?: array{
- *             store?: "file"|"memory"|"cache"|"framework"|Param, // Default: "file"
+ *             store?: "file"|"memory"|"cache"|Param, // Default: "file"
  *             directory?: scalar|Param|null, // Default: "%kernel.cache_dir%/mcp-sessions"
  *             cache_pool?: scalar|Param|null, // Default: "cache.mcp.sessions"
  *             prefix?: scalar|Param|null, // Default: "mcp-"
@@ -2866,8 +2867,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     clients?: array<string, array<string, mixed>>,
  * }
  * @psalm-type SurvosAuthConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: "/auth"
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/auth"
  *     providers?: array<string, array{ // Default: []
  *         type?: scalar|Param|null, // Default: null
  *         client_id?: scalar|Param|null, // Default: null
@@ -2883,19 +2884,22 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
  * }
  * @psalm-type SurvosFieldConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: ""
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: ""
  * }
  * @psalm-type SurvosImgproxyConfig = array{
- *     routes_enabled?: bool|Param, // Auto-register this bundle's controllers via attribute scanning. Set false to manage routes manually in your app's config/routes/. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to this bundle's routes. // Default: ""
+ *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: ""
  *     host?: scalar|Param|null, // Default: "%env(default::IMGPROXY_HOST)%"
  *     key?: scalar|Param|null, // Default: "%env(default::IMGPROXY_KEY)%"
  *     salt?: scalar|Param|null, // Default: "%env(default::IMGPROXY_SALT)%"
- *     presets?: array<string, array{ // Default: {"ai":{"width":512,"height":512,"resize":"fit"},"ai_thumbnail":{"width":512,"height":512,"resize":"fit"},"ai_hires":{"width":2048,"height":2048,"resize":"fit"},"thumb":{"width":300,"height":300,"resize":"fit"},"small":{"width":192,"height":192,"resize":"fit"},"medium":{"width":600,"height":400,"resize":"fit"},"large":{"width":1600,"height":1600,"resize":"fit"}}
+ *     presets?: array<string, array{ // Default: {"tiny":{"width":200,"height":200,"resize":"fit","quality":70,"format":"webp"},"thumb":{"width":400,"height":400,"resize":"fit","quality":80,"format":"webp"},"observe":{"width":512,"height":512,"resize":"fit","quality":80,"format":"webp"},"display":{"width":600,"height":400,"resize":"fit","quality":80,"format":"webp"},"archive":{"width":3000,"height":3000,"resize":"fit","quality":88,"format":"webp","strip_metadata":false}}
  *         width?: int|Param,
  *         height?: int|Param,
  *         resize?: scalar|Param|null, // Default: "fit"
+ *         quality?: int|Param, // Default: null
+ *         format?: scalar|Param|null, // Default: null
+ *         strip_metadata?: bool|Param|null, // Default: null
  *     }>,
  * }
  * @psalm-type SurvosClaimsConfig = array{
@@ -2903,6 +2907,35 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type SurvosAiWorkflowConfig = array{
  *     disabled_tasks?: list<scalar|Param|null>,
+ * }
+ * @psalm-type SurvosImportConfig = array{
+ *     dir?: scalar|Param|null, // Default directory for data files // Default: "data"
+ *     dto_namespace_roots?: list<scalar|Param|null>,
+ *     dto_mappings?: array<string, scalar|Param|null>,
+ * }
+ * @psalm-type SurvosDatasetConfig = array{
+ *     data_dir?: scalar|Param|null, // Default: "%env(APP_DATA_DIR)%"
+ *     dataset_root?: scalar|Param|null, // Default: "work"
+ *     artifact_root?: scalar|Param|null, // Default: "artifacts"
+ *     runs_root?: scalar|Param|null, // Default: "runs"
+ *     cache_root?: scalar|Param|null, // Default: "cache"
+ *     zips_root?: scalar|Param|null, // Default: "%env(ZIPS_DIR)%"
+ *     default_object_filename?: scalar|Param|null, // Default: "obj.jsonl"
+ *     providers?: list<scalar|Param|null>,
+ *     tenant_database_prefix?: scalar|Param|null, // Default: ""
+ *     tenants?: array<string, array{ // Default: []
+ *         database?: scalar|Param|null, // Default: null
+ *     }>,
+ * }
+ * @psalm-type LiveComponentConfig = array{
+ *     secret?: scalar|Param|null, // The secret used to compute fingerprints and checksums // Default: "%kernel.secret%"
+ *     fetch_credentials?: "same-origin"|"include"|"omit"|Param, // The default fetch credentials mode for all Live Components ('same-origin', 'include', 'omit') // Default: "same-origin"
+ * }
+ * @psalm-type MezcalitoUxSearchConfig = array{
+ *     default_adapter?: scalar|Param|null, // Default: "default"
+ *     adapters?: array<string, string|array{ // Default: []
+ *         dsn?: scalar|Param|null,
+ *     }>,
  * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
@@ -2919,7 +2952,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     flysystem?: FlysystemConfig,
  *     survos_storage?: SurvosStorageConfig,
  *     twig_component?: TwigComponentConfig,
- *     survos_core?: SurvosCoreConfig,
  *     survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *     bizkit_versioning?: BizkitVersioningConfig,
  *     inspector?: InspectorConfig,
@@ -2941,7 +2973,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     ai?: AiConfig,
  *     survos_js_twig?: SurvosJsTwigConfig,
  *     survos_api_grid?: SurvosApiGridConfig,
- *     survos_data?: SurvosDataConfig,
  *     knp_menu?: KnpMenuConfig,
  *     survos_tabler?: SurvosTablerConfig,
  *     ux_icons?: UxIconsConfig,
@@ -2952,6 +2983,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     survos_imgproxy?: SurvosImgproxyConfig,
  *     survos_claims?: SurvosClaimsConfig,
  *     survos_ai_workflow?: SurvosAiWorkflowConfig,
+ *     survos_import?: SurvosImportConfig,
+ *     survos_dataset?: SurvosDatasetConfig,
+ *     live_component?: LiveComponentConfig,
+ *     mezcalito_ux_search?: MezcalitoUxSearchConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -2970,7 +3005,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flysystem?: FlysystemConfig,
  *         survos_storage?: SurvosStorageConfig,
  *         twig_component?: TwigComponentConfig,
- *         survos_core?: SurvosCoreConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         survos_deployment?: SurvosDeploymentConfig,
@@ -2995,7 +3029,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
- *         survos_data?: SurvosDataConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
@@ -3006,6 +3039,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_imgproxy?: SurvosImgproxyConfig,
  *         survos_claims?: SurvosClaimsConfig,
  *         survos_ai_workflow?: SurvosAiWorkflowConfig,
+ *         survos_import?: SurvosImportConfig,
+ *         survos_dataset?: SurvosDatasetConfig,
+ *         live_component?: LiveComponentConfig,
+ *         mezcalito_ux_search?: MezcalitoUxSearchConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -3022,7 +3059,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flysystem?: FlysystemConfig,
  *         survos_storage?: SurvosStorageConfig,
  *         twig_component?: TwigComponentConfig,
- *         survos_core?: SurvosCoreConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         inspector?: InspectorConfig,
@@ -3044,7 +3080,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
- *         survos_data?: SurvosDataConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
@@ -3055,6 +3090,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_imgproxy?: SurvosImgproxyConfig,
  *         survos_claims?: SurvosClaimsConfig,
  *         survos_ai_workflow?: SurvosAiWorkflowConfig,
+ *         survos_import?: SurvosImportConfig,
+ *         survos_dataset?: SurvosDatasetConfig,
+ *         live_component?: LiveComponentConfig,
+ *         mezcalito_ux_search?: MezcalitoUxSearchConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -3072,7 +3111,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         flysystem?: FlysystemConfig,
  *         survos_storage?: SurvosStorageConfig,
  *         twig_component?: TwigComponentConfig,
- *         survos_core?: SurvosCoreConfig,
  *         survos_simple_datatables?: SurvosSimpleDatatablesConfig,
  *         bizkit_versioning?: BizkitVersioningConfig,
  *         inspector?: InspectorConfig,
@@ -3096,7 +3134,6 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         ai?: AiConfig,
  *         survos_js_twig?: SurvosJsTwigConfig,
  *         survos_api_grid?: SurvosApiGridConfig,
- *         survos_data?: SurvosDataConfig,
  *         knp_menu?: KnpMenuConfig,
  *         survos_tabler?: SurvosTablerConfig,
  *         ux_icons?: UxIconsConfig,
@@ -3107,6 +3144,10 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         survos_imgproxy?: SurvosImgproxyConfig,
  *         survos_claims?: SurvosClaimsConfig,
  *         survos_ai_workflow?: SurvosAiWorkflowConfig,
+ *         survos_import?: SurvosImportConfig,
+ *         survos_dataset?: SurvosDatasetConfig,
+ *         live_component?: LiveComponentConfig,
+ *         mezcalito_ux_search?: MezcalitoUxSearchConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

@@ -10,7 +10,6 @@ use App\Repository\MediaRepository;
 use App\Repository\UserRepository;
 use App\Util\Ndjson;
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\CoreBundle\Service\SurvosUtils;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\Option;
@@ -176,7 +175,9 @@ final class ImportArchiveCommand extends Command
                 throw new \RuntimeException('User not found for media root=' . $row['root']);
             }
             $userCode = $row['userCode'];
-            SurvosUtils::assertKeyExists($userCode, $users);
+            if (!array_key_exists($userCode, $users)) {
+                throw new \RuntimeException(sprintf('User code "%s" was not imported.', $userCode));
+            }
             $media = $this->mediaRepo->find($row['code']);
             if ($media) {
                 if (!$skipExisting) {

@@ -36,7 +36,7 @@ final class MediaSyncLocalCommand
         string $url,
         #[Option('Client code to attach')]
         string $client = 'cli',
-        #[Option('Also run local_ocr after download')]
+        #[Option('Also run local_ocr after archive and info')]
         bool $ocr = false,
         #[Option('Reset workflow marking and OCR fields before running')]
         bool $reset = false,
@@ -98,14 +98,14 @@ final class MediaSyncLocalCommand
                 $io->section(sprintf('Asset %s', $asset->id));
                 $io->writeln(sprintf('start marking: %s', $asset->marking ?? '-'));
             }
-            if ($this->assetWorkflow->can($asset, AssetFlow::TRANSITION_DOWNLOAD)) {
+            if ($this->assetWorkflow->can($asset, AssetFlow::TRANSITION_ARCHIVE)) {
                 if ($io->isVeryVerbose()) {
-                    $io->writeln('transition: download');
+                    $io->writeln('transition: archive');
                 }
-                $this->assetWorkflow->apply($asset, AssetFlow::TRANSITION_DOWNLOAD);
+                $this->assetWorkflow->apply($asset, AssetFlow::TRANSITION_ARCHIVE);
                 $this->entityManager->flush();
                 if ($io->isVeryVerbose()) {
-                    $io->writeln(sprintf('download_url: %s', (string) ($asset->context['download_url'] ?? '-')));
+                    $io->writeln(sprintf('source: %s', (string) ($asset->context['info_source'] ?? $asset->context['download_url'] ?? '-')));
                     $sourceProbe = is_array($asset->context['source_probe'] ?? null) ? $asset->context['source_probe'] : [];
                     $canonicalProbe = is_array($asset->context['canonical_probe'] ?? null) ? $asset->context['canonical_probe'] : [];
                     $smallProbe = is_array($asset->context['small_probe'] ?? null) ? $asset->context['small_probe'] : [];
@@ -139,7 +139,7 @@ final class MediaSyncLocalCommand
                     $io->writeln(sprintf('archive_url: %s', (string) ($asset->archiveUrl ?? '-')));
                     $io->writeln(sprintf('local_canonical: %s', (string) ($asset->localCanonicalFilename ?? '-')));
                     $io->writeln(sprintf('local_small: %s', (string) ($asset->localSmallFilename ?? '-')));
-                    $io->writeln(sprintf('after download marking: %s', $asset->marking ?? '-'));
+                    $io->writeln(sprintf('after archive marking: %s', $asset->marking ?? '-'));
                 }
             }
             if ($ocr && $this->assetWorkflow->can($asset, AssetFlow::TRANSITION_LOCAL_OCR)) {
@@ -178,14 +178,14 @@ final class MediaSyncLocalCommand
                 sprintf('%sx%s', (string) ($sourceProbe['width'] ?? '?'), (string) ($sourceProbe['height'] ?? '?')),
                 (string) ($sourceProbe['bytes'] ?? '-'),
                 (string) ($canonicalProbe['bytes'] ?? '-'),
-                (string) ($asset->context['download_url'] ?? '-'),
+                (string) ($asset->context['info_source'] ?? $asset->context['download_url'] ?? '-'),
                 $asset->archiveUrl ?? '-',
                 $asset->localCanonicalFilename ?? '-',
                 $asset->localSmallFilename ?? '-',
                 $this->urlGenerator->generate('asset_show', ['id' => $asset->id], UrlGeneratorInterface::ABSOLUTE_URL),
             ];
         }
-        $io->table(['Asset', 'Marking', 'Mime', 'Final WxH', 'Final Bytes', 'Source WxH', 'Source Bytes', 'Canonical Bytes', 'Downloaded From', 'Archive', 'Local Canonical', 'Local Small', 'Show'], $table);
+        $io->table(['Asset', 'Marking', 'Mime', 'Final WxH', 'Final Bytes', 'Source WxH', 'Source Bytes', 'Canonical Bytes', 'Archived From', 'Archive', 'Local Canonical', 'Local Small', 'Show'], $table);
         $io->success(sprintf('Synced %d asset(s) through local workflow.', count($assets)));
 
         return Command::SUCCESS;

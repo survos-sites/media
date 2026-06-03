@@ -23,21 +23,30 @@ class AssetFlow
     #[Place(
         initial: true,
         info: 'Registered/added',
-        next: [self::TRANSITION_FETCH_IIIF, self::TRANSITION_DOWNLOAD]
+        next: [self::TRANSITION_FETCH_IIIF, self::TRANSITION_ARCHIVE]
     )]
     public const PLACE_NEW = 'new';
 
     #[Place(
         info: 'Registered/added',
-        next: [self::TRANSITION_DOWNLOAD]
+        next: [self::TRANSITION_ARCHIVE]
     )]
     public const PLACE_IIIF = 'iiif';
 
     #[Place(
-        info: 'Fetched to temp; MIME sniffed/probed',
-        next: [self::TRANSITION_TRIAGE, self::TRANSITION_ANALYZE]
+        info: 'Source master streamed into our S3 (museado). imgproxy reads it via s3://.',
+        next: [self::TRANSITION_INFO]
     )]
-    public const PLACE_DOWNLOADED = 'downloaded';
+    public const PLACE_ARCHIVED = 'archived';
+
+    #[Place(
+        info: 'imgproxy /info fetched: dimensions, byte size, format, thumbhash/blurhash/phash from s3:// source.',
+        // STOP here for now — no auto-cascade into triage/analyze. Re-assess the
+        // post-info tooling once we see what /info gives us (it already returns
+        // classify/objects/hashes that may replace some of it). triage/analyze
+        // remain defined and can be run manually.
+    )]
+    public const PLACE_INFORMED = 'informed';
 
     #[Place(
         info: 'Triage observations recorded (caption, ocr_text, keywords from ai-tools /v1/responses)',
@@ -63,11 +72,6 @@ class AssetFlow
     )]
     public const PLACE_ANALYZED = 'analyzed';
 
-//     #[Place(
-//         info: 'Original stored durably with metadata'
-//     )]
-//     public const PLACE_ARCHIVED = 'archived';
-
      #[Place(info: 'All done')]
      public const PLACE_COMPLETE = 'complete';
 
@@ -83,18 +87,30 @@ class AssetFlow
     // ───────────── Transitions ─────────────
 
     #[Transition(
-        from: [self::PLACE_NEW, self::PLACE_DOWNLOADED, self::PLACE_FAILED],
-        to: self::PLACE_DOWNLOADED,
-        info: 'Download',
-        description: 'HTTP GET/stream to temp; detect MIME; set statusCode',
+        from: [self::PLACE_NEW, self::PLACE_IIIF, self::PLACE_ARCHIVED, self::PLACE_FAILED],
+        to: self::PLACE_ARCHIVED,
+        info: 'Archive',
+        description: 'Stream the source master straight into our S3 (museado) so imgproxy reads it via s3://. No local processing.',
         async: true,
-        // note: this goes here and NOT in place, because PlaceEntered is called BEFORE onCompleted
-        next: [self::TRANSITION_DOWNLOAD_FAILED] # , self::TRANSITION_ARCHIVE]
+        // `next` lives on PLACE_ARCHIVED, NOT here. The Entered listener fires
+        // with the subject already in the new place (correct marking, which
+        // matters in sync mode); duplicating it here dispatched /info twice.
     )]
-    public const TRANSITION_DOWNLOAD = 'download';
+    public const TRANSITION_ARCHIVE = 'archive';
 
     #[Transition(
-        from: [self::PLACE_NEW, self::PLACE_DOWNLOADED, self::PLACE_FAILED, self::PLACE_LOCAL_OCR, self::PLACE_IIIF],
+        from: [self::PLACE_ARCHIVED, self::PLACE_INFORMED, self::PLACE_FAILED],
+        to: self::PLACE_INFORMED,
+        info: 'Info',
+        description: 'Call imgproxy PRO /info against the s3:// source: dimensions, byte size, format, thumbhash. No download.',
+        async: true,
+        // note: this goes here and NOT in place, because PlaceEntered is called BEFORE onCompleted
+        next: [self::TRANSITION_INFO_FAILED]
+    )]
+    public const TRANSITION_INFO = 'info';
+
+    #[Transition(
+        from: [self::PLACE_INFORMED, self::PLACE_LOCAL_OCR],
         to: self::PLACE_AI_READY,
         info: 'Local OCR',
         description: 'Run local OCR confidence pass and queue follow-up AI tasks',
@@ -107,24 +123,24 @@ class AssetFlow
         from: [self::PLACE_NEW, self::PLACE_IIIF],
         to: self::PLACE_IIIF,
         info: 'Fetch IIIF manifest',
-        description: 'So download is optional',
+        description: 'Fetch IIIF metadata, then archive the selected source master to S3',
         async: true,
-        next: [self::TRANSITION_DOWNLOAD]
+        next: [self::TRANSITION_ARCHIVE]
     )]
     public const TRANSITION_FETCH_IIIF = 'iiif';
 
     #[Transition(
-        from: self::PLACE_DOWNLOADED,
+        from: self::PLACE_INFORMED,
         to: self::PLACE_FAILED,
-        info: 'Download failed',
-        description: 'Non-200 or I/O error; may be retried with backoff',
+        info: 'Info failed',
+        description: 'imgproxy /info did not return usable source metadata; may be retried with backoff',
         guard: "subject.statusCode !== 200",
         async: false
     )]
-    public const TRANSITION_DOWNLOAD_FAILED = 'download_failed';
+    public const TRANSITION_INFO_FAILED = 'info_failed';
 
 //    #[Transition(
-//        from: self::PLACE_DOWNLOADED,
+//        from: self::PLACE_INFORMED,
 //        to: self::PLACE_VALIDATED,
 //        info: 'Validate',
 //        description: 'Check type/codec/dimensions/size; normalize extension',
@@ -135,7 +151,7 @@ class AssetFlow
 //    public const TRANSITION_VALIDATE = 'validate';
 //
     #[Transition(
-        from: self::PLACE_DOWNLOADED,
+        from: self::PLACE_INFORMED,
         to: self::PLACE_FAILED,
         info: 'Invalid file',
         description: 'Unsupported media type or invalid attributes',
@@ -159,7 +175,7 @@ class AssetFlow
      * into either triage or analyze without a deliberate scope discussion.
      */
     #[Transition(
-        from: self::PLACE_DOWNLOADED,
+        from: self::PLACE_INFORMED,
         to: self::PLACE_TRIAGED,
         info: 'Triage',
         description: 'Call ai-tools /v1/responses model=auto; persist Observation[] (caption, ocr_text, keywords).',
@@ -169,7 +185,7 @@ class AssetFlow
     public const TRANSITION_TRIAGE = 'triage';
 
     #[Transition(
-        from: [self::PLACE_DOWNLOADED, self::PLACE_TRIAGED],
+        from: [self::PLACE_INFORMED, self::PLACE_TRIAGED],
         to: self::PLACE_ANALYZED,
         info: 'Analyze',
         description: 'Compute blurhash/thumbhash, color palette, pHash, media probe',
@@ -179,7 +195,7 @@ class AssetFlow
     public const TRANSITION_ANALYZE = 'analyze';
 
 //     #[Transition(
-//         from: [self::PLACE_DOWNLOADED],
+//         from: [self::PLACE_INFORMED],
 //         to: self::PLACE_ARCHIVED,
 //         info: 'Archive original',
 //         description: 'Stub: archive original to durable storage (S3)',

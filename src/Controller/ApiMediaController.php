@@ -90,24 +90,6 @@ final class ApiMediaController extends AbstractController
         /** @var list<Asset> $children */
         $children = $this->em->getRepository(Asset::class)->findBy(['parentKey' => $asset->id], ['pageNumber' => 'ASC']);
 
-        $thumbs = [];
-        $variants = [];
-        foreach ($asset->variants as $variant) {
-            if ($variant->url) {
-                $thumbs[$variant->preset] = $variant->url;
-            }
-            $variants[] = [
-                'id' => $variant->id,
-                'preset' => $variant->preset,
-                'format' => $variant->format,
-                'url' => $variant->url,
-                'width' => $variant->width,
-                'height' => $variant->height,
-                'size' => $variant->size,
-                'marking' => $variant->marking,
-            ];
-        }
-
         $childRows = array_map(static fn (Asset $child): array => [
             'id'         => $child->id,
             'pageNumber' => $child->pageNumber,
@@ -142,8 +124,7 @@ final class ApiMediaController extends AbstractController
             'hasTextLikely' => $asset->context['has_text_likely'] ?? null,
             'typedLikely' => $asset->context['typed_likely'] ?? null,
             'handwrittenLikely' => $asset->context['handwritten_likely'] ?? null,
-            'thumbs'     => $thumbs,
-            'variants'   => $variants,
+            // Resized derivatives are served on the fly by imgproxy; see meta.smallUrl.
             'context'    => $asset->context,    // image-derived: OCR, thumbhash, colors, hash
             'sourceMeta' => $asset->sourceMeta, // client-provided: dcterms:*, rights, ARK, IIIF
             'meta'       => $meta,

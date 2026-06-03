@@ -3,13 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Asset;
-use App\Entity\AssetPath;
 use App\Entity\Media;
 use App\Entity\User;
 use App\Form\AccountSetupType;
 use App\Form\ProcessPayloadType;
 use App\Message\SendWebhookMessage;
-use App\Repository\AssetPathRepository;
 use App\Repository\AssetRepository;
 use App\Repository\UserRepository;
 use App\Service\ApiService;
@@ -51,7 +49,6 @@ class ApiController extends AbstractController implements TokenAuthenticatedCont
         private readonly SerializerInterface $serializer,
         private readonly LoggerInterface     $logger,
         private readonly AssetRepository $assetRepository,
-        private readonly AssetPathRepository $assetPathRepository,
         private readonly ?ApiService          $apiService=null, // old, for when we had an account setup
         private ?ResourceRegistry             $resourceRegistry=null,
         private ?ToolRegistry                 $toolRegistry=null,

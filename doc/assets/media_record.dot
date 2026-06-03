@@ -1,0 +1,46 @@
+digraph workflow {
+  ratio="compress" rankdir="TB" label=<<B>media_record</B>>
+  node [fontsize="8" fontname="Arial" color="lightBlue" style="filled" fixedsize="false" width="2" height="1"];
+  edge [fontsize="7" fontname="Arial" color="#333333" arrowhead="normal" arrowsize="0.5"];
+
+  place_new [label=<<B>new</B><BR/><I>Record created and awaiting linked assets</I><BR/><BR/>Then: <U>group_assets</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place new: "];
+  place_grouped [label=<<B>grouped</B><BR/><I>Assets associated to the record</I><BR/><BR/>Then: <U>queue_split</U> <U>queue_ai</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place grouped: "];
+  place_split_ready [label=<<B>split_ready</B><BR/><I>Split requested for compound payloads (e.g. PDF)</I><BR/><BR/>Then: <U>split_assets</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place split_ready: "];
+  place_split_done [label=<<B>split_done</B><BR/><I>Child assets generated from compound source</I><BR/><BR/>Then: <U>queue_ai</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place split_done: "];
+  place_ai_ready [label=<<B>ai_ready</B><BR/><I>Record-level AI task queue active</I><BR/><BR/>Then: <U>ai_task</U> >, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place ai_ready: "];
+  place_complete [label=<<B>complete</B><BR/><I>Record processing complete</I>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place complete: "];
+  place_failed [label=<<B>failed</B><BR/><I>Terminal or retriable failure</I>>, shape=oval fillcolor="lightgreen" style="filled" xlabel="Place failed: "];
+  transition_group_assets [label=<<B>group_assets</B><BR/><I>Link assets</I>>, shape="box" regular="" xlabel="Transition group_assets: "];
+  transition_queue_split [label=<<B>queue_split</B><BR/><I>Queue split</I><BR/>async: <BR/><BR/>Then: <U>split_assets</U> >, shape="box" regular="" xlabel="Transition queue_split: "];
+  transition_split_assets [label=<<B>split_assets</B><BR/><I>Split compound asset</I><BR/>async: >, shape="box" regular="" xlabel="Transition split_assets: "];
+  transition_queue_ai [label=<<B>queue_ai</B><BR/><I>Queue AI tasks</I>>, shape="box" regular="" xlabel="Transition queue_ai: "];
+  transition_ai_task [label=<<B>ai_task</B><BR/><I>Run next AI task</I><BR/>async: >, shape="box" regular="" xlabel="Transition ai_task: "];
+  transition_ai_done [label=<<B>ai_done</B><BR/><I>AI complete</I>>, shape="box" regular="" xlabel="Transition ai_done: "];
+  transition_fail [label=<<B>fail</B><BR/><I>Mark failed</I>>, shape="box" regular="" xlabel="Transition fail: "];
+  place_new -> transition_group_assets [style="solid", comment="new"];
+  transition_group_assets -> place_grouped [style="solid"];
+  place_failed -> transition_group_assets [style="solid", comment="failed"];
+  transition_group_assets -> place_grouped [style="solid"];
+  place_grouped -> transition_queue_split [style="solid", comment="grouped"];
+  transition_queue_split -> place_split_ready [style="solid"];
+  place_split_ready -> transition_split_assets [style="solid", comment="split_ready"];
+  transition_split_assets -> place_split_done [style="solid"];
+  place_grouped -> transition_queue_ai [style="solid", comment="grouped"];
+  transition_queue_ai -> place_ai_ready [style="solid"];
+  place_split_done -> transition_queue_ai [style="solid", comment="split_done"];
+  transition_queue_ai -> place_ai_ready [style="solid"];
+  place_complete -> transition_queue_ai [style="solid", comment="complete"];
+  transition_queue_ai -> place_ai_ready [style="solid"];
+  place_ai_ready -> transition_ai_task [style="solid", comment="ai_ready"];
+  transition_ai_task -> place_ai_ready [style="solid"];
+  place_ai_ready -> transition_ai_done [style="solid", comment="ai_ready"];
+  transition_ai_done -> place_complete [style="solid"];
+  place_grouped -> transition_fail [style="solid", comment="grouped"];
+  transition_fail -> place_failed [style="solid"];
+  place_split_ready -> transition_fail [style="solid", comment="split_ready"];
+  transition_fail -> place_failed [style="solid"];
+  place_split_done -> transition_fail [style="solid", comment="split_done"];
+  transition_fail -> place_failed [style="solid"];
+  place_ai_ready -> transition_fail [style="solid", comment="ai_ready"];
+  transition_fail -> place_failed [style="solid"];
+}

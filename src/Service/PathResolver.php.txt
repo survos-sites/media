@@ -7,9 +7,8 @@ use App\Entity\Asset;
 use App\Entity\AssetPath;
 
 /**
- * Builds relative paths that Liip's Flysystem loader understands.
- * For locals (Liip), we use: o/<dir3>/<hex>.<ext>
- * For variants, let your Variant workflow write to archive/CDN using ShardedKey.
+ * Builds relative storage paths for an asset's local original: o/<dir3>/<hex>.<ext>.
+ * Resized derivatives are served on the fly by imgproxy (see AssetRegistry::imgProxyUrl).
  */
 final class PathResolver
 {
