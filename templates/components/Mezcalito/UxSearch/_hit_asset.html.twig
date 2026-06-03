@@ -7,14 +7,17 @@
 
 <article class="card h-100 asset-search-card">
     <a href="{{ path('asset_show', {id: asset.id}) }}" class="ratio ratio-4x3 bg-light d-flex align-items-center justify-content-center overflow-hidden">
-        {% if asset.smallUrl|default(asset.thumb) %}
+        {# Render via imgproxy off our own s3 master only. No stored-thumbnail
+           fallbacks — a wrong/stale image is worse than none. #}
+        {% if asset.archiveUrl %}
             <img
-                src="{{ asset.smallUrl|default(asset.thumb) }}"
+                src="{{ asset.archiveUrl|imgproxy('thumb') }}"
                 alt="{{ title }}"
                 class="w-100 h-100 object-fit-contain"
+                loading="lazy"
             >
         {% else %}
-            <span class="text-muted small">{{ asset.mime|default('No preview') }}</span>
+            <span class="text-muted small">No preview</span>
         {% endif %}
     </a>
 

@@ -54,9 +54,11 @@ when@prod:
             console:
                 type: console
                 process_psr_3_messages: false
-                channels: ["!event", "!doctrine", "!cache"]
+                channels: ["!event", "!doctrine", "!cache", "!deprecation"]
+            # Deprecations: still logged, but to a file — NOT php://stderr, which
+            # floods the (Dokku) build/console output with JSON deprecation noise.
             deprecation:
                 type: stream
                 channels: [deprecation]
-                path: php://stderr
+                path: "%kernel.logs_dir%/deprecation.log"
                 formatter: monolog.formatter.json
