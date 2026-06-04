@@ -35,29 +35,20 @@
             <div class="small text-muted font-monospace">{{ asset.id }}</div>
         </div>
 
-        <div class="d-flex flex-wrap gap-1">
-            <span class="badge bg-secondary-lt">{{ asset.marking }}</span>
-            {% if asset.mime %}
-                <span class="badge bg-blue-lt">{{ asset.mime }}</span>
-            {% endif %}
-            {% if asset.aiDocumentType %}
-                <span class="badge bg-purple-lt">{{ asset.aiDocumentType }}</span>
-            {% endif %}
-        </div>
-
-        {% if summary %}
-            <div class="small text-muted">{{ summary|u.truncate(180, '...') }}</div>
-        {% endif %}
-
+        {# The most valuable automatic signal — classification + detected objects — up front. #}
         {% if classifications or objectIdentifiers %}
             <div class="d-flex flex-wrap gap-1">
-                {% for classification in classifications|slice(0, 4) %}
+                {% for classification in classifications|slice(0, 5) %}
                     <span class="badge bg-green-lt">{{ classification }}</span>
                 {% endfor %}
-                {% for objectIdentifier in objectIdentifiers|slice(0, 4) %}
+                {% for objectIdentifier in objectIdentifiers|slice(0, 5) %}
                     <span class="badge bg-cyan-lt">{{ objectIdentifier }}</span>
                 {% endfor %}
             </div>
+        {% endif %}
+
+        {% if summary %}
+            <div class="small text-muted">{{ summary|u.truncate(180, '...') }}</div>
         {% endif %}
 
         {% if keywords %}
@@ -68,13 +59,18 @@
             </div>
         {% endif %}
 
+        <div class="d-flex flex-wrap gap-1">
+            <span class="badge bg-secondary-lt">{{ asset.marking }}</span>
+            {% if asset.aiDocumentType %}
+                <span class="badge bg-purple-lt">{{ asset.aiDocumentType }}</span>
+            {% endif %}
+        </div>
+
+        {# mime demoted to the muted footer — much less important than the labels above. #}
         <div class="small text-muted mt-auto">
-            {% if asset.width and asset.height %}
-                {{ asset.width }} x {{ asset.height }}
-            {% endif %}
-            {% if asset.size %}
-                <span class="ms-2">{{ asset.size|bytes }}</span>
-            {% endif %}
+            {% if asset.width and asset.height %}{{ asset.width }} x {{ asset.height }}{% endif %}
+            {% if asset.size %}<span class="ms-2">{{ asset.size|bytes }}</span>{% endif %}
+            {% if asset.mime %}<span class="ms-2">{{ asset.mime }}</span>{% endif %}
         </div>
     </div>
 </article>

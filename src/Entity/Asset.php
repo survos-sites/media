@@ -44,7 +44,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
     ]
 )]
 #[MeiliIndex(
-//    chats: ['meili_assistant'],
+    chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal', 'size', 'width', 'height'],
     filterable: ['mime', 'clients', 'marking',
         'ext', 'type', 'publisher', 'reuse',
