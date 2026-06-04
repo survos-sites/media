@@ -64,7 +64,7 @@
         "survos/meili-bundle": "^2.7.7",
         "survos/search-bundle": "^2.7.7",
         "survos/simple-datatables-bundle": "^2.7.7",
-        "survos/state-bundle": "^2.7.7",
+        "survos/state-bundle": "^2.7.8",
         "survos/storage-bundle": "^2.7.7",
         "survos/tabler-bundle": "^2.7.7",
         "survos/thumb-hash-bundle": "^2.7.7",

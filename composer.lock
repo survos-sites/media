@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "01d70e95938bf3554b0780daf25a035d",
+    "content-hash": "00cf6e5ef14ced87f95fae604b4c513f",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -8795,16 +8795,16 @@
         },
         {
             "name": "survos/state-bundle",
-            "version": "2.7.7",
+            "version": "2.7.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/state-bundle.git",
-                "reference": "cc8d3d424cb77d2048ac9c0b348ae2bcbaefbc24"
+                "reference": "f21be0c3570305cad924b1fb3d9a1a652ca0f3ff"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/state-bundle/zipball/cc8d3d424cb77d2048ac9c0b348ae2bcbaefbc24",
-                "reference": "cc8d3d424cb77d2048ac9c0b348ae2bcbaefbc24",
+                "url": "https://api.github.com/repos/survos/state-bundle/zipball/f21be0c3570305cad924b1fb3d9a1a652ca0f3ff",
+                "reference": "f21be0c3570305cad924b1fb3d9a1a652ca0f3ff",
                 "shasum": ""
             },
             "require": {
@@ -8870,7 +8870,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/state-bundle/issues",
-                "source": "https://github.com/survos/state-bundle/tree/2.7.7"
+                "source": "https://github.com/survos/state-bundle/tree/2.7.8"
             },
             "funding": [
                 {
@@ -8878,7 +8878,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-03T18:25:05+00:00"
+            "time": "2026-06-04T13:49:28+00:00"
         },
         {
             "name": "survos/storage-bundle",
