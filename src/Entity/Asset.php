@@ -35,6 +35,8 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_size_id', columns: ['size', 'id'])]
 #[ORM\Index(name: 'idx_asset_width_id', columns: ['width', 'id'])]
 #[ORM\Index(name: 'idx_asset_height_id', columns: ['height', 'id'])]
+#[ORM\Index(name: 'idx_asset_classification_id', columns: ['classification', 'id'])]
+#[ORM\Index(name: 'idx_asset_object_identifiers_id', columns: ['object_identifiers', 'id'])]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
@@ -47,16 +49,16 @@ use Symfony\Component\Serializer\Attribute\Groups;
     filterable: ['mime', 'clients', 'marking',
         'ext', 'type', 'publisher', 'reuse',
 //        'aiDocumentType', 'aiDocumentSubtype',
-        'subjects', 'classification',
+        'subjects', 'classification', 'objectIdentifiers',
 //                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
     ],
-    searchable: ['title', 'description', 'filename', 'subjects', 'classification', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
+    searchable: ['title', 'description', 'filename', 'subjects', 'classification', 'objectIdentifiers', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
                   'aiPeople', 'aiPlaces', 'aiSubjects'],
     persisted: new Fields(
         groups: ['asset.read'],
         fields: ['id',
             'originalUrl', 'archiveUrl',
-        'mime', 'ext', 'filename', 'type', 'reuse', 'publisher', 'subjects',
+        'mime', 'ext', 'filename', 'type', 'reuse', 'publisher', 'subjects', 'classification', 'objectIdentifiers', 'objectIdentifierConfidences',
         'size', 'width', 'height',
         'title', 'description', 'thumb', 'smallUrl',
         'createdAt', 'marking', 'mediaRecordId',
@@ -95,18 +97,27 @@ class Asset implements MarkingInterface, \Stringable
     public ?array $subjects { get => $this->sourceMeta['dcterms:subject'] ?? $this->sourceMeta['iiif_subjects'] ?? null; }
 
     /**
-     * imgproxy /info classification labels (e.g. "Person", "Dress") — the cheapest
-     * automatic subject signal we get. Will become claims; surfaced now so it's
-     * searchable/facetable in Meili. Reads the cached /info blob.
+     * imgproxy /info classification labels (e.g. "Person", "Dress").
+     *
+     * Promoted from the cached /info blob so Doctrine and Meili can facet it.
      */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
     #[Groups(['asset.read'])]
     #[Field(searchable: true, filterable: true, widget: Widget::Select, facet: true, order: 72, group: 'Content')]
-    public ?array $classification {
-        get => array_values(array_filter(array_map(
-            static fn ($c) => is_array($c) ? ($c['name'] ?? null) : null,
-            $this->context['info']['classification'] ?? []
-        ))) ?: null;
-    }
+    public ?array $classification = null;
+
+    /**
+     * imgproxy object identifier labels promoted for faceting.
+     */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    #[Groups(['asset.read'])]
+    #[Field(searchable: true, filterable: true, widget: Widget::Select, facet: true, order: 73, group: 'Content')]
+    public ?array $objectIdentifiers = null;
+
+    /** Confidence scores keyed by object identifier label. */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    #[Groups(['asset.read'])]
+    public ?array $objectIdentifierConfidences = null;
 
     #[Groups(['asset.read'])]
     #[Field(filterable: true, widget: Widget::Select, facet: true, order: 60, group: 'Content')]

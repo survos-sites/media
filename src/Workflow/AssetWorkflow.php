@@ -587,34 +587,40 @@ class AssetWorkflow
             'source' => $source,
         ]);
 
-        // imgproxy PRO /info against the s3:// master — one remote call, NO
-        // download to our server, NO nesting (the source is a real object in our
-        // bucket, never another imgproxy URL).
-        //
-        // The default response carries format, dimensions, mime_type, size, exif,
-        // iptc, xmp, orientation; we add perceptual hashes and ML analysis. Notes:
-        //  - blurhash needs TWO components (bh:x:y); a valueless token 404s.
-        //  - classify / detect_objects return labelled categories + face boxes.
-        //
-        // Store the raw blob for audit/debug, and promote stable technical
-        // metadata to first-class Asset columns for filtering, IIIF, and search.
-        $info = $this->imgproxyUrlBuilder->info($source, [
-            'size',
-            'format',
-            'dimensions',
-            'thumb_hash',
-            'blurhash:4:3',
-            'perceptual_hash',
-            'average',
-            'dominant_colors',
-            'detect_objects:1',
-            'classify:5',
-        ]);
+        $cachedInfo = $asset->context['info'] ?? null;
+        if (is_array($cachedInfo)) {
+            $info = $cachedInfo;
+            $this->logger->info('info[{id}]: reprocessing cached /info payload', [
+                'id' => $asset->id,
+            ]);
+        } else {
+            // imgproxy PRO /info against the s3:// master — one remote call, NO
+            // download to our server, NO nesting (the source is a real object in our
+            // bucket, never another imgproxy URL).
+            //
+            // The default response carries format, dimensions, mime_type, size, exif,
+            // iptc, xmp, orientation; we add perceptual hashes and ML analysis. Notes:
+            //  - blurhash needs TWO components (bh:x:y); a valueless token 404s.
+            //  - classify / detect_objects return labelled categories + face boxes.
+            $info = $this->imgproxyUrlBuilder->info($source, [
+                'size',
+                'format',
+                'dimensions',
+                'exif:1:1',
+                'thumb_hash',
+                'blurhash:4:3',
+                'perceptual_hash',
+                'average',
+                'dominant_colors',
+                'detect_objects:1',
+                'classify:5',
+            ]);
 
-        $asset->context ??= [];
-        $asset->context['info'] = $info;
-        $asset->context['info_source'] = $source;
-        $asset->context['info_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+            $asset->context ??= [];
+            $asset->context['info'] = $info;
+            $asset->context['info_source'] = $source;
+            $asset->context['info_at'] = (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+        }
         $asset->statusCode = 200;
         $this->applyInfoMetadata($asset, $info);
 
@@ -654,7 +660,6 @@ class AssetWorkflow
         if ($mime !== null) {
             try {
                 $asset->ext = MediaKeyService::extensionFromMime($mime);
-                return;
             } catch (\Throwable) {
             }
         }
@@ -666,6 +671,76 @@ class AssetWorkflow
                 default => strtolower($format),
             };
         }
+
+        $asset->classification = $this->classificationLabels($info);
+        [$objectIdentifiers, $objectIdentifierConfidences] = $this->objectIdentifierData($info);
+        $asset->objectIdentifiers = $objectIdentifiers;
+        $asset->objectIdentifierConfidences = $objectIdentifierConfidences;
+    }
+
+    /**
+     * @param array<string, mixed> $info
+     * @return string[]|null
+     */
+    private function classificationLabels(array $info): ?array
+    {
+        $entries = $info['classification'] ?? null;
+        if (!is_array($entries)) {
+            return null;
+        }
+
+        return $this->uniqueNonEmptyStrings(array_map(
+            static fn (mixed $entry): ?string => is_array($entry) && is_string($entry['name'] ?? null) ? $entry['name'] : null,
+            $entries,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed> $info
+     * @return array{0: string[]|null, 1: array<string, float>|null}
+     */
+    private function objectIdentifierData(array $info): array
+    {
+        $entries = $info['objects'] ?? null;
+        if (!is_array($entries)) {
+            return [null, null];
+        }
+
+        $labels = [];
+        $confidenceStore = [];
+        foreach ($entries as $entry) {
+            if (!is_array($entry) || !is_string($entry['class_name'] ?? null)) {
+                continue;
+            }
+
+            $name = trim($entry['class_name']);
+            if ($name === '') {
+                continue;
+            }
+
+            $labels[] = $name;
+            $confidence = $entry['confidence'] ?? null;
+            if (is_numeric($confidence)) {
+                $confidence = (float) $confidence;
+                $confidenceStore[$name] = max($confidenceStore[$name] ?? 0.0, $confidence);
+            }
+        }
+
+        return [$this->uniqueNonEmptyStrings($labels), $confidenceStore !== [] ? $confidenceStore : null];
+    }
+
+    /**
+     * @param array<?string> $values
+     * @return string[]|null
+     */
+    private function uniqueNonEmptyStrings(array $values): ?array
+    {
+        $strings = array_values(array_unique(array_filter(
+            array_map(static fn (?string $value): ?string => $value !== null ? trim($value) : null, $values),
+            static fn (?string $value): bool => $value !== null && $value !== '',
+        )));
+
+        return $strings !== [] ? $strings : null;
     }
 
     /** @param array<mixed> $values */

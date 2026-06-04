@@ -4,6 +4,14 @@
 {% if keywords is not iterable %}
     {% set keywords = [] %}
 {% endif %}
+{% set classifications = asset.classification|default([]) %}
+{% if classifications is not iterable %}
+    {% set classifications = [] %}
+{% endif %}
+{% set objectIdentifiers = asset.objectIdentifiers|default([]) %}
+{% if objectIdentifiers is not iterable %}
+    {% set objectIdentifiers = [] %}
+{% endif %}
 
 <article class="card h-100 asset-search-card">
     <a href="{{ path('asset_show', {id: asset.id}) }}" class="ratio ratio-4x3 bg-light d-flex align-items-center justify-content-center overflow-hidden">
@@ -39,6 +47,17 @@
 
         {% if summary %}
             <div class="small text-muted">{{ summary|u.truncate(180, '...') }}</div>
+        {% endif %}
+
+        {% if classifications or objectIdentifiers %}
+            <div class="d-flex flex-wrap gap-1">
+                {% for classification in classifications|slice(0, 4) %}
+                    <span class="badge bg-green-lt">{{ classification }}</span>
+                {% endfor %}
+                {% for objectIdentifier in objectIdentifiers|slice(0, 4) %}
+                    <span class="badge bg-cyan-lt">{{ objectIdentifier }}</span>
+                {% endfor %}
+            </div>
         {% endif %}
 
         {% if keywords %}
