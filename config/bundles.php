@@ -63,4 +63,5 @@ return [
     Survos\DatasetBundle\SurvosDatasetBundle::class => ['all' => true],
     Symfony\UX\LiveComponent\LiveComponentBundle::class => ['all' => true],
     Mezcalito\UxSearchBundle\MezcalitoUxSearchBundle::class => ['all' => true],
+    Survos\SearchBundle\SurvosSearchBundle::class => ['all' => true],
 ];

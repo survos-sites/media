@@ -8440,7 +8440,7 @@
         },
         {
             "name": "survos/lingua-core",
-            "version": "2.7.8",
+            "version": "2.7.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/lingua-core.git",
@@ -8473,7 +8473,7 @@
             "description": "Core identity utilities (hash/key calculation and canonicalization) shared across Survos Lingua, Babel, and server implementations.",
             "support": {
                 "issues": "https://github.com/survos/lingua-core/issues",
-                "source": "https://github.com/survos/lingua-core/tree/2.7.8"
+                "source": "https://github.com/survos/lingua-core/tree/2.7.9"
             },
             "funding": [
                 {

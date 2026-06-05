@@ -5,6 +5,10 @@
                 {% for hit in results.hits %}
                     {% set entity = hit.data %}
                     <div class="col">
+                        {# debug: relevance score — use it to choose scoreThreshold on AssetSearch #}
+                        {% if hit.score %}
+                            <span class="badge bg-secondary mb-1">score {{ hit.score|round(5) }}</span>
+                        {% endif %}
                         {% if entity.originalUrl is defined %}
                             {{ include('components/Mezcalito/UxSearch/_hit_asset.html.twig', { asset: entity }) }}
                         {% else %}
