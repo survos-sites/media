@@ -9,9 +9,6 @@ survos_crawler:
     max_per_route : 3
     routes_to_ignore :
         - 'app_logout'
-        #added for test crawler
-        - 'app_account_setup'
-        - 'app_dispatch_process'
         - 'meili-media'
         #media is not set correctly yet
         - 'media_symfony_crud_index'

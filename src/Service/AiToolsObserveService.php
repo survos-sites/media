@@ -22,7 +22,7 @@ final class AiToolsObserveService
     }
 
     /**
-     * Each entry in `claims` maps 1:1 to Survos\AiClaimsBundle\Service\RawClaim
+     * Each entry in `claims` maps 1:1 to Survos\ClaimsBundle\Service\RawClaim
      * (predicate, value, confidence, basis, metadata) — feed straight into
      * ClaimIngestor::record(rawClaims: ...) without translation.
      *

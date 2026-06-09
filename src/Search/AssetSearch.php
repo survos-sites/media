@@ -34,6 +34,8 @@ final class AssetSearch extends AbstractSearch
                 'scoreExpression' => "ts_rank({$vector}, websearch_to_tsquery('english', :bm25Query))",
                 // camelCase facet property => physical column (alias d).
                 'facetColumns' => [
+                    'provider' => 'd.provider',
+                    'dataset' => 'd.dataset',
                     'marking' => 'd.marking',
                     'mime' => 'd.mime',
                     'ext' => 'd.ext',
@@ -51,6 +53,8 @@ final class AssetSearch extends AbstractSearch
                 // badge in the hit template.
                 'scoreThreshold' => 0.1,
             ])
+            ->addFacet('provider', 'Provider')
+            ->addFacet('dataset', 'Dataset')
             ->addFacet('marking', 'State')
             ->addFacet('mime', 'MIME Type')
             ->addFacet('ext', 'Extension')

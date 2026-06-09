@@ -161,18 +161,6 @@
             "var/storage/.gitignore"
         ]
     },
-    "mezcalito/ux-search": {
-        "version": "0.6",
-        "recipe": {
-            "repo": "github.com/symfony/recipes-contrib",
-            "branch": "main",
-            "version": "0.1",
-            "ref": "2a33fc685c9deb469f94fc41569981ba1f4eb518"
-        },
-        "files": [
-            "config/packages/mezcalito_ux_search.yaml"
-        ]
-    },
     "nelmio/cors-bundle": {
         "version": "2.5",
         "recipe": {
@@ -756,6 +744,9 @@
     },
     "symfonycasts/verify-email-bundle": {
         "version": "v1.17.3"
+    },
+    "tacman/ux-search": {
+        "version": "0.6.1"
     },
     "twig/extra-bundle": {
         "version": "v3.16.0"

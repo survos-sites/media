@@ -15,11 +15,14 @@
 
 <article class="card h-100 asset-search-card">
     <a href="{{ path('asset_show', {id: asset.id}) }}" class="ratio ratio-4x3 bg-light d-flex align-items-center justify-content-center overflow-hidden">
-        {# Render via imgproxy off our own s3 master only. No stored-thumbnail
-           fallbacks — a wrong/stale image is worse than none. #}
-        {% if asset.archiveUrl %}
+        {# Render via imgproxy from the canonical master, not a stored derivative. #}
+        {% set thumbSource = asset.storageKey
+            ? 's3://museado/' ~ asset.storageKey
+            : (asset.archiveUrl ?: asset.originalUrl)
+        %}
+        {% if thumbSource %}
             <img
-                src="{{ asset.archiveUrl|imgproxy('thumb') }}"
+                src="{{ thumbSource|imgproxy('thumb') }}"
                 alt="{{ title }}"
                 class="w-100 h-100 object-fit-contain"
                 loading="lazy"

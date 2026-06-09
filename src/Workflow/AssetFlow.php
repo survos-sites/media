@@ -84,6 +84,9 @@ class AssetFlow
     #[Place(info: 'Terminal error / exhausted retries')]
     public const PLACE_FAILED = 'failed';
 
+    #[Place(info: 'Asset + its archive object deleted (terminal). Set immediately before row removal.')]
+    public const PLACE_DELETED = 'deleted';
+
     // ───────────── Transitions ─────────────
 
     #[Transition(
@@ -108,6 +111,20 @@ class AssetFlow
         next: [self::TRANSITION_INFO_FAILED]
     )]
     public const TRANSITION_INFO = 'info';
+
+    /**
+     * Hard delete: remove the archived image from storage, then delete the asset
+     * row. Use to purge bad masters (e.g. thumbnail-resolution archives). Run async.
+     * Irreversible — the s3 object and the DB record are both gone.
+     */
+    #[Transition(
+        from: [self::PLACE_ARCHIVED, self::PLACE_INFORMED],
+        to: self::PLACE_DELETED,
+        info: 'Delete',
+        description: 'Delete the archive.storage object (if present), then delete the asset record. Irreversible.',
+        async: true,
+    )]
+    public const TRANSITION_DELETE = '_delete';
 
     #[Transition(
         from: [self::PLACE_INFORMED, self::PLACE_LOCAL_OCR],

@@ -11,6 +11,7 @@ use App\Workflow\AssetFlow;
 use Doctrine\ORM\EntityManagerInterface;
 use RuntimeException;
 use Survos\ImgproxyBundle\Service\ImgproxyUrlBuilder;
+use Survos\MediaBundle\Contract\MediaSyncKeys;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Message\TransitionMessage;
 use Survos\StateBundle\Service\AsyncQueueLocator;
@@ -63,6 +64,17 @@ final class AssetRegistry
                 if (!isset($asset->sourceMeta[$key])) {
                     $asset->sourceMeta[$key] = $value;
                 }
+            }
+        }
+
+        // Promote the dataset key (provider/code) to its own column — it's the
+        // claim/vault scope. First non-empty value wins; don't clobber on re-sync.
+        if (($asset->dataset ?? null) === null) {
+            $dataset = $contextHints[MediaSyncKeys::DATASET] ?? null;
+            if (is_string($dataset) && $dataset !== '') {
+                $asset->dataset = $dataset;
+                // Coarser facet: the provider is the first segment of the key.
+                $asset->provider ??= explode('/', $dataset)[0];
             }
         }
 
@@ -177,7 +189,7 @@ final class AssetRegistry
     /** @param array<string,mixed> $contextHints */
     private function deriveMediaRecordKey(array $contextHints, string $originalUrl): ?string
     {
-        $explicitRecordKey = $contextHints['media_record_key'] ?? null;
+        $explicitRecordKey = $contextHints[MediaSyncKeys::RECORD_KEY] ?? null;
         $isPdf = $this->looksLikePdfUrl($originalUrl);
 
         // Current policy: auto-create MediaRecord only for PDFs.
@@ -186,7 +198,7 @@ final class AssetRegistry
             return null;
         }
 
-        foreach (['media_record_key', 'record_key', 'source_ark', 'code', 'dcterms:identifier', 'identifier'] as $key) {
+        foreach ([MediaSyncKeys::RECORD_KEY, 'record_key', 'source_ark', 'code', 'dcterms:identifier', 'identifier'] as $key) {
             $value = $contextHints[$key] ?? null;
             if (is_string($value) && trim($value) !== '') {
                 return $this->normalizeRecordKey($value);

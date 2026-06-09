@@ -53,6 +53,20 @@
     </ol>
   </nav>
 
+  {# Current marking + available transitions, applied synchronously.
+     globalKey is the URL-safe class encoding the apply route needs. #}
+  <div class="card mb-3">
+    <div class="card-body py-2">
+      <twig:state:workflow-marking
+        :subject="asset"
+        workflowCode="asset"
+        globalKey="APP_ENTITY_ASSET"
+        layout="inline"
+        redirectUrl="{{ app.request.uri }}"
+      />
+    </div>
+  </div>
+
   <div class="row g-4">
 
     {# ── LEFT: image + core metadata ────────────────────────────────────────── #}
@@ -189,6 +203,7 @@
             <li class="nav-item"><a href="#{{ tabId }}-ocr"              class="nav-link active" data-bs-toggle="tab" data-tab-id="ocr">OCR</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-source_metadata"  class="nav-link" data-bs-toggle="tab" data-tab-id="source_metadata">Source Metadata</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-info"             class="nav-link" data-bs-toggle="tab" data-tab-id="info">Info</a></li>
+            <li class="nav-item"><a href="#{{ tabId }}-objects"          class="nav-link" data-bs-toggle="tab" data-tab-id="objects">Objects</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-edge_analysis"    class="nav-link" data-bs-toggle="tab" data-tab-id="edge_analysis">Edge Analysis</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-ai_metadata"      class="nav-link" data-bs-toggle="tab" data-tab-id="ai_metadata">AI Metadata</a></li>
             <li class="nav-item"><a href="#{{ tabId }}-ai_task_results"  class="nav-link" data-bs-toggle="tab" data-tab-id="ai_task_results">AI Task Results</a></li>
@@ -277,6 +292,64 @@
             </div>
           {% else %}
             <p class="text-muted">No <code>/info</code> data captured yet. Run the <code>info</code> workflow transition.</p>
+          {% endif %}
+        </div>
+
+        {# ── Objects ──────────────────────────────────────────────────────────── #}
+        {# Detected objects (boxes) come from imgproxy detect_objects; classification
+           labels (no boxes) come from the ~1000-class classify model. An image may
+           have classification labels but no detectable objects (e.g. no faces). #}
+        <div id="{{ tabId }}-objects" class="tab-pane" role="tabpanel">
+          {% set detectedObjects = asset.context.info.objects|default([]) %}
+          {% set classification = asset.context.info.classification|default([]) %}
+          {% if detectedObjects is not empty %}
+            <div class="row g-3">
+              <div class="col-md-7">
+                <div class="text-center" style="background:#111; border-radius:4px; padding:6px;">
+                  <twig:BoundingBoxImage
+                    src="{{ zoomImageUrl }}"
+                    alt="Detected objects"
+                    :boxes="detectedObjects"
+                    :imageWidth="asset.width"
+                    :imageHeight="asset.height"
+                    maxHeight="460px"
+                  />
+                </div>
+                <div class="small text-muted mt-1">
+                  Hover a box for a zoomed crop · colour = confidence
+                  (<span style="color:#2fb344;">high</span>,
+                   <span style="color:#f59f00;">medium</span>,
+                   <span style="color:#d63939;">low</span>)
+                </div>
+              </div>
+              <div class="col-md-5">
+                <twig:DetectedObjectList
+                  src="{{ zoomImageUrl }}"
+                  :boxes="detectedObjects"
+                  :imageWidth="asset.width"
+                  :imageHeight="asset.height"
+                />
+              </div>
+            </div>
+          {% else %}
+            <div class="text-muted small mb-3">
+              No bounding-box objects detected
+              {% if asset.marking != 'informed' and asset.context.info is not defined %}(run the <code>info</code> transition){% else %}(the loaded detection model found nothing — currently a face-only model){% endif %}.
+            </div>
+          {% endif %}
+
+          {% if classification is not empty %}
+            <div class="border-top pt-3 mt-3">
+              <div class="text-uppercase text-muted small fw-semibold mb-2">Classification (whole image)</div>
+              <div class="d-flex flex-wrap gap-2">
+                {% for c in classification %}
+                  {% set pct = (c.confidence is defined ? (c.confidence * 100)|round : null) %}
+                  <span class="badge bg-secondary-lt">
+                    {{ c.name|default(c.class_name|default('?')) }}{% if pct is not null %} · {{ pct }}%{% endif %}
+                  </span>
+                {% endfor %}
+              </div>
+            </div>
           {% endif %}
         </div>
 

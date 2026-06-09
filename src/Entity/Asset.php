@@ -11,6 +11,9 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 use Survos\FieldBundle\Attribute\Field;
+use Survos\FieldBundle\Attribute\RouteIdentity;
+use Survos\FieldBundle\Entity\RouteIdentityTrait;
+use Survos\FieldBundle\Entity\RouteParametersInterface;
 use Survos\FieldBundle\Enum\Widget;
 use Survos\MeiliBundle\Metadata\Fields;
 use Survos\MeiliBundle\Metadata\MeiliIndex;
@@ -24,19 +27,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[ORM\Index(name: 'idx_asset_created_at', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_asset_backend', columns: ['storage_backend'])]
 #[ORM\Index(name: 'idx_asset_media_record', columns: ['media_record_id'])]
-// Composite (facetColumn, id) indexes. The Mezcalito search facets run
-// `count(DISTINCT id) GROUP BY <col>`; without id in the index that forces a
-// full table sort per facet. Covering the PK makes each an index-only scan.
-// See https://github.com/Mezcalito/ux-search/issues/46
-#[ORM\Index(name: 'idx_asset_marking_id', columns: ['marking', 'id'])]
-#[ORM\Index(name: 'idx_asset_ai_doc_type_id', columns: ['ai_document_type', 'id'])]
-#[ORM\Index(name: 'idx_asset_mime_id', columns: ['mime', 'id'])]
-#[ORM\Index(name: 'idx_asset_ext_id', columns: ['ext', 'id'])]
-#[ORM\Index(name: 'idx_asset_size_id', columns: ['size', 'id'])]
-#[ORM\Index(name: 'idx_asset_width_id', columns: ['width', 'id'])]
-#[ORM\Index(name: 'idx_asset_height_id', columns: ['height', 'id'])]
-#[ORM\Index(name: 'idx_asset_classification_id', columns: ['classification', 'id'])]
-#[ORM\Index(name: 'idx_asset_object_identifiers_id', columns: ['object_identifiers', 'id'])]
+// (facetColumn, id) covering indexes removed: tacman/ux-search now emits plain
+// count(col) for base-entity facets (countDistinct:false) and facets run through
+// Meilisearch — so the PK-covering workaround for the old Mezcalito full-sort
+// (mezcalito/ux-search#46) is obsolete. Re-add a plain single-column index only
+// if a specific postgres query is proven to need it.
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
     operations: [
@@ -46,7 +41,7 @@ use Symfony\Component\Serializer\Attribute\Groups;
 #[MeiliIndex(
     chats: ['meili_assistant'],
     sortable: ['createdAt', 'aiTokensTotal', 'size', 'width', 'height'],
-    filterable: ['mime', 'clients', 'marking',
+    filterable: ['provider', 'dataset', 'mime', 'clients', 'marking',
         'ext', 'type', 'publisher', 'reuse',
 //        'aiDocumentType', 'aiDocumentSubtype',
         'subjects', 'classification', 'objectIdentifiers',
@@ -56,12 +51,12 @@ use Symfony\Component\Serializer\Attribute\Groups;
                   'aiPeople', 'aiPlaces', 'aiSubjects'],
     persisted: new Fields(
         groups: ['asset.read'],
-        fields: ['id',
+        fields: ['id', 'provider', 'dataset',
             'originalUrl', 'archiveUrl',
         'mime', 'ext', 'filename', 'type', 'reuse', 'publisher', 'subjects', 'classification', 'objectIdentifiers', 'objectIdentifierConfidences',
         'size', 'width', 'height',
         'title', 'description', 'thumb', 'smallUrl',
-        'createdAt', 'marking', 'mediaRecordId',
+        'createdAt', 'marking', 'mediaRecordId', 'storageKey',
                   'aiDocumentType'],
     ),
     prompts: [
@@ -69,9 +64,13 @@ use Symfony\Component\Serializer\Attribute\Groups;
     ],
     ui: ['columns' => 4, 'cardClass' => 'asset-card'],
 )]
-class Asset implements MarkingInterface, \Stringable
+// Route identity: the 16-hex `id` is the whole URL key (erp.entityId → id), so
+// menus, link helpers and the state-bundle workflow component can address assets.
+#[RouteIdentity(field: 'id')]
+class Asset implements MarkingInterface, RouteParametersInterface, \Stringable
 {
     use MarkingTrait; // provides $marking + getters/setters compatible with the workflow engine
+    use RouteIdentityTrait;
 
     /** Primary key: 16-char lowercase hex xxh3(originalUrl). */
     #[ORM\Id]
@@ -85,6 +84,23 @@ class Asset implements MarkingInterface, \Stringable
             $this->id = $value;
         }
     }
+
+    /**
+     * Aggregator/provider (e.g. "mus", "dc") — the first segment of the dataset
+     * key, derived on ingest. A coarser facet than dataset for ux-search.
+     */
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    #[Field(searchable: true, sortable: true, order: 11, width: '8rem')]
+    public ?string $provider = null;
+
+    /**
+     * Dataset key (provider/code, e.g. "mus/fortepan") this asset belongs to,
+     * supplied per-row via media:sync context. This is the claim/vault scope —
+     * AI claims persist under the dataset-aware path keyed by this value.
+     */
+    #[ORM\Column(type: Types::STRING, length: 128, nullable: true)]
+    #[Field(searchable: true, sortable: true, order: 12, width: '10rem')]
+    public ?string $dataset = null;
 
     #[Groups(['asset.read'])]
     #[Field(searchable: true, sortable: true, order: 30, width: '24rem', group: 'Content')]
@@ -348,6 +364,7 @@ class Asset implements MarkingInterface, \Stringable
     public ?string $storageBackend = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['asset.read'])]
     public ?string $storageKey = null;
 
     /** URL of archived original (object storage) */

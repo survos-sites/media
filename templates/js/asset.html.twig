@@ -20,22 +20,12 @@
   {% endif %}
 {% endif %}
 
-{#
-  JS Twig still consumes the indexed `smallUrl` field for now.
-  Longer term, this should compute an imgProxy URL from the source URL here,
-  so Meili does not need to store a rendered thumbnail URL.
-#}
-{% set thumb =
-    hit.smallUrl
-    |default(hit.thumbnail_url)
-    |default(hit.thumbnail)
-    |default(hit.iiifThumb)
-    |default(attribute(sourceMeta, 'thumbnail_url'))
-    |default(attribute(sourceMeta, 'iiif_thumbnail_url'))
-    |default(hit.archiveUrl)
-    |default(hit.originalUrl)
-    |default(null)
+{# Keep this byte-identical to the UX search hit: canonical master + thumb preset. #}
+{% set thumbSource = hit.storageKey|default(null)
+  ? 's3://museado/' ~ hit.storageKey
+  : (hit.archiveUrl|default(hit.originalUrl|default(null)))
 %}
+{% set thumb = thumbSource ? thumbSource|imgproxy('thumb') : null %}
 {% set hasBrokenThumb = thumb and 'imgproxy.survos.com/insecure/' in thumb %}
 
 {% set ark = attribute(sourceMeta, 'source_ark')|default(null) %}

@@ -344,6 +344,32 @@ class AssetWorkflow
         ]);
     }
 
+    #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_DELETE)]
+    public function onDelete(TransitionEvent $event): void
+    {
+        $asset = $this->getAsset($event);
+        $id = $asset->id;
+
+        // Remove the archived master from storage if we put one there.
+        if ($this->archiveStorage !== null
+            && $asset->storageKey
+            && $this->archiveStorage->fileExists($asset->storageKey)
+        ) {
+            $this->archiveStorage->delete($asset->storageKey);
+            $this->logger->info('delete[{id}]: removed archive object {key}', [
+                'id' => $id,
+                'key' => $asset->storageKey,
+            ]);
+        }
+
+        // Delete the row. The 'deleted' marking this transition sets is moot — the
+        // entity is removed here, and the post-apply flush is a no-op for it.
+        $this->em->remove($asset);
+        $this->em->flush();
+
+        $this->logger->info('delete[{id}]: asset row removed', ['id' => $id]);
+    }
+
     #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_FETCH_IIIF)]
     public function onFetchIiif(TransitionEvent $event): void
     {

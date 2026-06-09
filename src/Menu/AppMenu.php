@@ -54,9 +54,5 @@ final class AppMenu implements KnpMenuHelperInterface
 
         $this->add($menu, 'iiif_browse', label: 'IIIF', icon: 'iiif');
         $this->add($menu, 'survos_state_workflow_dashboard', label: 'Summary', icon: 'summary');
-
-        $dispatchMenu = $this->addSubmenu($menu, 'Dispatch', icon: 'dispatch');
-        $this->add($dispatchMenu, 'app_dispatch_process_ui');
-        $this->add($dispatchMenu, 'app_account_setup_ui');
     }
 }

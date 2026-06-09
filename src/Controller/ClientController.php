@@ -58,6 +58,7 @@ class ClientController extends AbstractController
 //        foreach ($this->entities as $entity) {
 //            dd($entity);
 //        }
+        $counts = [];
         $markingCounts = [];
         foreach ($classes as $class) {
 //        foreach ($this->workflowHelperService->getWorkflowsGroupedByClass() as $class=>$w) {
@@ -91,6 +92,7 @@ class ClientController extends AbstractController
         return [
             'counts' => $counts,
             'markingCounts' => $markingCounts,
+//            'users' => [],
             'users' => $userRepository->findAll(),
 //            'rows' => $mediaRepository->findBy([], ['createdAt' => 'DESC'], 30)
         ];
