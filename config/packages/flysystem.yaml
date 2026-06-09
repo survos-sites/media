@@ -20,10 +20,12 @@ flysystem:
                 bucket: '%env(AWS_S3_BUCKET_NAME)%'
                 streamReads: true
                 prefix: '%env(string:S3_STORAGE_PREFIX)%'
-        # also on production, for thumbnail creation
+        # also on production, for thumbnail creation. Points at public/ (writable,
+        # same as dev) rather than APP_DATA_DIR — /platform is the shared md-owned
+        # mount and mediary's container user can't mkdir there.
         local.storage:
             local:
-                directory: '%env(APP_DATA_DIR)%/mediary'
+                directory: '%kernel.project_dir%/public'
 
 when@test:
     flysystem:
