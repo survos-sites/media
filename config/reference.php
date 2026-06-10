@@ -2112,6 +2112,18 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
  *     max_depth?: scalar|Param|null, // Default: 1
  * }
+ * @psalm-type ZenstruckMessengerMonitorConfig = array{
+ *     storage?: array{
+ *         exclude?: list<scalar|Param|null>,
+ *         orm?: array{
+ *             entity_class?: scalar|Param|null, // Your Doctrine entity class that extends "Zenstruck\Messenger\Monitor\History\Model\ProcessedMessage"
+ *         },
+ *     },
+ *     cache?: array{
+ *         pool?: scalar|Param|null, // Cache pool to use for worker cache. // Default: "cache.app"
+ *         expired_worker_ttl?: int|Param, // How long to keep expired workers in cache (in seconds). // Default: 3600
+ *     },
+ * }
  * @psalm-type SurvosMeiliConfig = array{
  *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
  *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/meili"
@@ -2963,6 +2975,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     api_platform?: ApiPlatformConfig,
  *     survos_google_sheets?: SurvosGoogleSheetsConfig,
  *     survos_crawler?: SurvosCrawlerConfig,
+ *     zenstruck_messenger_monitor?: ZenstruckMessengerMonitorConfig,
  *     survos_meili?: SurvosMeiliConfig,
  *     survos_ez?: SurvosEzConfig,
  *     survos_doc?: SurvosDocConfig,
@@ -3018,6 +3031,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         doctrine_diagram?: DoctrineDiagramConfig,
  *         survos_google_sheets?: SurvosGoogleSheetsConfig,
  *         survos_crawler?: SurvosCrawlerConfig,
+ *         zenstruck_messenger_monitor?: ZenstruckMessengerMonitorConfig,
  *         survos_meili?: SurvosMeiliConfig,
  *         survos_code?: SurvosCodeConfig,
  *         survos_ez?: SurvosEzConfig,
@@ -3070,6 +3084,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         api_platform?: ApiPlatformConfig,
  *         survos_google_sheets?: SurvosGoogleSheetsConfig,
  *         survos_crawler?: SurvosCrawlerConfig,
+ *         zenstruck_messenger_monitor?: ZenstruckMessengerMonitorConfig,
  *         survos_meili?: SurvosMeiliConfig,
  *         survos_ez?: SurvosEzConfig,
  *         survos_doc?: SurvosDocConfig,
@@ -3123,6 +3138,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         doctrine_diagram?: DoctrineDiagramConfig,
  *         survos_google_sheets?: SurvosGoogleSheetsConfig,
  *         survos_crawler?: SurvosCrawlerConfig,
+ *         zenstruck_messenger_monitor?: ZenstruckMessengerMonitorConfig,
  *         survos_meili?: SurvosMeiliConfig,
  *         survos_code?: SurvosCodeConfig,
  *         survos_ez?: SurvosEzConfig,

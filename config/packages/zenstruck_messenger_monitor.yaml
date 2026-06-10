@@ -1,0 +1,15 @@
+#zenstruck_messenger_monitor:
+#    storage:
+#        # Message classes to disable monitoring for (can be abstract/interface)
+#        exclude:              []
+#        orm:
+#
+#            # Your Doctrine entity class that extends "Zenstruck\Messenger\Monitor\History\Model\ProcessedMessage"
+#            entity_class:         App\Entity\ProcessedMessage
+#    cache:
+##        pool: app.cache # If using workers in docker. You can use shared cache pool for all workers
+#        expired_worker_ttl:  3600
+zenstruck_messenger_monitor:
+    storage:
+        orm:
+            entity_class: App\Entity\ProcessedMessage
