@@ -2219,9 +2219,11 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type SurvosDocConfig = array{
  *     routes_enabled?: bool|Param, // Set false to manage this bundle's routes manually in your app. // Default: true
  *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/doc"
- *     screenshow_endpoint?: scalar|Param|null, // Default: "%env(default::SCREENSHOW_ENDPOINT)%"
  *     user_provider?: scalar|Param|null, // Default: null
  *     user_class?: scalar|Param|null, // Default: "App\\Entity\\User"
+ *     console?: array{
+ *         include?: list<scalar|Param|null>,
+ *     },
  * }
  * @psalm-type SurvosMediaConfig = array{
  *     default_locale?: scalar|Param|null, // Default: "en"

@@ -75,7 +75,7 @@ class AssetWorkflow
         private MessageBusInterface          $messageBus,
         private EntityManagerInterface                          $em,
         private AssetRepository                                 $assetRepo,
-        private readonly FilesystemOperator                     $localStorage,
+        #[Target('local.storage')] private readonly FilesystemOperator                     $localStorage,
         private readonly LoggerInterface                        $logger,
         private readonly HttpClientInterface                    $httpClient,
         private UserRepository                                  $userRepository,
@@ -103,7 +103,7 @@ class AssetWorkflow
         private readonly AiToolsOcrService $aiToolsOcrService,
         private readonly AiToolsObserveService $aiToolsObserveService,
         private readonly TwigEnvironment $twig,
-        private readonly ?FilesystemOperator $archiveStorage = null,
+        #[Target('archive.storage')]  private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
         iterable $taskServices = [],
     ) {

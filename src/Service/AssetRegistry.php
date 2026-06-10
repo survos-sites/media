@@ -78,6 +78,16 @@ final class AssetRegistry
             }
         }
 
+        // Seed the AI task queue from the producer's directive (e.g. fortepan asks
+        // for enrich_from_thumbnail). Only when empty — re-sync must not re-queue
+        // work that already ran, matching the "first non-empty wins" rule above.
+        if ($asset->aiQueue === []) {
+            $tasks = $contextHints[MediaSyncKeys::AI_QUEUE] ?? null;
+            if (is_array($tasks)) {
+                $asset->aiQueue = array_values(array_filter($tasks, 'is_string'));
+            }
+        }
+
         $this->attachMediaRecord($asset, $contextHints, $originalUrl);
 
         $flush && $this->flush();

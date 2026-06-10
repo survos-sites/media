@@ -9,19 +9,19 @@ use App\Service\AssetRegistry;
 use App\Workflow\AssetFlow;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerAwareTrait;
-use Psr\Log\LoggerInterface;
 use Survos\ClaimsBundle\Service\ClaimIngestor;
 use Survos\ClaimsBundle\Service\RawClaim;
-use Survos\MediaBundle\Contract\MediaSyncKeys;
+use Survos\MediaBundle\Dto\BatchPayloadDto;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/{client}/batch', methods: ['POST', 'GET'])]
 final class BatchController implements LoggerAwareInterface
 {
     use LoggerAwareTrait;
+
     public function __construct(
         private readonly AssetRegistry     $assetRegistry,
         private readonly AsyncQueueLocator $asyncQueueLocator,
@@ -29,42 +29,48 @@ final class BatchController implements LoggerAwareInterface
     ) {
     }
 
-    public function __invoke(string $client, Request $request): JsonResponse
+    /** POST: Symfony deserializes + validates the JSON body straight into the DTO. */
+    #[Route('/{client}/batch', methods: ['POST'])]
+    public function post(string $client, #[MapRequestPayload] BatchPayloadDto $payload): JsonResponse
     {
-        if ($request->isMethod('GET')) {
-            $urls       = [$request->query->get('url')];
-            $contextMap = [];
-            $callbackUrl = $request->query->get('callback_url');
-            $payload = ['client' => $client, 'urls' => $urls];
-        } else {
-            $payload     = $request->toArray();
-            $urls        = $payload['urls'] ?? [];
-            // Per-URL source metadata hints: ['https://...jpg' => ['dcterms:title' => '...', 'rights' => '...']]
-            $contextMap  = is_array($payload['context'] ?? null) ? $payload['context'] : [];
-            $callbackUrl = $payload['callback_url'] ?? null;
-            // sync=true: process download immediately in this request, skip async queue
-            if (!empty($payload['sync'])) {
-                $this->asyncQueueLocator->sync = true;
-            }
-        }
-//        file_put_contents('/tmp/payload.json', json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        return $this->handle($client, $payload);
+    }
+
+    /** GET: debug single-URL registration via ?url=…&callback_url=… */
+    #[Route('/{client}/batch', methods: ['GET'])]
+    public function get(string $client, Request $request): JsonResponse
+    {
+        $url = $request->query->get('url');
+
+        return $this->handle($client, new BatchPayloadDto(
+            client: $client,
+            urls: $url !== null ? [$url] : [],
+            callbackUrl: $request->query->get('callback_url'),
+        ));
+    }
+
+    private function handle(string $client, BatchPayloadDto $payload): JsonResponse
+    {
         $this->logger->warning(json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
-        // Per-URL item-level source claims: ['https://...jpg' => [['predicate'=>'dcterms:title','value'=>'…'], …]]
-        $sourceClaimsMap = is_array($payload[MediaSyncKeys::SOURCE_CLAIMS] ?? null) ? $payload[MediaSyncKeys::SOURCE_CLAIMS] : [];
+        // sync=true: process download immediately in this request, skip async queue
+        if ($payload->sync) {
+            $this->asyncQueueLocator->sync = true;
+        }
 
         $media = [];
-        $urls  = array_unique(array_filter($urls));
-
         $queue = [];
-        foreach ($urls as $url) {
-            $contextHints = is_array($contextMap[$url] ?? null) ? $contextMap[$url] : [];
+
+        foreach ($payload->cleanUrls() as $url) {
+            $item         = $payload->itemFor($url);
+            $contextHints = $item->toArray();
             // Store callback URL in context so the workflow can fire it after analysis
-            if ($callbackUrl) {
-                $contextHints['callback_url'] = $callbackUrl;
+            if ($payload->callbackUrl) {
+                $contextHints['callback_url'] = $payload->callbackUrl;
             }
+
             $asset = $this->assetRegistry->ensureAsset($url, $client, contextHints: $contextHints);
-            if (!in_array($client = $payload['client'], $asset->clients, true)) {
+            if (!in_array($client, $asset->clients, true)) {
                 $asset->clients[] = $client;
             }
 
@@ -72,7 +78,7 @@ final class BatchController implements LoggerAwareInterface
             // record, not the image. Ingest as @import claims keyed by the record
             // so they survive multi-image and so AI claims (own source) compare
             // against, never inherit, human metadata.
-            $this->ingestSourceClaims($asset, $sourceClaimsMap[$url] ?? null);
+            $this->ingestSourceClaims($asset, $payload->claimsFor($url));
             if ($asset->marking === AssetFlow::PLACE_NEW) {
                 $queue[$asset->originalUrl] = $asset;
             }
@@ -107,11 +113,11 @@ final class BatchController implements LoggerAwareInterface
      * No-op when there are no claims or no record — the record only exists when the
      * caller sent a grouping key (the item id as code/dcterms:identifier/media_record_key).
      *
-     * @param mixed $claims list of ['predicate'=>string, 'value'=>mixed, 'confidence'?=>int, 'basis'?=>string]
+     * @param list<array<string,mixed>> $claims list of ['predicate'=>string, 'value'=>mixed, 'confidence'?=>int, 'basis'?=>string]
      */
-    private function ingestSourceClaims(Asset $asset, mixed $claims): void
+    private function ingestSourceClaims(Asset $asset, array $claims): void
     {
-        if (!is_array($claims) || $claims === [] || $asset->mediaRecord === null) {
+        if ($claims === [] || $asset->mediaRecord === null) {
             return;
         }
 
