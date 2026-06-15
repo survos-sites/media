@@ -15,3 +15,8 @@ services:
     App\:
         resource: '../src/'
 
+    # AI-task result sidecar cache, backed by the shared archive (S3) bucket.
+    Survos\MediaBundle\Service\SidecarService:
+        arguments:
+            $storage: '@?archive.storage'
+

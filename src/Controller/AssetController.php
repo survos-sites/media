@@ -6,11 +6,14 @@ namespace App\Controller;
 
 use App\Ai\AssetAiTask;
 use App\Ai\AssetAiTaskRunner;
+use App\Ai\AssetSubject;
 use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\AiWorkflowBundle\Task\TaskRegistry;
+use Survos\ClaimsBundle\Service\ClaimIngestor;
+use Survos\MediaBundle\Service\SidecarService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -33,6 +36,8 @@ final class AssetController extends AbstractController
         private readonly TaskRegistry $taskRegistry,
         private readonly AsyncQueueLocator $asyncQueueLocator,
         private readonly \Symfony\Component\Messenger\MessageBusInterface $bus,
+        private readonly SidecarService $sidecar,
+        private readonly ?ClaimIngestor $claimIngestor = null,
     ) {
     }
 
@@ -242,6 +247,90 @@ final class AssetController extends AbstractController
 
         $this->addFlash('success', "Task {$taskName} completed.");
         return $this->redirectToRoute('asset_show', ['id' => $asset->id]);
+    }
+
+    /**
+     * Sync entry point for external callers (e.g. the public zm site): given a URL,
+     * ensure an Asset for it, run one AI task, and return the result as JSON. The
+     * result is also persisted to the S3 sidecar + claims by the workflow, so the
+     * data survives even though the original binary may not live on our S3.
+     *
+     * POST/GET /media/ai/from-url?url=<image-or-pdf>&task=<observe|ocr_mistral>
+     * If task is omitted it's inferred from the URL (.pdf → ocr_mistral, else observe).
+     */
+    #[Route('/ai/from-url', name: 'ai_from_url', methods: ['POST', 'GET'], options: ['expose' => true])]
+    public function aiFromUrl(Request $request): JsonResponse
+    {
+        $url = trim((string) ($request->query->get('url') ?? $request->request->get('url') ?? ''));
+        if ($url === '') {
+            return new JsonResponse(['error' => 'url is required'], 400);
+        }
+
+        // Default task by media type. mediary's workflow handles its own task set
+        // (no 'observe'); the jpg-equivalent rich-vision task is enrich_from_thumbnail.
+        $task = trim((string) ($request->query->get('task') ?? $request->request->get('task') ?? ''));
+        if ($task === '') {
+            $task = str_ends_with(strtolower(parse_url($url, PHP_URL_PATH) ?? $url), '.pdf')
+                ? 'ocr_mistral'
+                : 'enrich_from_thumbnail';
+        }
+        $taskObj = $this->taskRegistry->get($task);
+        if ($taskObj === null) {
+            return new JsonResponse(['error' => "Unknown task: {$task}", 'available' => array_keys($this->taskRegistry->getTaskMap())], 400);
+        }
+
+        $force = $request->query->getBoolean('force');
+        $maxPages = $request->query->getInt('maxPages');
+        $context = $maxPages > 0 ? ['max_pages' => $maxPages] : [];
+
+        try {
+            // Ensure (or find) the Asset for this URL — the original binary need not
+            // live on our S3; the AI result will, as a sidecar keyed by the Asset id.
+            $asset = $this->assetRegistry->ensureAsset($url, null, flush: true);
+            $subject = new AssetSubject($asset, $context);
+
+            if (!$taskObj->supports($subject)) {
+                return new JsonResponse(['error' => "Task {$task} does not support this media", 'id' => $asset->id], 422);
+            }
+
+            // Cache-aside on the S3 sidecar: return it if present, else run the
+            // (paid) task, persist the response as the sidecar, and record claims.
+            $cached = $force ? null : $this->sidecar->read($asset->id, $task);
+            if ($cached !== null) {
+                return new JsonResponse(['id' => $asset->id, 'url' => $url, 'task' => $task, 'cached' => true, 'result' => $cached]);
+            }
+
+            $taskResult = $taskObj->run($subject);
+            $response = (array) ($taskResult->meta?->response ?? []);
+
+            if ($this->sidecar->isAvailable()) {
+                $this->sidecar->remember($asset->id, $task, static fn (): array => $response, force: true);
+            }
+            if ($this->claimIngestor !== null && !empty($taskResult->claims)) {
+                try {
+                    $this->claimIngestor->record(
+                        $subject->getWorkflowScope(),
+                        Asset::class,
+                        $asset->id,
+                        $task,
+                        $taskResult->claims,
+                        $taskResult->meta,
+                    );
+                } catch (\Throwable) {
+                    // Claims persistence is best-effort; the sidecar is the authority.
+                }
+            }
+        } catch (\Throwable $e) {
+            return new JsonResponse(['error' => $e->getMessage(), 'url' => $url, 'task' => $task], 500);
+        }
+
+        return new JsonResponse([
+            'id' => $asset->id,
+            'url' => $url,
+            'task' => $task,
+            'cached' => false,
+            'result' => $response,
+        ]);
     }
 
     private function applyTaskOverrideFromRequest(Asset $asset, string $taskName, Request $request): void
