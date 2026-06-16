@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Ai\AssetAiExecutor;
 use App\Ai\AssetAiTask;
 use App\Ai\AssetAiTaskRunner;
-use App\Ai\AssetSubject;
 use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use App\Service\AssetRegistry;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\AiWorkflowBundle\Task\TaskRegistry;
-use Survos\ClaimsBundle\Service\ClaimIngestor;
-use Survos\MediaBundle\Service\SidecarService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\StateBundle\Service\AsyncQueueLocator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -36,8 +34,7 @@ final class AssetController extends AbstractController
         private readonly TaskRegistry $taskRegistry,
         private readonly AsyncQueueLocator $asyncQueueLocator,
         private readonly \Symfony\Component\Messenger\MessageBusInterface $bus,
-        private readonly SidecarService $sidecar,
-        private readonly ?ClaimIngestor $claimIngestor = null,
+        private readonly AssetAiExecutor $executor,
     ) {
     }
 
@@ -287,49 +284,21 @@ final class AssetController extends AbstractController
             // Ensure (or find) the Asset for this URL — the original binary need not
             // live on our S3; the AI result will, as a sidecar keyed by the Asset id.
             $asset = $this->assetRegistry->ensureAsset($url, null, flush: true);
-            $subject = new AssetSubject($asset, $context);
-
-            if (!$taskObj->supports($subject)) {
-                return new JsonResponse(['error' => "Task {$task} does not support this media", 'id' => $asset->id], 422);
-            }
-
-            // Cache-aside on the S3 sidecar: return it if present, else run the
-            // (paid) task, persist the response as the sidecar, and record claims.
-            $cached = $force ? null : $this->sidecar->read($asset->id, $task);
-            if ($cached !== null) {
-                return new JsonResponse(['id' => $asset->id, 'url' => $url, 'task' => $task, 'cached' => true, 'result' => $cached]);
-            }
-
-            $taskResult = $taskObj->run($subject);
-            $response = (array) ($taskResult->meta?->response ?? []);
-
-            if ($this->sidecar->isAvailable()) {
-                $this->sidecar->remember($asset->id, $task, static fn (): array => $response, force: true);
-            }
-            if ($this->claimIngestor !== null && !empty($taskResult->claims)) {
-                try {
-                    $this->claimIngestor->record(
-                        $subject->getWorkflowScope(),
-                        Asset::class,
-                        $asset->id,
-                        $task,
-                        $taskResult->claims,
-                        $taskResult->meta,
-                    );
-                } catch (\Throwable) {
-                    // Claims persistence is best-effort; the sidecar is the authority.
-                }
-            }
+            $outcome = $this->executor->run($asset, $task, $context, $force);
         } catch (\Throwable $e) {
             return new JsonResponse(['error' => $e->getMessage(), 'url' => $url, 'task' => $task], 500);
+        }
+
+        if (!$outcome['ok']) {
+            return new JsonResponse(['error' => "Task {$task}: {$outcome['reason']}", 'id' => $asset->id, 'task' => $task], 422);
         }
 
         return new JsonResponse([
             'id' => $asset->id,
             'url' => $url,
             'task' => $task,
-            'cached' => false,
-            'result' => $response,
+            'cached' => $outcome['cached'],
+            'result' => $outcome['response'],
         ]);
     }
 
