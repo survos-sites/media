@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai;
 
 use Symfony\AI\Platform\Bridge\OpenResponses\Factory;
+use Symfony\AI\Platform\Model;
 use Symfony\AI\Platform\ModelCatalog\ModelCatalogInterface;
 use Symfony\AI\Platform\PlatformInterface;
 use Symfony\AI\Platform\Result\DeferredResult;
@@ -37,7 +38,7 @@ final class SurvosAiToolsPlatform implements PlatformInterface
         );
     }
 
-    public function invoke(string $model, array|string|object $input, array $options = []): DeferredResult
+    public function invoke(Model|string $model, array|string|object $input, array $options = []): DeferredResult
     {
         return $this->platform->invoke($model, $input, $options);
     }

@@ -334,6 +334,9 @@
     "survos/workflow-helper-bundle": {
         "version": "1.5.501"
     },
+    "symfony/ai": {
+        "version": "dev-tac"
+    },
     "symfony/ai-anthropic-platform": {
         "version": "0.5",
         "recipe": {
