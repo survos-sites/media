@@ -1,6 +1,7 @@
 # Full configuration reference: https://symfony.com/bundles/ux-icons/current/index.html#configuration
 ux_icons:
     aliases:
+        list-check: tabler:check
         assets: tabler:folder
         dispatch: tabler:send
         iiif: tabler:link
