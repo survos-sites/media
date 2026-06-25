@@ -313,6 +313,9 @@
     "survos/sais-bundle": {
         "version": "1.5.421"
     },
+    "survos/search-bundle": {
+        "version": "2.10.19"
+    },
     "survos/simple-datatables-bundle": {
         "version": "1.5.418"
     },

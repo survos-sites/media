@@ -14,6 +14,23 @@
                 }
             }
         },
+        "@survos/iiif-bundle": {
+            "iiif-viewer": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            },
+            "iiif-diva": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            },
+            "iiif-pdf": {
+                "enabled": true,
+                "fetch": "lazy",
+                "autoimport": []
+            }
+        },
         "@survos/imgproxy-bundle": {
             "imgproxy": {
                 "enabled": true,

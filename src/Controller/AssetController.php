@@ -280,6 +280,18 @@ final class AssetController extends AbstractController
         $maxPages = $request->query->getInt('maxPages');
         $context = $maxPages > 0 ? ['max_pages' => $maxPages] : [];
 
+        // Optional source/prior context (JSON) for text tasks like extract_metadata:
+        // the caller (e.g. folio) supplies provenance fields + 'observation_prose' so
+        // analyze can combine source metadata with the prior observation without
+        // depending on a server-side claim store.
+        $contextRaw = (string) ($request->query->get('context') ?? $request->request->get('context') ?? '');
+        if ($contextRaw !== '') {
+            $decoded = json_decode($contextRaw, true);
+            if (is_array($decoded)) {
+                $context = array_merge($context, $decoded);
+            }
+        }
+
         try {
             // Ensure (or find) the Asset for this URL — the original binary need not
             // live on our S3; the AI result will, as a sidecar keyed by the Asset id.

@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Ai;
 
 use App\Entity\Asset;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Survos\AiWorkflowBundle\Task\TaskRegistry;
 use Survos\ClaimsBundle\Service\ClaimIngestor;
 use Survos\MediaBundle\Service\SidecarService;
@@ -22,6 +25,8 @@ final class AssetAiExecutor
         private readonly TaskRegistry $registry,
         private readonly SidecarService $sidecar,
         private readonly ?ClaimIngestor $claimIngestor = null,
+        private readonly ?EntityManagerInterface $em = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -52,6 +57,10 @@ final class AssetAiExecutor
         if ($this->sidecar->isAvailable()) {
             $this->sidecar->remember($asset->id, $task, static fn (): array => $response, force: true);
         }
+        // Claims are the durable authority (DB index + claims.jsonl in the vault); the
+        // S3 sidecar is just a cache-aside. ClaimIngestor persists but does not flush —
+        // it leaves that to the caller so bulk runs can batch — so we flush here for the
+        // per-call (sync HTTP) path. Don't swallow silently: a lost claim is real data loss.
         if ($this->claimIngestor !== null && !empty($result->claims)) {
             try {
                 $this->claimIngestor->record(
@@ -62,8 +71,14 @@ final class AssetAiExecutor
                     $result->claims,
                     $result->meta,
                 );
-            } catch (\Throwable) {
-                // Claims persistence is best-effort; the sidecar is the authority.
+                $this->em?->flush();
+            } catch (\Throwable $e) {
+                $this->logger->error('Failed to persist claims for asset {id} task {task}: {err}', [
+                    'id' => $asset->id,
+                    'task' => $task,
+                    'err' => $e->getMessage(),
+                    'exception' => $e,
+                ]);
             }
         }
 
