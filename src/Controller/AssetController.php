@@ -280,6 +280,13 @@ final class AssetController extends AbstractController
         $maxPages = $request->query->getInt('maxPages');
         $context = $maxPages > 0 ? ['max_pages' => $maxPages] : [];
 
+        // Dataset scope for the persisted claims — lets `claims:fetch <dataset>` pull this OCR
+        // into that dataset's vault (see AssetSubject::getWorkflowScope). Omit for one-off calls.
+        $scope = trim((string) ($request->query->get('scope') ?? $request->request->get('scope') ?? ''));
+        if ($scope !== '') {
+            $context['scope'] = $scope;
+        }
+
         // Optional source/prior context (JSON) for text tasks like extract_metadata:
         // the caller (e.g. folio) supplies provenance fields + 'observation_prose' so
         // analyze can combine source metadata with the prior observation without

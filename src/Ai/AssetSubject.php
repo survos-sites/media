@@ -35,7 +35,12 @@ final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterf
 
     public function getWorkflowScope(): ?string
     {
-        return 'mediary';
+        // A caller that knows the dataset (e.g. ai/from-url?scope=nara/coll_dde-1200) scopes the
+        // claims to it, so `claims:fetch <dataset>` can pull them into that dataset's vault. Bare
+        // one-off calls fall back to 'mediary' (the ambient asset-cache scope).
+        $scope = $this->context['scope'] ?? null;
+
+        return is_string($scope) && $scope !== '' ? $scope : 'mediary';
     }
 
     public function isWorkflowLocked(): bool

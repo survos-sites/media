@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Ai;
 
 use App\Entity\Asset;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Survos\AiWorkflowBundle\Task\TaskRegistry;
@@ -25,7 +24,6 @@ final class AssetAiExecutor
         private readonly TaskRegistry $registry,
         private readonly SidecarService $sidecar,
         private readonly ?ClaimIngestor $claimIngestor = null,
-        private readonly ?EntityManagerInterface $em = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -71,7 +69,10 @@ final class AssetAiExecutor
                     $result->claims,
                     $result->meta,
                 );
-                $this->em?->flush();
+                // Flush via the ingestor, which holds the claims EM (survos_claims.entity_manager).
+                // Flushing the app's default EM silently never commits the claims when a separate
+                // claims connection is configured — exactly mediary's setup. See ClaimIngestor::flush().
+                $this->claimIngestor->flush();
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to persist claims for asset {id} task {task}: {err}', [
                     'id' => $asset->id,
