@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "01d8a2b1284cfea3380522a59ce7c8cd",
+    "content-hash": "e71b6e3748c398941ba7638bcdd56ee2",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -7339,16 +7339,16 @@
         },
         {
             "name": "survos/claims-bundle",
-            "version": "2.10.19",
+            "version": "2.10.30",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/claims-bundle.git",
-                "reference": "186796b2e28bab53925aefa7f9093ea5e76b535a"
+                "reference": "c357f9cfdcd5c76e0e2b1e8c0c950ccdab6b6161"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/claims-bundle/zipball/186796b2e28bab53925aefa7f9093ea5e76b535a",
-                "reference": "186796b2e28bab53925aefa7f9093ea5e76b535a",
+                "url": "https://api.github.com/repos/survos/claims-bundle/zipball/c357f9cfdcd5c76e0e2b1e8c0c950ccdab6b6161",
+                "reference": "c357f9cfdcd5c76e0e2b1e8c0c950ccdab6b6161",
                 "shasum": ""
             },
             "require": {
@@ -7396,7 +7396,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/claims-bundle/issues",
-                "source": "https://github.com/survos/claims-bundle/tree/2.10.19"
+                "source": "https://github.com/survos/claims-bundle/tree/2.10.30"
             },
             "funding": [
                 {
@@ -7404,7 +7404,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-22T15:49:03+00:00"
+            "time": "2026-06-25T23:17:42+00:00"
         },
         {
             "name": "survos/command-bundle",
