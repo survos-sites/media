@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e71b6e3748c398941ba7638bcdd56ee2",
+    "content-hash": "0e48a359a55f2b1046b14193310f224c",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -6958,16 +6958,16 @@
         },
         {
             "name": "survos/ai-workflow-bundle",
-            "version": "2.10.19",
+            "version": "2.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/ai-workflow-bundle.git",
-                "reference": "3fbdf64c56b860e0da6cd27b324e153c67097bbb"
+                "reference": "b001c93efc34f59e3af30561504b9327b87f9750"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/ai-workflow-bundle/zipball/3fbdf64c56b860e0da6cd27b324e153c67097bbb",
-                "reference": "3fbdf64c56b860e0da6cd27b324e153c67097bbb",
+                "url": "https://api.github.com/repos/survos/ai-workflow-bundle/zipball/b001c93efc34f59e3af30561504b9327b87f9750",
+                "reference": "b001c93efc34f59e3af30561504b9327b87f9750",
                 "shasum": ""
             },
             "require": {
@@ -7022,7 +7022,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/ai-workflow-bundle/issues",
-                "source": "https://github.com/survos/ai-workflow-bundle/tree/2.10.19"
+                "source": "https://github.com/survos/ai-workflow-bundle/tree/2.11.0"
             },
             "funding": [
                 {
@@ -7030,7 +7030,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-16T12:03:02+00:00"
+            "time": "2026-06-26T13:02:14+00:00"
         },
         {
             "name": "survos/api-grid-bundle",
@@ -7339,16 +7339,16 @@
         },
         {
             "name": "survos/claims-bundle",
-            "version": "2.10.30",
+            "version": "2.10.32",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/claims-bundle.git",
-                "reference": "c357f9cfdcd5c76e0e2b1e8c0c950ccdab6b6161"
+                "reference": "3d91598ca30970e4c069a0fcaac8f333f87ec117"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/claims-bundle/zipball/c357f9cfdcd5c76e0e2b1e8c0c950ccdab6b6161",
-                "reference": "c357f9cfdcd5c76e0e2b1e8c0c950ccdab6b6161",
+                "url": "https://api.github.com/repos/survos/claims-bundle/zipball/3d91598ca30970e4c069a0fcaac8f333f87ec117",
+                "reference": "3d91598ca30970e4c069a0fcaac8f333f87ec117",
                 "shasum": ""
             },
             "require": {
@@ -7396,7 +7396,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/claims-bundle/issues",
-                "source": "https://github.com/survos/claims-bundle/tree/2.10.30"
+                "source": "https://github.com/survos/claims-bundle/tree/2.10.32"
             },
             "funding": [
                 {
@@ -7404,7 +7404,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-25T23:17:42+00:00"
+            "time": "2026-06-26T03:10:19+00:00"
         },
         {
             "name": "survos/command-bundle",
@@ -7665,16 +7665,16 @@
         },
         {
             "name": "survos/dataset-bundle",
-            "version": "2.10.24",
+            "version": "2.10.28",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/dataset-bundle.git",
-                "reference": "3b44119ac602766b25e80e0b141b04e9089b1d31"
+                "reference": "829447e3b4d36ab90a6a95331728d3ccccc7b561"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/dataset-bundle/zipball/3b44119ac602766b25e80e0b141b04e9089b1d31",
-                "reference": "3b44119ac602766b25e80e0b141b04e9089b1d31",
+                "url": "https://api.github.com/repos/survos/dataset-bundle/zipball/829447e3b4d36ab90a6a95331728d3ccccc7b561",
+                "reference": "829447e3b4d36ab90a6a95331728d3ccccc7b561",
                 "shasum": ""
             },
             "require": {
@@ -7727,7 +7727,7 @@
             "description": "Shared data directory conventions and path utilities for dataset-driven apps (APP_DATA_DIR).",
             "support": {
                 "issues": "https://github.com/survos/dataset-bundle/issues",
-                "source": "https://github.com/survos/dataset-bundle/tree/2.10.24"
+                "source": "https://github.com/survos/dataset-bundle/tree/2.10.28"
             },
             "funding": [
                 {
@@ -7735,7 +7735,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-25T01:24:32+00:00"
+            "time": "2026-06-25T18:14:00+00:00"
         },
         {
             "name": "survos/doc-bundle",
@@ -8016,16 +8016,16 @@
         },
         {
             "name": "survos/iiif-bundle",
-            "version": "2.10.19",
+            "version": "2.10.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/iiif-bundle.git",
-                "reference": "c6fc54ca928e4124cfa10267cff82935ca28f4d9"
+                "reference": "ab4bb092bd8acae0f7c7f094138481d47d1f71f4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/iiif-bundle/zipball/c6fc54ca928e4124cfa10267cff82935ca28f4d9",
-                "reference": "c6fc54ca928e4124cfa10267cff82935ca28f4d9",
+                "url": "https://api.github.com/repos/survos/iiif-bundle/zipball/ab4bb092bd8acae0f7c7f094138481d47d1f71f4",
+                "reference": "ab4bb092bd8acae0f7c7f094138481d47d1f71f4",
                 "shasum": ""
             },
             "require": {
@@ -8078,7 +8078,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/iiif-bundle/issues",
-                "source": "https://github.com/survos/iiif-bundle/tree/2.10.19"
+                "source": "https://github.com/survos/iiif-bundle/tree/2.10.27"
             },
             "funding": [
                 {
@@ -8086,7 +8086,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-22T18:25:35+00:00"
+            "time": "2026-06-25T16:40:37+00:00"
         },
         {
             "name": "survos/imgproxy-bundle",
@@ -8157,16 +8157,16 @@
         },
         {
             "name": "survos/import-bundle",
-            "version": "2.10.24",
+            "version": "2.10.28",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/import-bundle.git",
-                "reference": "7a2d53eb4e8bf6f77183a016431923ae9a93c00d"
+                "reference": "9c898d4e1d2c10e86dc1805edca2db08c931ec17"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/import-bundle/zipball/7a2d53eb4e8bf6f77183a016431923ae9a93c00d",
-                "reference": "7a2d53eb4e8bf6f77183a016431923ae9a93c00d",
+                "url": "https://api.github.com/repos/survos/import-bundle/zipball/9c898d4e1d2c10e86dc1805edca2db08c931ec17",
+                "reference": "9c898d4e1d2c10e86dc1805edca2db08c931ec17",
                 "shasum": ""
             },
             "require": {
@@ -8219,7 +8219,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/import-bundle/issues",
-                "source": "https://github.com/survos/import-bundle/tree/2.10.24"
+                "source": "https://github.com/survos/import-bundle/tree/2.10.28"
             },
             "funding": [
                 {
@@ -8227,7 +8227,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-25T01:24:35+00:00"
+            "time": "2026-06-25T18:14:03+00:00"
         },
         {
             "name": "survos/js-twig-bundle",
@@ -8665,16 +8665,16 @@
         },
         {
             "name": "survos/search-bundle",
-            "version": "2.10.24",
+            "version": "2.10.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/search-bundle.git",
-                "reference": "1875b7e9a84c442bed6cfafed8bb84815b546e04"
+                "reference": "0f52f9167da92badc8b7abd17523b54e69ffd2a0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/search-bundle/zipball/1875b7e9a84c442bed6cfafed8bb84815b546e04",
-                "reference": "1875b7e9a84c442bed6cfafed8bb84815b546e04",
+                "url": "https://api.github.com/repos/survos/search-bundle/zipball/0f52f9167da92badc8b7abd17523b54e69ffd2a0",
+                "reference": "0f52f9167da92badc8b7abd17523b54e69ffd2a0",
                 "shasum": ""
             },
             "require": {
@@ -8717,7 +8717,7 @@
             "description": "Field-driven Symfony UX search adapters, including SQLite FTS5 and PostgreSQL BM25 backends.",
             "support": {
                 "issues": "https://github.com/survos/search-bundle/issues",
-                "source": "https://github.com/survos/search-bundle/tree/2.10.24"
+                "source": "https://github.com/survos/search-bundle/tree/2.10.27"
             },
             "funding": [
                 {
@@ -8725,7 +8725,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-25T01:24:22+00:00"
+            "time": "2026-06-25T16:40:06+00:00"
         },
         {
             "name": "survos/simple-datatables-bundle",
@@ -8969,16 +8969,16 @@
         },
         {
             "name": "survos/tabler-bundle",
-            "version": "2.10.25",
+            "version": "2.10.28",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/tabler-bundle.git",
-                "reference": "9194e87f3ea881a8a852e6b2c495c2cc9213d058"
+                "reference": "bfa5683fd32e38c758b7ee5194c9af429d79c145"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/tabler-bundle/zipball/9194e87f3ea881a8a852e6b2c495c2cc9213d058",
-                "reference": "9194e87f3ea881a8a852e6b2c495c2cc9213d058",
+                "url": "https://api.github.com/repos/survos/tabler-bundle/zipball/bfa5683fd32e38c758b7ee5194c9af429d79c145",
+                "reference": "bfa5683fd32e38c758b7ee5194c9af429d79c145",
                 "shasum": ""
             },
             "require": {
@@ -9059,7 +9059,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/tabler-bundle/issues",
-                "source": "https://github.com/survos/tabler-bundle/tree/2.10.25"
+                "source": "https://github.com/survos/tabler-bundle/tree/2.10.28"
             },
             "funding": [
                 {
@@ -9067,7 +9067,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-25T11:39:36+00:00"
+            "time": "2026-06-25T18:14:01+00:00"
         },
         {
             "name": "survos/thumb-hash-bundle",
