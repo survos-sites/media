@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0e48a359a55f2b1046b14193310f224c",
+    "content-hash": "ba41e21dd0f770fa194112d59cf997c0",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -62,16 +62,16 @@
         },
         {
             "name": "api-platform/core",
-            "version": "v4.3.14",
+            "version": "v4.3.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/api-platform/core.git",
-                "reference": "bb5ac429eaf120dd032a393afbf036b8970ca03a"
+                "reference": "1d641ccad7abbc292dc8341895ef57338a853944"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/api-platform/core/zipball/bb5ac429eaf120dd032a393afbf036b8970ca03a",
-                "reference": "bb5ac429eaf120dd032a393afbf036b8970ca03a",
+                "url": "https://api.github.com/repos/api-platform/core/zipball/1d641ccad7abbc292dc8341895ef57338a853944",
+                "reference": "1d641ccad7abbc292dc8341895ef57338a853944",
                 "shasum": ""
             },
             "require": {
@@ -274,9 +274,9 @@
             ],
             "support": {
                 "issues": "https://github.com/api-platform/core/issues",
-                "source": "https://github.com/api-platform/core/tree/v4.3.14"
+                "source": "https://github.com/api-platform/core/tree/v4.3.15"
             },
-            "time": "2026-06-19T08:58:11+00:00"
+            "time": "2026-06-26T10:41:18+00:00"
         },
         {
             "name": "aws/aws-crt-php",
