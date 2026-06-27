@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai;
 
 use App\Entity\Asset;
+use Survos\MediaBundle\Contract\MediaSyncKeys;
 use Survos\DataContracts\Workflow\ContextSubjectInterface;
 use Survos\DataContracts\Workflow\ImageSubjectInterface;
 use Survos\DataContracts\Workflow\WorkflowSubjectInterface;
@@ -25,7 +26,13 @@ final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterf
 
     public function getWorkflowSubjectId(): string
     {
-        return $this->asset->id;
+        // The AI runs against THIS subject, not the raw Asset, so the claim identity is the subject's.
+        // Key to the source record (e.g. fortepan 1957) when the asset carries one → claims land under
+        // (dataset, record_key) where claims:fetch + the folio read them. Bare assets → the asset id.
+        $sourceMeta = $this->asset->sourceMeta ?? [];
+        $recordKey = $this->context[MediaSyncKeys::RECORD_KEY] ?? ($sourceMeta[MediaSyncKeys::RECORD_KEY] ?? null);
+
+        return is_string($recordKey) && $recordKey !== '' ? $recordKey : $this->asset->id;
     }
 
     public function getWorkflowSubjectType(): string
@@ -38,7 +45,10 @@ final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterf
         // A caller that knows the dataset (e.g. ai/from-url?scope=nara/coll_dde-1200) scopes the
         // claims to it, so `claims:fetch <dataset>` can pull them into that dataset's vault. Bare
         // one-off calls fall back to 'mediary' (the ambient asset-cache scope).
-        $scope = $this->context['scope'] ?? null;
+        $sourceMeta = $this->asset->sourceMeta ?? [];
+        $scope = $this->context['scope']
+            ?? $this->context[MediaSyncKeys::DATASET]
+            ?? ($sourceMeta[MediaSyncKeys::DATASET] ?? null);
 
         return is_string($scope) && $scope !== '' ? $scope : 'mediary';
     }

@@ -63,8 +63,8 @@ final class AssetAiExecutor
             try {
                 $this->claimIngestor->record(
                     $subject->getWorkflowScope(),
-                    Asset::class,
-                    $asset->id,
+                    $subject->getWorkflowSubjectType(),
+                    $subject->getWorkflowSubjectId(),
                     $task,
                     $result->claims,
                     $result->meta,
