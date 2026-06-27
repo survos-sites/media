@@ -34,9 +34,9 @@ final class AssetAiTaskRunner
     /**
      * Run the next pending task from aiQueue.
      */
-    public function runNext(Asset $asset): ?string
+    public function runNext(Asset $asset, bool $force = false): ?string
     {
-        $ran = $this->assetTaskWorkflow->runNextAiTask($asset, completeWhenQueueEmpty: true);
+        $ran = $this->assetTaskWorkflow->runNextAiTask($asset, completeWhenQueueEmpty: true, force: $force);
         $this->entityManager->flush();
 
         return $ran;
@@ -66,10 +66,10 @@ final class AssetAiTaskRunner
     /**
      * Run one named task immediately by injecting it at queue head.
      */
-    public function runNamed(Asset $asset, string $taskName): ?string
+    public function runNamed(Asset $asset, string $taskName, bool $force = false): ?string
     {
         $asset->aiQueue = [$taskName, ...$asset->aiQueue];
-        return $this->runNext($asset);
+        return $this->runNext($asset, $force);
     }
 
     /**

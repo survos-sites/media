@@ -10,7 +10,7 @@ use App\Entity\Asset;
 use App\Repository\AssetRepository;
 use App\Workflow\AssetFlow as WF;
 use Doctrine\ORM\EntityManagerInterface;
-use Survos\AiPipelineBundle\Task\AiTaskRegistry;
+use Survos\AiWorkflowBundle\Task\TaskRegistry;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -54,6 +54,7 @@ final class MediaTaskCommand
         private readonly EntityManagerInterface $entityManager,
         #[Target(WF::WORKFLOW_NAME)]
         private readonly WorkflowInterface $assetWorkflow,
+        private readonly TaskRegistry $taskRegistry,
     ) {
     }
 
@@ -86,6 +87,8 @@ final class MediaTaskCommand
 
         #[Option('Pretty-print the task result as JSON')]
         bool $json = false,
+        #[Option('Force re-run, bypassing the sidecar cache')]
+        bool $force = false,
     ): int {
         // ── 1. Resolve asset ──────────────────────────────────────────────────
         $asset = $this->resolveAsset($image);
@@ -140,7 +143,7 @@ final class MediaTaskCommand
 
         // ── 5. Direct task execution ──────────────────────────────────────────
         if ($task !== null) {
-            return $this->runNamedTask($io, $asset, $task, $json);
+            return $this->runNamedTask($io, $asset, $task, $json, $force);
         }
 
         // ── 6. Queue-driven execution ─────────────────────────────────────────
@@ -202,7 +205,7 @@ final class MediaTaskCommand
         return $this->assetRepository->findOneByUrl($imageRef);
     }
 
-    private function runNamedTask(SymfonyStyle $io, Asset $asset, string $taskName, bool $json): int
+    private function runNamedTask(SymfonyStyle $io, Asset $asset, string $taskName, bool $json, bool $force = false): int
     {
         // Validate task name
         if (!$this->taskRegistry->has($taskName)) {
@@ -212,7 +215,7 @@ final class MediaTaskCommand
         }
 
         $io->text("Running task <info>{$taskName}</info>…");
-        $ran = $this->runner->runNamed($asset, $taskName);
+        $ran = $this->runner->runNamed($asset, $taskName, $force);
 
         if ($ran === null) {
             $io->warning('Task was not run (asset locked or queue error).');

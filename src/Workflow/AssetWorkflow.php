@@ -24,6 +24,7 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
 use League\Flysystem\UnableToWriteFile;
 use League\Flysystem\Visibility;
 use Psr\Log\LoggerInterface;
+use App\Ai\AssetAiExecutor;
 use Survos\AiPipelineBundle\Task\AiTaskInterface;
 use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
@@ -67,6 +68,7 @@ class AssetWorkflow
     private array $aiTaskHandlers = [];
 
     public function __construct(
+        private readonly AssetAiExecutor $executor,
         private MediaUrlGenerator $mediaUrlGenerator,
         private readonly ArchiveService $archiveService,
         private ThumbHashService $thumbHashService,
@@ -909,7 +911,7 @@ class AssetWorkflow
      *
      * @return string|null Task name that ran, or null when skipped.
      */
-    public function runNextAiTask(Asset $asset, bool $completeWhenQueueEmpty = false): ?string
+    public function runNextAiTask(Asset $asset, bool $completeWhenQueueEmpty = false, bool $force = false): ?string
     {
         if ($asset->aiLocked) {
             $this->logger->info('Asset AI pipeline locked for {id}; skipping.', ['id' => $asset->id]);
@@ -924,39 +926,31 @@ class AssetWorkflow
         }
 
         $taskName = (string) array_shift($asset->aiQueue);
-        $handler = $this->aiTaskHandlers[$taskName] ?? null;
-
-        if (!$handler instanceof AiTaskInterface) {
-            $this->logger->warning(
-                'Unknown AI task "{task}" on asset {id}; skipping.',
-                ['task' => $taskName, 'id' => $asset->id],
-            );
-            $this->recordCompletedTask($asset, $taskName, ['skipped' => true, 'reason' => 'task handler not found']);
-            if ($completeWhenQueueEmpty && empty($asset->aiQueue)) {
-                $this->finishAiPipeline($asset);
-            }
-            return $taskName;
-        }
-
         $taskOverride = $this->consumeTaskOverride($asset, $taskName);
-        ['inputs' => $inputs, 'imageSource' => $imageSource] = $this->buildAiInputs($asset, $taskName, $taskOverride);
+        $context = $asset->context ?? [];
         if (isset($taskOverride['model']) && is_string($taskOverride['model']) && $taskOverride['model'] !== '') {
-            $inputs['model_hint'] = $taskOverride['model'];
+            $context['model_hint'] = $taskOverride['model'];
         }
-        if (!$handler->supports($inputs, $asset->context ?? [])) {
-            $this->recordCompletedTask($asset, $taskName, ['skipped' => true, 'reason' => 'not supported for this asset']);
-            if ($completeWhenQueueEmpty && empty($asset->aiQueue)) {
-                $this->finishAiPipeline($asset);
-            }
-            return $taskName;
-        }
+        $force = $force || !empty($taskOverride['force']);
 
-        $priorResults = $this->indexedPriorResults($asset);
-
+        // Run via AssetAiExecutor — the ai-workflow bridge that REPLACED the removed ai-pipeline
+        // handler layer (registry → AssetSubject (grounded context) → sidecar cache + claims).
+        // AssetController already uses it; AssetWorkflow had been left on the now-empty
+        // aiTaskHandlers map (every task resolved as "unknown"). See AssetAiExecutor docblock.
         try {
-            $result = $handler->run($inputs, $priorResults, $asset->context ?? []);
-            $result = $this->attachDebugContext($asset, $taskName, $handler, $inputs, $priorResults, $result, $imageSource, $taskOverride);
-            $this->recordCompletedTask($asset, $taskName, $result);
+            $result = $this->executor->run($asset, $taskName, $context, $force);
+            if (!($result['ok'] ?? false)) {
+                $this->logger->warning(
+                    'AI task "{task}" not run on asset {id}: {reason}',
+                    ['task' => $taskName, 'id' => $asset->id, 'reason' => $result['reason'] ?? 'unknown'],
+                );
+                $this->recordCompletedTask($asset, $taskName, ['skipped' => true, 'reason' => $result['reason'] ?? 'unknown']);
+            } else {
+                $this->recordCompletedTask($asset, $taskName, [
+                    'cached'   => $result['cached'] ?? false,
+                    'response' => $result['response'] ?? [],
+                ]);
+            }
         } catch (\Throwable $e) {
             $this->logger->error(
                 'AI task "{task}" failed on asset {id}: {error}',
