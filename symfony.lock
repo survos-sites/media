@@ -212,6 +212,9 @@
             "config/packages/stof_doctrine_extensions.yaml"
         ]
     },
+    "survos/ai-batch-bundle": {
+        "version": "2.10.19"
+    },
     "survos/ai-workflow-bundle": {
         "version": "2.2.5"
     },
@@ -594,6 +597,18 @@
         "files": [
             "config/packages/routing.yaml",
             "config/routes.yaml"
+        ]
+    },
+    "symfony/scheduler": {
+        "version": "8.1",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "7.2",
+            "ref": "caea3c928ee9e1b21288fd76aef36f16ea355515"
+        },
+        "files": [
+            "src/Schedule.php"
         ]
     },
     "symfony/security-bundle": {

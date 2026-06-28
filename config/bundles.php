@@ -63,4 +63,5 @@ return [
     Survos\DataBundle\SurvosDataBundle::class => ['all' => true],
     Symfony\UX\LiveComponent\LiveComponentBundle::class => ['all' => true],
     Survos\SearchBundle\SurvosSearchBundle::class => ['all' => true],
+    Tacman\AiBatch\TacmanAiBatchBundle::class => ['all' => true],
 ];
