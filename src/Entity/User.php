@@ -45,7 +45,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, \String
 
     /**
      * @param string|null $id
-     * @param int|null $approxImageCount
      * @param string|null $mediaCallbackUrl
      * @param string|null $thumbCallbackUrl
      */

@@ -34,7 +34,6 @@ class CiDataLoad extends Fixture
 
             $user = new User(
                 id: $userCode,
-                approxImageCount: rand(100, 10000),
                 mediaCallbackUrl: rand(0, 1) ? "https://example.com/media/callback/{$userCode}" : null,
                 thumbCallbackUrl: rand(0, 1) ? "https://example.com/thumb/callback/{$userCode}" : null
             );
