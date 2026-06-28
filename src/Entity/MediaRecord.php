@@ -158,7 +158,7 @@ final class MediaRecord implements MarkingInterface, \Stringable
     #[ORM\Column(type: Types::BOOLEAN, options: ['default' => false])]
     public bool $aiLocked = false;
 
-    #[ORM\OneToMany(mappedBy: 'mediaRecord', targetEntity: Asset::class)]
+    #[ORM\OneToMany(mappedBy: 'mediaRecord', targetEntity: Asset::class, cascade: ['persist'])]
     public Collection $assets;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
