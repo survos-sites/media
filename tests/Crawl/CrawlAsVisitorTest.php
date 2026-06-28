@@ -11,7 +11,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 class CrawlAsVisitorTest extends BaseVisitLinksTest
 {
 	#[TestDox('/$method $url ($route)')]
-	#[TestWith(['', '/media/search', 500])]
+	#[TestWith(['', '/media/search', 200])]
 	#[TestWith(['', '/api/docs', 200])]
 	#[TestWith(['', '/api', 200])]
 	#[TestWith(['', '/api/files', 200])]
