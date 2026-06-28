@@ -80,7 +80,10 @@ jobs:
     
     - name: Run migrations
       run: bin/console doctrine:migrations:migrate --no-interaction
-    
+
+    - name: Sync schema (tables not covered by migrations, e.g. command_process)
+      run: bin/console doctrine:schema:update --force
+
     - name: Load fixtures
       run: bin/console doctrine:fixtures:load --no-interaction
     
