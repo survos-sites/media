@@ -29,7 +29,7 @@ class AssetFlow
 
     #[Place(
         info: 'Registered/added',
-        next: [self::TRANSITION_ARCHIVE]
+        next: [self::TRANSITION_ARCHIVE, self::TRANSITION_QUEUE_AI]
     )]
     public const PLACE_IIIF = 'iiif';
 

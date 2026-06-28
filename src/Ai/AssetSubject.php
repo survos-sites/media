@@ -26,17 +26,16 @@ final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterf
 
     public function getWorkflowSubjectId(): string
     {
-        // The AI runs against THIS subject, not the raw Asset, so the claim identity is the subject's.
-        // Key to the source record (e.g. fortepan 1957) when the asset carries one → claims land under
-        // (dataset, record_key) where claims:fetch + the folio read them. Bare assets → the asset id.
-        $sourceMeta = $this->asset->sourceMeta ?? [];
-        $recordKey = $this->context[MediaSyncKeys::RECORD_KEY] ?? ($sourceMeta[MediaSyncKeys::RECORD_KEY] ?? null);
-
-        return is_string($recordKey) && $recordKey !== '' ? $recordKey : $this->asset->id;
+        // The universal image id: the asset id IS xxh3(canonical image URL) from our one-and-only id
+        // generator (MediaIdentity::idFromOriginalUrl). The app re-derives the same id from each record's
+        // image URL to fetch/record claims, so observe (mediary) and analyze/folio (app) share identity.
+        return $this->asset->id;
     }
 
     public function getWorkflowSubjectType(): string
     {
+        // Claims key by the Asset class (record-centric via the universal image id), not a brittle
+        // provider prefix. The app fetches them with: WHERE subjectType = Asset::class AND scope = <dataset>.
         return Asset::class;
     }
 
