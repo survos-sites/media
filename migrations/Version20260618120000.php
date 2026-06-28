@@ -45,7 +45,13 @@ final class Version20260618120000 extends AbstractMigration
         SQL);
 
         // Connect + read everything in public (claims, media/asset, …); no write grants.
-        $this->addSql('GRANT CONNECT ON DATABASE mediary TO mediary_ro');
+        // GRANT CONNECT needs a literal db name, but it varies (mediary in prod, sais in CI),
+        // so resolve it at runtime via current_database() rather than hardcoding 'mediary'.
+        $this->addSql(<<<'SQL'
+            DO $$ BEGIN
+                EXECUTE format('GRANT CONNECT ON DATABASE %I TO mediary_ro', current_database());
+            END $$;
+        SQL);
         $this->addSql('GRANT USAGE ON SCHEMA public TO mediary_ro');
         $this->addSql('GRANT SELECT ON ALL TABLES IN SCHEMA public TO mediary_ro');
         // Future tables (created by mediary's owner role) auto-grant SELECT to the RO role.
@@ -64,7 +70,11 @@ final class Version20260618120000 extends AbstractMigration
         $this->addSql('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE SELECT ON TABLES FROM mediary_ro');
         $this->addSql('REVOKE SELECT ON ALL TABLES IN SCHEMA public FROM mediary_ro');
         $this->addSql('REVOKE USAGE ON SCHEMA public FROM mediary_ro');
-        $this->addSql('REVOKE CONNECT ON DATABASE mediary FROM mediary_ro');
+        $this->addSql(<<<'SQL'
+            DO $$ BEGIN
+                EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM mediary_ro', current_database());
+            END $$;
+        SQL);
         $this->addSql('DROP ROLE IF EXISTS mediary_ro');
     }
 }
