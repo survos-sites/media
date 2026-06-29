@@ -2934,7 +2934,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * }
  * @psalm-type SurvosDatasetConfig = array{
  *     routes_enabled?: bool|Param, // Set false to disable automatic bundle route registration. // Default: true
- *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: ""
+ *     route_prefix?: scalar|Param|null, // URL prefix applied to all routes from this bundle. // Default: "/data"
  *     data_dir?: scalar|Param|null, // Default: "%env(APP_DATA_DIR)%"
  *     registry_database_path?: scalar|Param|null, // SQLite database path for the shared dataset registry cache. // Default: "%env(APP_DATA_DIR)%/datasets.db"
  *     dataset_root?: scalar|Param|null, // Default: "work"
