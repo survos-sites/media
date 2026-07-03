@@ -135,6 +135,30 @@ class Asset implements MarkingInterface, RouteParametersInterface, \Stringable
     #[Groups(['asset.read'])]
     public ?array $objectIdentifierConfidences = null;
 
+    // ── Claims denormalized for SQL full-text search ──────────────────────────
+    // The AI-generated title/description/keywords a user actually searches by
+    // (and the search hit card displays via asset_meta()) live in the separate
+    // claims store, not on this entity — see AssetClaimsExtension. These columns
+    // mirror the same claims (kept in sync by ClaimSearchSync) purely so
+    // AssetSearch's tsvector can index them; nothing here should be read
+    // directly — use asset_meta() for display.
+
+    /** Mirrors ClaimMetaResolver::resolve()['caption'] (ai:caption / observe:caption / dcterms:title). */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $claimCaption = null;
+
+    /** Mirrors ClaimMetaResolver::resolve()['prose'] (ai:observationProse / observe:description / ai:denseSummary). */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    public ?string $claimProse = null;
+
+    /** Mirrors ClaimMetaResolver::resolve()['subjects'] (dcterms:subject + observe:tag). */
+    #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
+    public ?array $claimSubjects = null;
+
+    /** Mirrors ClaimMetaResolver::resolve()['type'] (dcterms:type / observe:classification). */
+    #[ORM\Column(type: Types::STRING, length: 64, nullable: true)]
+    public ?string $claimType = null;
+
     #[Groups(['asset.read'])]
     #[Field(filterable: true, widget: Widget::Select, facet: true, order: 60, group: 'Content')]
     public ?string $type { get => $this->sourceMeta['dcterms:type'] ?? null; }

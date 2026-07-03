@@ -5,7 +5,6 @@ namespace App\Controller;
 use App\Entity\Asset;
 use App\Entity\File;
 use App\Form\ProcessPayloadType;
-use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Survos\StateBundle\Service\EntityInterfaceDetector;
 use Survos\StateBundle\Service\WorkflowHelperService;
@@ -18,8 +17,9 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\UX\Chartjs\Builder\ChartBuilderInterface;
+use Symfony\UX\Chartjs\Model\Chart;
 use Thumbhash\Thumbhash;
 
 class ClientController extends AbstractController
@@ -49,52 +49,49 @@ class ClientController extends AbstractController
      */
     #[Route('/', name: 'app_homepage')]
     #[Template('homepage.html.twig')]
-    public function home(UserRepository $userRepository,
-    #[MapQueryParameter] int $limit = 5
-    ): array
+    public function home(ChartBuilderInterface $chartBuilder): array
     {
         $classes = $this->entityInterfaceDetector->getEntitiesImplementing(MarkingInterface::class);
-//        dd($this->entities);
-//        foreach ($this->entities as $entity) {
-//            dd($entity);
-//        }
+
         $counts = [];
         $markingCounts = [];
         foreach ($classes as $class) {
-//        foreach ($this->workflowHelperService->getWorkflowsGroupedByClass() as $class=>$w) {
             $repo = $this->entityManager->getRepository($class);
             $counts[$class] = $repo->count();
             $markings = $this->workflowHelperService->getCounts($class, 'marking');
             ksort($markings);
             $markingCounts[$class] = $markings;
-
-//            $data = $repo->findBy([], ['createdAt' => 'DESC'], 10);
         }
 
+        $assetMarkings = $markingCounts[Asset::class] ?? [];
+        $chart = $chartBuilder->createChart(Chart::TYPE_DOUGHNUT);
+        $chart->setData([
+            'labels' => array_keys($assetMarkings),
+            'datasets' => [[
+                'backgroundColor' => ['#206bc4', '#2fb344', '#f76707', '#ae3ec9', '#4299e1'],
+                'data' => array_values($assetMarkings),
+            ]],
+        ]);
+        $chart->setOptions([
+            'plugins' => ['legend' => ['position' => 'bottom']],
+            'maintainAspectRatio' => false,
+        ]);
 
-//        $content = file_get_contents('https://cdn.dummyjson.com/products/images/beauty/Essence%20Mascara%20Lash%20Princess/1.png');
-//        $content = file_get_contents('https://cdn.dummyjson.com/products/images/beauty/Essence%20Mascara%20Lash%20Princess/thumbnail.png');
-//        $content = file_get_contents(__DIR__ . '/../../sunrise.jpg');
-//        $filename = __DIR__ . '/../../walter1.jpg';
-//
-//        list($width, $height, $pixels) = ThumbHashService::extract_size_and_pixels_with_imagick($content);
-////        list($width, $height, $pixels) = ThumbHashService::extract_size_and_pixels_with_gd($content);
-//
-//        try {
-//            $hash = Thumbhash::RGBAToHash($width, $height, $pixels);
-//            $key = Thumbhash::convertHashToString($hash); // You can store this in your database as a string
-//            $url = Thumbhash::toDataURL($hash);
-//        } catch (\Exception $e) {
-//            dd($e->getMessage());
-//        }
-//        dd($width, $height, $hash, $key, $url);
+        // A handful of AI-enriched assets to showcase — same claim_caption search fixes above
+        // (ClaimSearchSync) make these findable, so show off both at once.
+        $featured = $this->entityManager->getRepository(Asset::class)->createQueryBuilder('a')
+            ->where('a.claimCaption IS NOT NULL')
+            ->orderBy('a.createdAt', 'DESC')
+            ->setMaxResults(6)
+            ->getQuery()
+            ->getResult();
 
         return [
-            'counts' => $counts,
-            'markingCounts' => $markingCounts,
-//            'users' => [],
-            'users' => $userRepository->findAll(),
-//            'rows' => $mediaRepository->findBy([], ['createdAt' => 'DESC'], 30)
+            'assetTotal' => $counts[Asset::class] ?? 0,
+            'mediaRecordTotal' => $counts[\App\Entity\MediaRecord::class] ?? null,
+            'assetMarkings' => $assetMarkings,
+            'markingChart' => $chart,
+            'featured' => $featured,
         ];
     }
 

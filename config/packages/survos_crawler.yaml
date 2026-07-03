@@ -28,3 +28,6 @@ survos_crawler:
         - 'media/browse/*'
         - '/media/browse/*'
         - 'media/index*'
+        # EasyAdmin CRUD autocomplete endpoints (meili_admin_*_autocomplete) require
+        # originatingPage/propertyName context params; probing them bare 500s by design.
+        - '/ez/.*/autocomplete'

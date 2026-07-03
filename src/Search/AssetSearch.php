@@ -14,14 +14,22 @@ final class AssetSearch extends AbstractSearch
     public function build(array $options = []): void
     {
         // Weighted full-text vector. Must stay identical to the expression GIN index
-        // idx_asset_fts (migrations/Version20260605000000) or the planner won't use it.
-        // A=classification labels, B=detected objects, C=document type, D=OCR text.
-        // TODO: add title/description (B/A) once those columns are populated.
+        // idx_asset_fts (migrations/Version20260605000000 + Version20260703000000) or
+        // the planner won't use it.
+        // A = classification labels + claim_caption (the AI title — the single most
+        //     important searchable field) + claim_type.
+        // B = detected objects + claim_subjects (AI keywords/tags — dcterms:subject,
+        //     observe:tag; this is what most free-text queries like "wedding" match).
+        // C = document type.
+        // D = OCR text + claim_prose (the descriptive paragraph — bulk/dense text,
+        //     lowest priority like OCR).
+        // claim_* columns are denormalized from the separate claims store by
+        // ClaimSearchSync — see Asset::$claimCaption doc.
         $vector =
-            "(setweight(to_tsvector('english', coalesce(d.classification::text, '')), 'A') || "
-            ."setweight(to_tsvector('english', coalesce(d.object_identifiers::text, '')), 'B') || "
+            "(setweight(to_tsvector('english', coalesce(d.classification::text, '') || ' ' || coalesce(d.claim_caption, '') || ' ' || coalesce(d.claim_type, '')), 'A') || "
+            ."setweight(to_tsvector('english', coalesce(d.object_identifiers::text, '') || ' ' || coalesce(d.claim_subjects::text, '')), 'B') || "
             ."setweight(to_tsvector('english', coalesce(d.ai_document_type, '')), 'C') || "
-            ."setweight(to_tsvector('english', coalesce(d.local_ocr_text, '')), 'D'))";
+            ."setweight(to_tsvector('english', coalesce(d.local_ocr_text, '') || ' ' || coalesce(d.claim_prose, '')), 'D'))";
 
         $this
             ->enableUrlRewriting()

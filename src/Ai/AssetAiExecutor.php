@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Ai;
 
 use App\Entity\Asset;
+use App\Service\ClaimSearchSync;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Survos\AiWorkflowBundle\Task\TaskRegistry;
@@ -25,6 +27,8 @@ final class AssetAiExecutor
         private readonly SidecarService $sidecar,
         private readonly ?ClaimIngestor $claimIngestor = null,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?ClaimSearchSync $claimSearchSync = null,
+        private readonly ?EntityManagerInterface $em = null,
     ) {
     }
 
@@ -73,6 +77,13 @@ final class AssetAiExecutor
                 // Flushing the app's default EM silently never commits the claims when a separate
                 // claims connection is configured — exactly mediary's setup. See ClaimIngestor::flush().
                 $this->claimIngestor->flush();
+
+                // Keep the FTS columns fresh so this asset is findable via /media/search
+                // immediately, not just after the next backfill run.
+                if ($this->claimSearchSync !== null && $this->em !== null) {
+                    $this->claimSearchSync->sync([$asset]);
+                    $this->em->flush();
+                }
             } catch (\Throwable $e) {
                 $this->logger->error('Failed to persist claims for asset {id} task {task}: {err}', [
                     'id' => $asset->id,

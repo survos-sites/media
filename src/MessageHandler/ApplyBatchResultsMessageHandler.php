@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\MessageHandler;
 
 use App\Entity\Asset;
+use App\Service\ClaimSearchSync;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemOperator;
 use Psr\Log\LoggerInterface;
@@ -38,6 +39,7 @@ final class ApplyBatchResultsMessageHandler
         #[Autowire(service: 'archive.storage')]
         private readonly FilesystemOperator $storage,
         private readonly LoggerInterface $logger,
+        private readonly ClaimSearchSync $claimSearchSync,
     ) {
     }
 
@@ -56,6 +58,7 @@ final class ApplyBatchResultsMessageHandler
 
         $assets = 0;
         $claimsTotal = 0;
+        $assetIds = [];
         foreach (explode("\n", trim($content)) as $line) {
             if ($line === '') {
                 continue;
@@ -78,10 +81,22 @@ final class ApplyBatchResultsMessageHandler
             $this->ingestor->record($batch->datasetKey, Asset::class, $assetId, self::SOURCE, $claims);
             $assets++;
             $claimsTotal += \count($claims);
+            $assetIds[] = $assetId;
         }
         // ClaimIngestor uses its own (survos_claims) EM and does NOT auto-flush — must flush via it,
         // not our default EM, or the claims silently never commit.
         $this->ingestor->flush();
+
+        // Keep the FTS columns fresh so these assets are findable via /media/search
+        // immediately, not just after the next backfill run (app:asset:sync-search-claims).
+        if ($assetIds !== []) {
+            try {
+                $touched = $this->em->getRepository(Asset::class)->findBy(['id' => array_unique($assetIds)]);
+                $this->claimSearchSync->sync($touched);
+            } catch (\Throwable $e) {
+                $this->logger->warning('observe-batch {id}: failed to sync search columns: {err}', ['id' => $batch->id, 'err' => $e->getMessage()]);
+            }
+        }
 
         $batch->appliedCount = $claimsTotal;
         $batch->status = 'applied';

@@ -1,43 +1,96 @@
 {% extends "base.html.twig" %}
 
-{% block page_title %}Survos Image Resizing Server{% endblock %}
+{% block page_title %}Mediary{% endblock %}
 
 {% block body %}
-    <h1>Survos Image Resizing Server</h1>
+    <div class="py-5 text-center border-bottom mb-4" style="background: linear-gradient(180deg, var(--tblr-body-bg) 0%, var(--tblr-bg-surface-secondary) 100%);">
+        <div class="container-xl">
+            <h1 class="display-6 fw-bold mb-2">Mediary</h1>
+            <div class="text-muted mb-4">
+                AI-enriched media archive — {{ assetTotal|number_format }} assets, searchable by what's actually in the picture.
+            </div>
 
-    <div>
-        This server manages the resizing for all images, including museado.org
+            <form method="get" action="{{ path('asset_search') }}" class="mx-auto" style="max-width: 40rem;">
+                <div class="input-group input-group-lg">
+                    <input
+                        type="search"
+                        name="query"
+                        class="form-control"
+                        placeholder="Search by subject, keyword, or description…"
+                        aria-label="Search assets"
+                    >
+                    <button class="btn btn-primary" type="submit">
+                        {{ ux_icon('tabler:search', { class: 'icon' }) }}
+                        Search
+                    </button>
+                </div>
+            </form>
+            <div class="mt-2">
+                <a href="{{ path('asset_browse') }}" class="text-muted small">or browse all assets</a>
+            </div>
+        </div>
     </div>
 
+    <div class="container-xl mb-5">
+        <div class="row g-4 align-items-stretch">
+            <div class="col-12 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <div class="card-title">Assets by state</div>
+                        <div style="height: 220px;">
+                            {{ render_chart(markingChart) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-8">
+                <div class="row g-3 h-100">
+                    <div class="col-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <div class="h1 mb-0">{{ assetTotal|number_format }}</div>
+                                <div class="text-muted">Total assets</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <div class="h1 mb-0">{{ (assetMarkings.complete|default(0))|number_format }}</div>
+                                <div class="text-muted">Fully processed</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if mediaRecordTotal is not null %}
+                        <div class="col-12">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <div class="h1 mb-0">{{ mediaRecordTotal|number_format }}</div>
+                                    <div class="text-muted">Media records</div>
+                                    <a href="{{ path('media_record_browse') }}" class="small">Browse records</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
 
-    {% for class, count in counts %}
-        <h3>
-            {{ class }}: {{ count }}
-            {% for status, count in markingCounts[class] %}
-                <li>{{ status }}: {{ count }}</li>
-            {% endfor %}
-        </h3>
-
-    {% endfor %}
-
-    Some stats here.
-
-    Users used to be clients. :-(
-
-    {% for u in users|default([]) %}
-    <li>
-        {{ u.id }}
-        Media
-
-    </li>
-    {% endfor %}
-
-    {% set belvedereUrl = 'https://sammlung.belvedere.at/internal/media/downloaddispatcher/130189?download=' %}
-    {% set waltersUrl = 'https://art.thewalters.org/images/art/PS1_54.975_Fnt_DD_T08.jpg' %}
-    {% set webhook = url('app_webhook') %}
-    <a href="{{ webhook }}" target="_blank">
-        Webhook as GET {{ webhook }}
-    </a>
-
-
+    {% if featured|length %}
+        <div class="container-xl mb-5">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h2 class="page-title mb-0">Recently enriched</h2>
+                <a href="{{ path('asset_search') }}" class="btn btn-outline-secondary btn-sm">Search all assets</a>
+            </div>
+            {% do asset_claims_prime(featured|map(a => a.id)) %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
+                {% for asset in featured %}
+                    <div class="col">
+                        {{ include('components/Mezcalito/UxSearch/_hit_asset.html.twig', { asset: asset }) }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
 {% endblock %}

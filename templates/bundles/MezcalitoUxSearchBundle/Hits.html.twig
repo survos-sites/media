@@ -1,7 +1,10 @@
 {% block content %}
     <div {{ attributes.defaults({ class: 'ux-search-hits' }) }}>
         {% if results.hits|length > 0 %}
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xxl-4 g-3">
+            {# One batched claims query for the whole page so each card's asset_meta() is a cache hit. #}
+            {% do asset_claims_prime(results.hits|map(hit => hit.data.id ?? null)) %}
+            {# Fewer columns (max 3) leaves room for the observation prose, which is all we have for photos. #}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3">
                 {% for hit in results.hits %}
                     {% set entity = hit.data %}
                     <div class="col">
