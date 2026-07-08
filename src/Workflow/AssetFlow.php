@@ -41,11 +41,10 @@ class AssetFlow
 
     #[Place(
         info: 'imgproxy /info fetched: dimensions, byte size, format, hash from s3:// source.',
-        // STOP here for now — no auto-cascade into triage/analyze. Re-assess the
-        // post-info tooling once we see what /info gives us (it already returns
-        // classify/objects/hashes that may replace some of it). triage/analyze
-        // remain defined and can be run manually.
-        next: [self::TRANSITION_QUEUE_AI]
+        // Resolved: imgproxy's classify:5 (weak on archival photography) is dropped;
+        // ai-tools/argus's Florence-2 triage is now the source of truth for tags and
+        // descriptions (see AssetWorkflow::onTriage). Triage is next.
+        next: [self::TRANSITION_TRIAGE, self::TRANSITION_QUEUE_AI]
     )]
     public const PLACE_INFORMED = 'informed';
 
