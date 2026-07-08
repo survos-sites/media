@@ -16,8 +16,10 @@ framework:
             meili: 'doctrine://default?queue_name=meili'
             failed: 'doctrine://default?queue_name=failed'
             sync: 'sync://'
+            cache_warm: 'doctrine://default?queue_name=cache_warm'
 
         routing:
 #            App\Message\SendWebhookMessage: webhook
 #            Survos\StorageBundle\Message\DirectoryListingMessage: listing
             Survos\MeiliBundle\Message\BatchIndexEntitiesMessage: meili
+            App\Message\WarmImgproxyCacheMessage: cache_warm

@@ -5,6 +5,7 @@ namespace App\Service;
 
 use App\Entity\Asset;
 use App\Entity\MediaRecord;
+use App\Message\WarmImgproxyCacheMessage;
 use App\Repository\AssetRepository;
 use App\Repository\MediaRecordRepository;
 use App\Workflow\AssetFlow;
@@ -102,6 +103,14 @@ final class AssetRegistry
 
     public function dispatch(Asset $asset): void
     {
+        // Warm imgproxy's S3 result cache for the search thumbnail — fire-and-forget,
+        // independent of the AI/download workflow below, so search pages never pay a
+        // cold origin fetch for the first viewer. See WarmImgproxyCacheMessageHandler.
+        $warmUrl = $this->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
+        if ($warmUrl !== null) {
+            $this->messageBus->dispatch(new WarmImgproxyCacheMessage($warmUrl));
+        }
+
         // trigger download
         $nextTransition = AssetFlow::TRANSITION_FETCH_IIIF;
         if ($this->assetWorkflow->can($asset, $nextTransition))
