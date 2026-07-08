@@ -41,10 +41,14 @@ class AssetFlow
 
     #[Place(
         info: 'imgproxy /info fetched: dimensions, byte size, format, hash from s3:// source.',
-        // Resolved: imgproxy's classify:5 (weak on archival photography) is dropped;
-        // ai-tools/argus's Florence-2 triage is now the source of truth for tags and
-        // descriptions (see AssetWorkflow::onTriage). Triage is next.
-        next: [self::TRANSITION_TRIAGE, self::TRANSITION_QUEUE_AI]
+        // classify:5 (weak on archival photography) is dropped for good — argus's
+        // Florence-2 triage is the source of truth for tags/descriptions now. But
+        // triage is NOT in the auto-cascade: at ~30s/image (single CPU instance, no
+        // horizontal scaling) it's fine for manual spot-checks (state:iterate -t triage)
+        // but too slow to be part of the practical default pipeline. Bulk observe goes
+        // through media:batch-observe (OpenAI Batch API) instead. Revisit if/when
+        // argus triage becomes a proper AI task with its own scale story.
+        next: [self::TRANSITION_QUEUE_AI]
     )]
     public const PLACE_INFORMED = 'informed';
 
