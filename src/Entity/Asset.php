@@ -40,11 +40,11 @@ use Symfony\Component\Serializer\Attribute\Groups;
 )]
 #[MeiliIndex(
     chats: ['meili_assistant'],
-    sortable: ['createdAt', 'aiTokensTotal', 'size', 'width', 'height'],
+    sortable: ['createdAt', 'aiTokensTotal', 'size', 'width', 'height', 'faceCount'],
     filterable: ['provider', 'dataset', 'mime', 'clients', 'marking',
         'ext', 'type', 'publisher', 'reuse',
 //        'aiDocumentType', 'aiDocumentSubtype',
-        'subjects', 'classification', 'objectIdentifiers',
+        'subjects', 'classification', 'objectIdentifiers', 'faceCount',
 //                 'aiKeywords', 'aiPeople', 'aiPlaces', 'aiOrganisations', 'aiSafety'
     ],
     searchable: ['title', 'description', 'filename', 'subjects', 'classification', 'objectIdentifiers', 'publisher', 'aiTitle', 'aiDescription', 'aiOcrText', 'aiKeywords',
@@ -134,6 +134,16 @@ class Asset implements MarkingInterface, RouteParametersInterface, \Stringable
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['jsonb' => true])]
     #[Groups(['asset.read'])]
     public ?array $objectIdentifierConfidences = null;
+
+    /**
+     * Count of face boxes from imgproxy's detect_objects (face-detection model).
+     * A free, built-in way to facet portrait (1) / couple (2) / small group (3-5) /
+     * large group (6+) without any extra analysis.
+     */
+    #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['asset.read'])]
+    #[Field(sortable: true, filterable: true, facet: true, widget: Widget::Range, order: 74, group: 'Content')]
+    public ?int $faceCount = null;
 
     // ── Claims denormalized for SQL full-text search ──────────────────────────
     // The AI-generated title/description/keywords a user actually searches by

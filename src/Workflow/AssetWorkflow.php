@@ -6,6 +6,7 @@ namespace App\Workflow;
 use App\Ai\AssetAiTask;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Service\AssetRegistry;
+use App\Service\ClaimSearchSync;
 use App\Service\EdgeAnalysisService;
 use App\Service\IiifManifestService;
 use \RuntimeException as RuntimeException;
@@ -26,6 +27,9 @@ use League\Flysystem\Visibility;
 use Psr\Log\LoggerInterface;
 use App\Ai\AssetAiExecutor;
 use Survos\AiPipelineBundle\Task\AiTaskInterface;
+use Survos\ClaimsBundle\Service\ClaimIngestor;
+use Survos\ClaimsBundle\Service\RawClaim;
+use Survos\ClaimsBundle\Service\RunMeta;
 use Survos\MediaBundle\Service\MediaKeyService;
 use Survos\MediaBundle\Service\MediaUrlGenerator;
 use Survos\ImgproxyBundle\Service\ImgproxyUrlBuilder;
@@ -104,6 +108,8 @@ class AssetWorkflow
         private readonly OcrService $ocrService,
         private readonly AiToolsOcrService $aiToolsOcrService,
         private readonly AiToolsObserveService $aiToolsObserveService,
+        private readonly ClaimIngestor $claimIngestor,
+        private readonly ClaimSearchSync $claimSearchSync,
         private readonly TwigEnvironment $twig,
         #[Target('archive.storage')]  private readonly ?FilesystemOperator $archiveStorage = null,
         private ?GoogleDriveService $driveService = null,
@@ -301,6 +307,30 @@ class AssetWorkflow
         $payload = $this->aiToolsObserveService->observeImage($imageUrl, 'auto');
         $claims = is_array($payload['claims'] ?? null) ? $payload['claims'] : [];
         $run = is_array($payload['run'] ?? null) ? $payload['run'] : [];
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+        // Persist argus's claims (observe:caption/description/tag/classification/text) into
+        // the real claims store, not just the context blob below — this is what
+        // ClaimSearchSync/ClaimMetaResolver mirror onto claimCaption/claimProse/claimSubjects/
+        // claimType for search. Previously these claims were computed but never ingested.
+        $rawClaims = $this->toRawClaims($claims);
+        if ($rawClaims !== []) {
+            $this->claimIngestor->record(
+                $asset->dataset ?? 'mediary',
+                Asset::class,
+                $asset->id,
+                'ai-tools',
+                $rawClaims,
+                new RunMeta(
+                    model: is_string($run['model'] ?? null) ? $run['model'] : 'auto',
+                    durationMs: $durationMs,
+                ),
+            );
+            // ClaimIngestor holds its own (survos_claims) EM — flush via it, not $this->em,
+            // or the claims silently never commit.
+            $this->claimIngestor->flush();
+            $this->claimSearchSync->sync([$asset]);
+        }
 
         $asset->context ??= [];
         $asset->context['triage'] = [
@@ -309,7 +339,7 @@ class AssetWorkflow
             'schema_version' => $payload['schema_version'] ?? null,
             'claims' => $claims,
             'run' => $run,
-            'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            'duration_ms' => $durationMs,
             'at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
         ];
 
@@ -627,9 +657,14 @@ class AssetWorkflow
             // bucket, never another imgproxy URL).
             //
             // The default response carries format, dimensions, mime_type, size, exif,
-            // iptc, xmp, orientation; we add perceptual hashes and ML analysis. Notes:
+            // iptc, xmp, orientation; we add perceptual hashes and face detection. Notes:
             //  - blurhash needs TWO components (bh:x:y); a valueless token 404s.
-            //  - classify / detect_objects return labelled categories + face boxes.
+            //  - detect_objects returns face boxes (this deployment's model is a face
+            //    detector) — kept, it's cheap, already stored, and drives faceCount below.
+            //  - classify (generic ImageNet-style labels) was dropped: weak on archival
+            //    photography. ai-tools/argus's Florence-2 triage (see onTriage below)
+            //    produces far better observe:tag / observe:description claims and is now
+            //    the source of truth for tags/descriptions.
             $info = $this->imgproxyUrlBuilder->info($source, [
                 'size',
                 'format',
@@ -641,7 +676,6 @@ class AssetWorkflow
                 'average',
                 'dominant_colors',
                 'detect_objects:1',
-                'classify:5',
             ]);
 
             $asset->context ??= [];
@@ -700,27 +734,28 @@ class AssetWorkflow
             };
         }
 
-        $asset->classification = $this->classificationLabels($info);
+        // classification (imgproxy's classify:5 labels) is no longer requested — see the
+        // comment in onInfo(). $asset->classification is left in place but unpopulated
+        // going forward; observe:tag claims from argus triage are the tag source now.
         [$objectIdentifiers, $objectIdentifierConfidences] = $this->objectIdentifierData($info);
         $asset->objectIdentifiers = $objectIdentifiers;
         $asset->objectIdentifierConfidences = $objectIdentifierConfidences;
+        $asset->faceCount = $this->faceCount($info);
     }
 
     /**
+     * Count of raw face-box detections from imgproxy's detect_objects (this deployment's
+     * object-detection model is a face detector). Deliberately NOT deduped like
+     * objectIdentifierData() — every box counts, since 3 faces all labelled "face" must
+     * count as 3, not collapse to 1 unique label. Powers the faceCount facet: 1 = portrait,
+     * 2 = couple, 3-5 = small group, 6+ = large group.
+     *
      * @param array<string, mixed> $info
-     * @return string[]|null
      */
-    private function classificationLabels(array $info): ?array
+    private function faceCount(array $info): ?int
     {
-        $entries = $info['classification'] ?? null;
-        if (!is_array($entries)) {
-            return null;
-        }
-
-        return $this->uniqueNonEmptyStrings(array_map(
-            static fn (mixed $entry): ?string => is_array($entry) && is_string($entry['name'] ?? null) ? $entry['name'] : null,
-            $entries,
-        ));
+        $entries = $info['objects'] ?? null;
+        return is_array($entries) ? count($entries) : null;
     }
 
     /**
@@ -1251,6 +1286,38 @@ class AssetWorkflow
         ['url' => $url] = $this->preferredFullImageUrl($asset);
 
         return $url;
+    }
+
+    /**
+     * Maps ai-tools' claim-v1 envelope entries (predicate/value/confidence/basis) to
+     * RawClaim for ClaimIngestor::record(). ai-tools sends confidence as null for
+     * most claims (Florence-2 doesn't emit a calibrated score); RawClaim wants an
+     * int, so untyped/missing confidence falls back to its own default (100).
+     *
+     * @param list<array<string, mixed>> $claims
+     * @return list<RawClaim>
+     */
+    private function toRawClaims(array $claims): array
+    {
+        $rawClaims = [];
+        foreach ($claims as $claim) {
+            $predicate = $claim['predicate'] ?? null;
+            if (!is_string($predicate) || $predicate === '' || !array_key_exists('value', $claim)) {
+                continue;
+            }
+
+            $confidence = $claim['confidence'] ?? null;
+            $basis = $claim['basis'] ?? null;
+
+            $rawClaims[] = new RawClaim(
+                $predicate,
+                $claim['value'],
+                is_numeric($confidence) ? (int) round((float) $confidence) : 100,
+                is_string($basis) ? $basis : null,
+            );
+        }
+
+        return $rawClaims;
     }
 
     /** @param list<array<string, mixed>> $claims */
