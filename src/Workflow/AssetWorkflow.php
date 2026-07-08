@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Workflow;
 
 use App\Ai\AssetAiTask;
+use App\Message\WarmImgproxyCacheMessage;
 use Survos\MediaBundle\Dto\MediaEnrichment;
 use App\Service\AssetRegistry;
 use App\Service\ClaimSearchSync;
@@ -528,6 +529,7 @@ class AssetWorkflow
                 'key' => $asset->storageKey,
             ]);
             $this->em->flush();
+            $this->warmThumbnailCache($asset);
             return;
         }
 
@@ -626,6 +628,22 @@ class AssetWorkflow
         $asset->archiveUrl = $this->assetRegistry->s3Url($asset); // public HTTP URL for browsers
 
         $this->em->flush();
+        $this->warmThumbnailCache($asset);
+    }
+
+    /**
+     * Warm imgproxy's S3 result cache for the search thumbnail — fire-and-forget, not
+     * gated behind any option. Every image needs a thumbnail; the only question is
+     * whether imgproxy reads it from our S3 (storageKey, just set above) or the
+     * remote origin, and by this point in onArchive() that's always resolved. See
+     * WarmImgproxyCacheMessageHandler for the actual GET.
+     */
+    private function warmThumbnailCache(Asset $asset): void
+    {
+        $url = $this->assetRegistry->imgProxyUrl($asset, MediaUrlGenerator::PRESET_SMALL);
+        if ($url !== null) {
+            $this->messageBus->dispatch(new WarmImgproxyCacheMessage($url));
+        }
     }
 
     #[AsTransitionListener(WF::WORKFLOW_NAME, AssetFlow::TRANSITION_INFO)]
