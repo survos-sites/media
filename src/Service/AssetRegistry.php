@@ -42,11 +42,73 @@ final class AssetRegistry
     }
 
     /**
+     * In-batch MediaRecord cache, keyed by recordKey. Active only during
+     * ensureAssets() so attachMediaRecord() can skip the per-item DB lookup
+     * and so two items in the same batch sharing a record key (e.g. PDF
+     * pages) don't each create their own MediaRecord before the flush.
+     *
+     * @var array<string, MediaRecord>|null
+     */
+    private ?array $recordCache = null;
+
+    /**
      * @param array<string,mixed> $contextHints Optional metadata from the caller (folder path, dates, etc.)
      */
     public function ensureAsset(string $originalUrl, ?string $client, bool $flush = false, array $contextHints = []): Asset
     {
-        if (!$asset = $this->assetRepository->findOneByUrl($originalUrl)) {
+        $asset = $this->assetRepository->findOneByUrl($originalUrl);
+
+        $asset = $this->populateAsset($asset, $originalUrl, $client, $contextHints);
+
+        $flush && $this->flush();
+
+        return $asset;
+    }
+
+    /**
+     * Batch variant of ensureAsset() — one query to preload existing Assets and
+     * one to preload existing MediaRecords, instead of a findOneByUrl() /
+     * findOneByRecordKey() round trip per item. media:sync batches of 100+ URLs
+     * were spending ~6 queries/item here, which is what pushed real batches past
+     * the HTTP client timeout.
+     *
+     * @param array<string, array<string,mixed>> $contextHintsByUrl originalUrl => contextHints
+     * @return array<string, Asset> keyed by originalUrl
+     */
+    public function ensureAssets(array $contextHintsByUrl, ?string $client): array
+    {
+        if ($contextHintsByUrl === []) {
+            return [];
+        }
+
+        $urls = array_keys($contextHintsByUrl);
+        $assetPreload = $this->assetRepository->findByUrls($urls);
+
+        $recordKeys = [];
+        foreach ($contextHintsByUrl as $url => $contextHints) {
+            $key = $this->deriveMediaRecordKey($contextHints, $url);
+            if ($key !== null) {
+                $recordKeys[] = $key;
+            }
+        }
+        $this->recordCache = $this->mediaRecordRepository->findByRecordKeys($recordKeys);
+
+        try {
+            $assets = [];
+            foreach ($contextHintsByUrl as $url => $contextHints) {
+                $assets[$url] = $this->populateAsset($assetPreload[$url] ?? null, $url, $client, $contextHints);
+            }
+
+            return $assets;
+        } finally {
+            $this->recordCache = null;
+        }
+    }
+
+    /** @param array<string,mixed> $contextHints */
+    private function populateAsset(?Asset $asset, string $originalUrl, ?string $client, array $contextHints): Asset
+    {
+        if (!$asset instanceof Asset) {
             $asset = new Asset($originalUrl);
             $this->entityManager->persist($asset);
         }
@@ -89,8 +151,6 @@ final class AssetRegistry
         }
 
         $this->attachMediaRecord($asset, $contextHints, $originalUrl);
-
-        $flush && $this->flush();
 
         return $asset;
     }
@@ -145,10 +205,19 @@ final class AssetRegistry
             return;
         }
 
-        $record = $this->mediaRecordRepository->findOneByRecordKey($recordKey);
+        if ($this->recordCache !== null) {
+            $record = $this->recordCache[$recordKey] ?? null;
+        } else {
+            $record = $this->mediaRecordRepository->findOneByRecordKey($recordKey);
+        }
+
         if (!$record instanceof MediaRecord) {
             $record = new MediaRecord($recordKey);
             $this->entityManager->persist($record);
+        }
+
+        if ($this->recordCache !== null) {
+            $this->recordCache[$recordKey] = $record;
         }
 
         if ($asset->mediaRecord?->id !== $record->id) {

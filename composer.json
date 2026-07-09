@@ -56,7 +56,7 @@
         "survos/atlas-bundle": ">=2.10.19",
         "survos/auth-bundle": "^2.10.19",
         "survos/babel-bundle": "^2.10.19",
-        "survos/claims-bundle": "^2.12.0",
+        "survos/claims-bundle": "^2.13.1",
         "survos/command-bundle": "^2.10.24",
         "survos/crawler-bundle": "^2.10.19",
         "survos/data-bundle": "^2.10.25",

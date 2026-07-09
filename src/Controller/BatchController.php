@@ -58,27 +58,46 @@ final class BatchController implements LoggerAwareInterface
             $this->asyncQueueLocator->sync = true;
         }
 
-        $media = [];
-        $queue = [];
+        $urls = $payload->cleanUrls();
 
-        foreach ($payload->cleanUrls() as $url) {
+        // Precompute context hints per URL once — reused for the batched asset
+        // lookup below and the per-item loop, instead of recomputing per item.
+        $contextHintsByUrl = [];
+        foreach ($urls as $url) {
             $item         = $payload->itemFor($url);
             $contextHints = $item->toArray();
             // Store callback URL in context so the workflow can fire it after analysis
             if ($payload->callbackUrl) {
                 $contextHints['callback_url'] = $payload->callbackUrl;
             }
+            $contextHintsByUrl[$url] = $contextHints;
+        }
 
-            $asset = $this->assetRegistry->ensureAsset($url, $client, contextHints: $contextHints);
-            if (!in_array($client, $asset->clients, true)) {
-                $asset->clients[] = $client;
+        // One preload query for existing Assets + one for existing MediaRecords,
+        // instead of a findOneByUrl()/findOneByRecordKey() round trip per URL.
+        $assets = $this->assetRegistry->ensureAssets($contextHintsByUrl, $client);
+
+        // Item-level source claims (title/date/place/keywords) belong to the
+        // record, not the image. Ingest as @import claims keyed by the record
+        // so they survive multi-image and so AI claims (own source) compare
+        // against, never inherit, human metadata. Collected here and ingested
+        // in one recordBatch() call below — record() opens/closes its own vault
+        // JsonlWriter per call, which capped batches at ~10 URLs/sec.
+        $claimItems = [];
+        foreach ($urls as $url) {
+            $claimItem = $this->sourceClaimItem($assets[$url], $payload->claimsFor($url));
+            if ($claimItem !== null) {
+                $claimItems[] = $claimItem;
             }
+        }
+        $this->claimIngestor->recordBatch($claimItems);
 
-            // Item-level source claims (title/date/place/keywords) belong to the
-            // record, not the image. Ingest as @import claims keyed by the record
-            // so they survive multi-image and so AI claims (own source) compare
-            // against, never inherit, human metadata.
-            $this->ingestSourceClaims($asset, $payload->claimsFor($url));
+        $media = [];
+        $queue = [];
+
+        foreach ($urls as $url) {
+            $asset = $assets[$url];
+
             if ($asset->marking === AssetFlow::PLACE_NEW) {
                 $queue[$asset->originalUrl] = $asset;
             }
@@ -109,16 +128,20 @@ final class BatchController implements LoggerAwareInterface
     }
 
     /**
-     * Ingest item-level source metadata as @import claims on the asset's MediaRecord.
-     * No-op when there are no claims or no record — the record only exists when the
-     * caller sent a grouping key (the item id as code/dcterms:identifier/media_record_key).
+     * Build a recordBatch() item for one asset's item-level source metadata
+     * (title/date/place/keywords), ingested as @import claims on the record
+     * so they survive multi-image and so AI claims (own source) compare
+     * against, never inherit, human metadata. Null when there are no claims
+     * or no record — the record only exists when the caller sent a grouping
+     * key (the item id as code/dcterms:identifier/media_record_key).
      *
      * @param list<array<string,mixed>> $claims list of ['predicate'=>string, 'value'=>mixed, 'confidence'?=>int, 'basis'?=>string]
+     * @return array{scope: ?string, subjectType: string, subjectId: string, source: string, rawClaims: list<RawClaim>}|null
      */
-    private function ingestSourceClaims(Asset $asset, array $claims): void
+    private function sourceClaimItem(Asset $asset, array $claims): ?array
     {
         if ($claims === [] || $asset->mediaRecord === null) {
-            return;
+            return null;
         }
 
         $raw = [];
@@ -134,15 +157,15 @@ final class BatchController implements LoggerAwareInterface
             );
         }
         if ($raw === []) {
-            return;
+            return null;
         }
 
-        $this->claimIngestor->record(
-            scope: $asset->dataset,
-            subjectType: MediaRecord::class,
-            subjectId: $asset->mediaRecord->id,
-            source: '@import',
-            rawClaims: $raw,
-        );
+        return [
+            'scope' => $asset->dataset,
+            'subjectType' => MediaRecord::class,
+            'subjectId' => $asset->mediaRecord->id,
+            'source' => '@import',
+            'rawClaims' => $raw,
+        ];
     }
 }

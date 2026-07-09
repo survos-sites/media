@@ -37,4 +37,32 @@ class AssetRepository extends ServiceEntityRepository
         {
             return $this->find(MediaIdentity::idFromOriginalUrl($originalUrl));
         }
+
+        /**
+         * Batch lookup — one query instead of one findOneByUrl() round trip per URL.
+         *
+         * @param string[] $originalUrls
+         * @return array<string, Asset> keyed by originalUrl
+         */
+        public function findByUrls(array $originalUrls): array
+        {
+            if ($originalUrls === []) {
+                return [];
+            }
+
+            $ids = array_map(MediaIdentity::idFromOriginalUrl(...), $originalUrls);
+
+            $rows = $this->createQueryBuilder('a')
+                ->where('a.id IN (:ids)')
+                ->setParameter('ids', $ids)
+                ->getQuery()
+                ->getResult();
+
+            $byUrl = [];
+            foreach ($rows as $row) {
+                $byUrl[$row->originalUrl] = $row;
+            }
+
+            return $byUrl;
+        }
 }
