@@ -6,6 +6,7 @@ namespace App\Ai;
 
 use App\Entity\Asset;
 use Survos\MediaBundle\Contract\MediaSyncKeys;
+use Survos\DataContracts\Workflow\AudioSubjectInterface;
 use Survos\DataContracts\Workflow\ContextSubjectInterface;
 use Survos\DataContracts\Workflow\ImageSubjectInterface;
 use Survos\DataContracts\Workflow\WorkflowSubjectInterface;
@@ -15,7 +16,7 @@ use Survos\DataContracts\Workflow\WorkflowSubjectInterface;
  * its TaskRegistry tasks (observe, ocr_mistral, …) can run directly against an
  * Asset — without the removed ai-pipeline-bundle handler layer.
  */
-final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterface, ContextSubjectInterface
+final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterface, AudioSubjectInterface, ContextSubjectInterface
 {
     /** @param array<string,mixed> $context runtime hints merged over the asset's own context */
     public function __construct(
@@ -63,6 +64,17 @@ final class AssetSubject implements WorkflowSubjectInterface, ImageSubjectInterf
     }
 
     public function getWorkflowImageUrl(): ?string
+    {
+        return $this->asset->originalUrl;
+    }
+
+    /**
+     * Same underlying field as getWorkflowImageUrl() — Asset has no separate audio-url column,
+     * originalUrl is whatever URL the caller registered the asset under (an s3://.../*.m4a for a
+     * YouTube-transcription asset). Kept as its own accessor rather than reusing the image one so
+     * an audio-only task (transcribe_audio) doesn't read a method named for the wrong medium.
+     */
+    public function getWorkflowAudioUrl(): ?string
     {
         return $this->asset->originalUrl;
     }
