@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "70239bb781610e44c3616282675981f2",
+    "content-hash": "24841796a9cef76b310b1db946fedcdf",
     "packages": [
         {
             "name": "adbario/php-dot-notation",
@@ -334,16 +334,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.388.8",
+            "version": "3.388.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "ff7499bfa2b987c8fbae495fe0e851cfdde6172f"
+                "reference": "25ea501f0540489bff6989cab9e7db1d12008aed"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/ff7499bfa2b987c8fbae495fe0e851cfdde6172f",
-                "reference": "ff7499bfa2b987c8fbae495fe0e851cfdde6172f",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/25ea501f0540489bff6989cab9e7db1d12008aed",
+                "reference": "25ea501f0540489bff6989cab9e7db1d12008aed",
                 "shasum": ""
             },
             "require": {
@@ -425,9 +425,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.388.8"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.388.10"
             },
-            "time": "2026-07-16T18:07:15+00:00"
+            "time": "2026-07-20T18:06:03+00:00"
         },
         {
             "name": "behat/mink",
@@ -2725,16 +2725,16 @@
         },
         {
             "name": "guzzlehttp/guzzle",
-            "version": "7.15.0",
+            "version": "7.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/guzzle.git",
-                "reference": "90bd104afeb0fcc2190c9eb6fd8a441447e4b30d"
+                "reference": "61443dfb33c62f308ee8add20f45b4d6e4bf8d2f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/90bd104afeb0fcc2190c9eb6fd8a441447e4b30d",
-                "reference": "90bd104afeb0fcc2190c9eb6fd8a441447e4b30d",
+                "url": "https://api.github.com/repos/guzzle/guzzle/zipball/61443dfb33c62f308ee8add20f45b4d6e4bf8d2f",
+                "reference": "61443dfb33c62f308ee8add20f45b4d6e4bf8d2f",
                 "shasum": ""
             },
             "require": {
@@ -2833,7 +2833,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/guzzle/issues",
-                "source": "https://github.com/guzzle/guzzle/tree/7.15.0"
+                "source": "https://github.com/guzzle/guzzle/tree/7.15.1"
             },
             "funding": [
                 {
@@ -2849,7 +2849,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-17T12:26:48+00:00"
+            "time": "2026-07-18T11:23:11+00:00"
         },
         {
             "name": "guzzlehttp/promises",
@@ -7095,13 +7095,20 @@
         },
         {
             "name": "survos/ai-workflow-bundle",
-            "version": "2.12.0",
+            "version": "2.15.21",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/survos/ai-workflow-bundle.git",
+                "reference": "a86766560b990d31fd823c0131ade88eec8e8320"
+            },
             "dist": {
-                "type": "path",
-                "url": "../mono/bu/ai-workflow-bundle",
-                "reference": "59b8070198ce1dc08b2b9b68cb18134e43818757"
+                "type": "zip",
+                "url": "https://api.github.com/repos/survos/ai-workflow-bundle/zipball/a86766560b990d31fd823c0131ade88eec8e8320",
+                "reference": "a86766560b990d31fd823c0131ade88eec8e8320",
+                "shasum": ""
             },
             "require": {
+                "aws/aws-sdk-php": "^3.388",
                 "php": "^8.5",
                 "survos/claims-bundle": "^2.5",
                 "survos/data-contracts": "^2.5",
@@ -7136,6 +7143,7 @@
                     "Survos\\AiWorkflowBundle\\": "src/"
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "MIT"
             ],
@@ -7149,10 +7157,17 @@
                 "symfony",
                 "workflow"
             ],
-            "transport-options": {
-                "symlink": false,
-                "relative": true
-            }
+            "support": {
+                "issues": "https://github.com/survos/ai-workflow-bundle/issues",
+                "source": "https://github.com/survos/ai-workflow-bundle/tree/2.15.21"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/kbond",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-07-20T20:03:33+00:00"
         },
         {
             "name": "survos/api-grid-bundle",
@@ -7461,16 +7476,16 @@
         },
         {
             "name": "survos/claims-bundle",
-            "version": "2.13.1",
+            "version": "2.15.20",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/claims-bundle.git",
-                "reference": "f1b4c2c7f0c164db7dfdb7815adc29f5e4969bfe"
+                "reference": "a4097b76e95f1cd31bb16f26b859b3a32edb1043"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/claims-bundle/zipball/f1b4c2c7f0c164db7dfdb7815adc29f5e4969bfe",
-                "reference": "f1b4c2c7f0c164db7dfdb7815adc29f5e4969bfe",
+                "url": "https://api.github.com/repos/survos/claims-bundle/zipball/a4097b76e95f1cd31bb16f26b859b3a32edb1043",
+                "reference": "a4097b76e95f1cd31bb16f26b859b3a32edb1043",
                 "shasum": ""
             },
             "require": {
@@ -7518,7 +7533,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/claims-bundle/issues",
-                "source": "https://github.com/survos/claims-bundle/tree/2.13.1"
+                "source": "https://github.com/survos/claims-bundle/tree/2.15.20"
             },
             "funding": [
                 {
@@ -7526,7 +7541,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-09T16:30:56+00:00"
+            "time": "2026-07-20T14:46:21+00:00"
         },
         {
             "name": "survos/command-bundle",
@@ -7740,16 +7755,16 @@
         },
         {
             "name": "survos/data-contracts",
-            "version": "2.15.8",
+            "version": "2.15.21",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/data-contracts.git",
-                "reference": "01a01d058bb5743ff407992e7884ad00e769a887"
+                "reference": "1d0198f48b4cb01fd94a929b2323a99cce0dfa6f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/data-contracts/zipball/01a01d058bb5743ff407992e7884ad00e769a887",
-                "reference": "01a01d058bb5743ff407992e7884ad00e769a887",
+                "url": "https://api.github.com/repos/survos/data-contracts/zipball/1d0198f48b4cb01fd94a929b2323a99cce0dfa6f",
+                "reference": "1d0198f48b4cb01fd94a929b2323a99cce0dfa6f",
                 "shasum": ""
             },
             "require": {
@@ -7775,7 +7790,7 @@
             "description": "Shared data vocabularies, content metadata, and item DTO contracts for Survos data/media/import packages.",
             "support": {
                 "issues": "https://github.com/survos/data-contracts/issues",
-                "source": "https://github.com/survos/data-contracts/tree/2.15.8"
+                "source": "https://github.com/survos/data-contracts/tree/2.15.21"
             },
             "funding": [
                 {
@@ -7783,7 +7798,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-07-14T23:21:15+00:00"
+            "time": "2026-07-20T20:03:33+00:00"
         },
         {
             "name": "survos/dataset-bundle",
@@ -7996,16 +8011,16 @@
         },
         {
             "name": "survos/field-bundle",
-            "version": "2.10.19",
+            "version": "2.15.18",
             "source": {
                 "type": "git",
                 "url": "https://github.com/survos/field-bundle.git",
-                "reference": "719766799ed7e2be6e4640bf7698d0525adf9f1f"
+                "reference": "1d22af04c9c9fdfc3866edd81e35de93fe6ae975"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/survos/field-bundle/zipball/719766799ed7e2be6e4640bf7698d0525adf9f1f",
-                "reference": "719766799ed7e2be6e4640bf7698d0525adf9f1f",
+                "url": "https://api.github.com/repos/survos/field-bundle/zipball/1d22af04c9c9fdfc3866edd81e35de93fe6ae975",
+                "reference": "1d22af04c9c9fdfc3866edd81e35de93fe6ae975",
                 "shasum": ""
             },
             "require": {
@@ -8056,7 +8071,7 @@
             ],
             "support": {
                 "issues": "https://github.com/survos/field-bundle/issues",
-                "source": "https://github.com/survos/field-bundle/tree/2.10.19"
+                "source": "https://github.com/survos/field-bundle/tree/2.15.18"
             },
             "funding": [
                 {
@@ -8064,7 +8079,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-20T10:54:06+00:00"
+            "time": "2026-07-19T10:16:29+00:00"
         },
         {
             "name": "survos/google-sheets-bundle",
