@@ -25,6 +25,15 @@
     {% set objectIdentifiers = [] %}
 {% endif %}
 
+{# asset.mime/ext aren't populated for assets registered straight from a bare URL (ensureAsset(),
+   e.g. mediary/ai/from-url) — sniff the extension off the URL itself so video/audio don't fall
+   through to an imgproxy thumbnail request that imgproxy can't fulfil (it processes images only,
+   not media files), which silently rendered as a broken image. #}
+{% set urlForType = (asset.originalUrl ?: asset.archiveUrl ?: asset.storageKey ?: '')|lower|split('?')|first %}
+{% set fileExt = urlForType|split('.')|last %}
+{% set isVideo = fileExt in ['mp4', 'mov', 'webm', 'm4v', 'avi', 'mkv'] %}
+{% set isAudio = fileExt in ['mp3', 'm4a', 'wav', 'ogg', 'flac', 'aac'] %}
+
 <article class="card h-100 asset-search-card">
     <a href="{{ path('asset_show', {id: asset.id}) }}" class="ratio ratio-4x3 bg-light d-flex align-items-center justify-content-center overflow-hidden">
         {# Render via imgproxy from the canonical master, not a stored derivative. #}
@@ -32,7 +41,17 @@
             ? 's3://museado/' ~ asset.storageKey
             : (asset.archiveUrl ?: asset.originalUrl)
         %}
-        {% if thumbSource %}
+        {% if isVideo %}
+            <span class="text-muted d-flex flex-column align-items-center gap-1">
+                {{ ux_icon('mdi:video', {'class': 'fs-1'})|raw }}
+                <span class="small">Video</span>
+            </span>
+        {% elseif isAudio %}
+            <span class="text-muted d-flex flex-column align-items-center gap-1">
+                {{ ux_icon('mdi:volume-high', {'class': 'fs-1'})|raw }}
+                <span class="small">Audio</span>
+            </span>
+        {% elseif thumbSource %}
             <img
                 src="{{ thumbSource|imgproxy('thumb') }}"
                 alt="{{ title }}"
